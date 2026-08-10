@@ -5,6 +5,7 @@ import { ProgramAuditPage } from './components/pages/ProgramAuditPage';
 import { BankChecklistPage } from './components/pages/BankChecklistPage';
 import { SeksiPage } from './components/pages/SeksiPage';
 import { ProsesPage } from './components/pages/ProsesPage';
+import { JadwalAuditPage } from './components/pages/JadwalAuditPage';
 import { ConstructionPlaceholder } from './components/pages/ConstructionPlaceholder';
 
 function App() {
@@ -35,6 +36,8 @@ function App() {
         return <SeksiPage />;
       case 'proses':
         return <ProsesPage />;
+      case 'jadwal-audit':
+        return <JadwalAuditPage />;
       case 'kalibrasi':
       case 'training':
         return <ConstructionPlaceholder pageId={currentPage} />;

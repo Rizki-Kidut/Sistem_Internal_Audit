@@ -1,19 +1,5 @@
 import { type ReactNode } from 'react';
-import {
-  ClipboardList,
-  CalendarCheck,
-  ListChecks,
-  Users,
-  FileCheck,
-  ClipboardCheck,
-  AlertTriangle,
-  FileText,
-  BarChart3,
-  Settings,
-  Wrench,
-  GraduationCap,
-  Workflow,
-} from 'lucide-react';
+import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow } from 'lucide-react';
 
 export type PageId =
   | 'kalibrasi'
@@ -52,7 +38,7 @@ const navItems: NavItem[] = [
   { id: 'rencana-audit', label: 'Rencana Audit Tahunan', icon: <CalendarCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'bank-checklist', label: 'Bank Checklist', icon: <ListChecks size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'program-audit', label: 'Program Internal Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'jadwal-audit', label: 'Jadwal & Tim Audit', icon: <Users size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'jadwal-audit', label: 'Jadwal & Tim Audit', icon: <Users size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'instruksi-audit', label: 'Instruksi Internal Audit', icon: <FileCheck size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'checklist', label: 'Checklist Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'agenda', label: 'Agenda Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
