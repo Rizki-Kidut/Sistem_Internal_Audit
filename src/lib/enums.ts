@@ -169,3 +169,27 @@ export const STANDAR_AUDIT_LIST: StandarAudit[] = [
   STANDAR_AUDIT.ISO_9001,
   STANDAR_AUDIT.IATF_16949,
 ];
+
+// ============================================================
+// BATCH 3b: AUDITOR / TRAINING
+// ============================================================
+
+// Status auditor
+export const AUDITOR_STATUS = {
+  AKTIF: 'Aktif',
+  NONAKTIF: 'Nonaktif',
+} as const;
+export type AuditorStatus = (typeof AUDITOR_STATUS)[keyof typeof AUDITOR_STATUS];
+
+export const AUDITOR_STATUS_LIST: AuditorStatus[] = [
+  AUDITOR_STATUS.AKTIF,
+  AUDITOR_STATUS.NONAKTIF,
+];
+
+// Hasil validasi kompetensi auditor
+export const KOMPETENSI_STATUS = {
+  MEMENUHI: 'Memenuhi Syarat',
+  EXPIRED: 'Tidak Memenuhi Syarat',
+  BELUM_ADA: 'Belum Ada Sertifikasi',
+} as const;
+export type KompetensiStatus = (typeof KOMPETENSI_STATUS)[keyof typeof KOMPETENSI_STATUS];

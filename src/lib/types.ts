@@ -193,7 +193,7 @@ export interface ProsesSeksi {
 // BATCH 3a: JADWAL AUDIT & RUANG LINGKUP
 // ============================================================
 
-import type { JenisAudit, AuditScheduleStatus, StandarAudit } from './enums';
+import type { JenisAudit, AuditScheduleStatus, StandarAudit, AuditorStatus } from './enums';
 
 // Header jadwal audit teknis
 export interface AuditSchedule {
@@ -207,6 +207,34 @@ export interface AuditSchedule {
   standar: StandarAudit[]; // array standar acuan
   status: AuditScheduleStatus;
   approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Master auditor (modul Training)
+export interface Auditor {
+  id: string;
+  nama: string;
+  nip: string | null;
+  departemen: string | null;
+  jabatan: string | null;
+  kualifikasi: string[];
+  tanggal_sertifikasi: string | null; // ISO date
+  tanggal_berlaku: string | null; // ISO date
+  status: AuditorStatus;
+  catatan: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Tim audit per jadwal
+export interface AuditTeam {
+  id: string;
+  schedule_id: string;
+  lead_auditor_id: string | null;
+  member_ids: string[];
+  auditee_area_owner_ids: string[];
+  catatan_justifikasi: string | null;
   created_at: string;
   updated_at: string;
 }

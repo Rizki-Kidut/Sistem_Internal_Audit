@@ -3,7 +3,7 @@
 // Buat jadwal baru via wizard 2-langkah (CreateWizardModal).
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck, Plus, ArrowLeft, Trash2 } from 'lucide-react';
+import { CalendarCheck, Plus, Trash2 } from 'lucide-react';
 import type { AuditSchedule, AuditScope, Proses, Seksi } from '../../lib/types';
 import { AUDIT_SCHEDULE_STATUS } from '../../lib/enums';
 import type { JenisAudit, StandarAudit } from '../../lib/enums';
@@ -23,6 +23,7 @@ import { getActiveProses } from '../../services/prosesService';
 import { CreateWizardModal } from './jadwal-audit/CreateWizardModal';
 import { ScheduleHeader } from './jadwal-audit/ScheduleHeader';
 import { ScopeTab } from './jadwal-audit/ScopeTab';
+import { TimAuditTab } from './jadwal-audit/TimAuditTab';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 
@@ -34,10 +35,15 @@ const STATUS_BADGE: Record<string, 'gray' | 'green' | 'blue' | 'amber'> = {
   Closed: 'gray',
 };
 
-type TabId = 'ruang-lingkup';
+type TabId = 'ruang-lingkup' | 'tim-audit' | 'checklist' | 'agenda' | 'pelaksanaan' | 'temuan';
 
 const TABS: { id: TabId; label: string; soon?: boolean }[] = [
   { id: 'ruang-lingkup', label: 'Ruang Lingkup' },
+  { id: 'tim-audit', label: 'Tim Audit' },
+  { id: 'checklist', label: 'Checklist', soon: true },
+  { id: 'agenda', label: 'Agenda', soon: true },
+  { id: 'pelaksanaan', label: 'Pelaksanaan', soon: true },
+  { id: 'temuan', label: 'Temuan', soon: true },
 ];
 
 export function JadwalAuditPage() {
@@ -248,6 +254,16 @@ export function JadwalAuditPage() {
             seksiList={seksiList}
             readOnly={isReadOnly}
             onReload={handleReloadScopes}
+            onError={(msg) => setError(msg)}
+          />
+        )}
+
+        {activeTab === 'tim-audit' && (
+          <TimAuditTab
+            schedule={schedule}
+            scopes={scopes}
+            seksiList={seksiList}
+            readOnly={isReadOnly}
             onError={(msg) => setError(msg)}
           />
         )}
