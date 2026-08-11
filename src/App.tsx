@@ -6,6 +6,8 @@ import { BankChecklistPage } from './components/pages/BankChecklistPage';
 import { SeksiPage } from './components/pages/SeksiPage';
 import { ProsesPage } from './components/pages/ProsesPage';
 import { JadwalAuditPage } from './components/pages/JadwalAuditPage';
+import { InstruksiAuditPage } from './components/pages/InstruksiAuditPage';
+import { PlantAdminPage } from './components/pages/PlantAdminPage';
 import { ConstructionPlaceholder } from './components/pages/ConstructionPlaceholder';
 
 function App() {
@@ -38,6 +40,10 @@ function App() {
         return <ProsesPage />;
       case 'jadwal-audit':
         return <JadwalAuditPage />;
+      case 'instruksi-audit':
+        return <InstruksiAuditPage />;
+      case 'plant-admin':
+        return <PlantAdminPage />;
       case 'kalibrasi':
       case 'training':
         return <ConstructionPlaceholder pageId={currentPage} />;

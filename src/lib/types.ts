@@ -253,3 +253,109 @@ export interface AuditScope {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// BATCH 4: INSTRUKSI INTERNAL AUDIT + MASTER PLANT/MODEL/SHIFT
+// ============================================================
+
+import type { InstructionStatus, TipeBaris, TipeSeksiMark, StatusProgress } from './enums';
+
+export interface Plant {
+  id: string;
+  nama: string;
+  urutan_tampil: number;
+  aktif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TargetModel {
+  id: string;
+  plant_id: string;
+  nama: string;
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Shift {
+  id: string;
+  plant_id: string;
+  nama: string;
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalPair {
+  dibuat_oleh_qms: string | null;
+  disetujui_oleh_direktur: string | null;
+}
+
+export interface AuditInstruction {
+  id: string;
+  program_id: string | null;
+  tahun_fiskal: number;
+  tujuan_audit: string | null;
+  tanggal_buat: string | null;
+  tanggal_revisi: string | null;
+  no_revisi: number;
+  kode_dokumen: string;
+  prefix_nomor_audit: string;
+  approval_pembuatan: ApprovalPair;
+  approval_selesai: ApprovalPair;
+  status: InstructionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeksiMark {
+  seksi_id: string;
+  tipe: TipeSeksiMark;
+}
+
+export interface AuditorAssignment {
+  auditor_id: string;
+  is_lead: boolean;
+}
+
+export interface MatriksProdukMark {
+  plant_id: string;
+  target_model_id: string;
+}
+
+export interface MatriksManufakturShiftMark {
+  plant_id: string;
+  shift_id: string;
+}
+
+export interface AuditInstructionRow {
+  id: string;
+  instruction_id: string;
+  kode_audit: string;
+  team: string | null;
+  proses_id: string | null;
+  pemilik_proses: string | null;
+  seksi_marks: SeksiMark[];
+  auditor: AuditorAssignment[];
+  tipe_baris: TipeBaris;
+  matriks_produk_marks: MatriksProdukMark[];
+  matriks_manufaktur_shift_marks: MatriksManufakturShiftMark[];
+  tanggal_audit_produk: string | null;
+  nama_auditor_produk: string | null;
+  kualifikasi: string | null;
+  item_lain_diperiksa: string | null;
+  tanggal_plan_audit: string | null;
+  tanggal_pelaksanaan_audit: string | null;
+  cek_selesai: boolean;
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RowStatusProgress = StatusProgress;
+
+export function computeStatusProgress(row: AuditInstructionRow): RowStatusProgress {
+  void row;
+  return 'Belum Mulai';
+}

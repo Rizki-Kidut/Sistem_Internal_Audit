@@ -193,3 +193,55 @@ export const KOMPETENSI_STATUS = {
   BELUM_ADA: 'Belum Ada Sertifikasi',
 } as const;
 export type KompetensiStatus = (typeof KOMPETENSI_STATUS)[keyof typeof KOMPETENSI_STATUS];
+
+// ============================================================
+// BATCH 4: INSTRUKSI INTERNAL AUDIT
+// ============================================================
+
+export const INSTRUCTION_STATUS = {
+  DRAFT: 'Draft',
+  BERJALAN: 'Berjalan',
+  SELESAI: 'Selesai',
+} as const;
+export type InstructionStatus = (typeof INSTRUCTION_STATUS)[keyof typeof INSTRUCTION_STATUS];
+
+export const INSTRUCTION_STATUS_LIST: InstructionStatus[] = [
+  INSTRUCTION_STATUS.DRAFT,
+  INSTRUCTION_STATUS.BERJALAN,
+  INSTRUCTION_STATUS.SELESAI,
+];
+
+export const TIPE_BARIS = {
+  REGULER: 'Reguler',
+  AUDIT_PRODUK: 'AuditProduk',
+  AUDIT_MANUFAKTUR: 'AuditManufaktur',
+  AUDIT_SHIFT: 'AuditShift',
+} as const;
+export type TipeBaris = (typeof TIPE_BARIS)[keyof typeof TIPE_BARIS];
+
+export const TIPE_BARIS_LIST: TipeBaris[] = [
+  TIPE_BARIS.REGULER,
+  TIPE_BARIS.AUDIT_PRODUK,
+  TIPE_BARIS.AUDIT_MANUFAKTUR,
+  TIPE_BARIS.AUDIT_SHIFT,
+];
+
+export const TIPE_BARIS_LABEL: Record<TipeBaris, string> = {
+  Reguler: 'Reguler',
+  AuditProduk: 'Audit Produk',
+  AuditManufaktur: 'Audit Manufaktur',
+  AuditShift: 'Audit Shift',
+};
+
+export const TIPE_SEKSI_MARK = {
+  TARGET: 'target',
+  TERKAIT: 'terkait',
+} as const;
+export type TipeSeksiMark = (typeof TIPE_SEKSI_MARK)[keyof typeof TIPE_SEKSI_MARK];
+
+export const KODE_DOKUMEN_INSTRUCTION = 'Q-120-ISE-001-FORM-003';
+
+export const STATUS_PROGRESS = {
+  BELUM_MULAI: 'Belum Mulai',
+} as const;
+export type StatusProgress = (typeof STATUS_PROGRESS)[keyof typeof STATUS_PROGRESS];

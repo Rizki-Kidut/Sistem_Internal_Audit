@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow } from 'lucide-react';
+import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow, Factory } from 'lucide-react';
 
 export type PageId =
   | 'kalibrasi'
@@ -8,6 +8,7 @@ export type PageId =
   | 'program-audit'
   | 'jadwal-audit'
   | 'instruksi-audit'
+  | 'plant-admin'
   | 'checklist'
   | 'agenda'
   | 'temuan'
@@ -39,7 +40,7 @@ const navItems: NavItem[] = [
   { id: 'bank-checklist', label: 'Bank Checklist', icon: <ListChecks size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'program-audit', label: 'Program Internal Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'jadwal-audit', label: 'Jadwal & Tim Audit', icon: <Users size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'instruksi-audit', label: 'Instruksi Internal Audit', icon: <FileCheck size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'instruksi-audit', label: 'Instruksi Internal Audit', icon: <FileCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'checklist', label: 'Checklist Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'agenda', label: 'Agenda Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'temuan', label: 'Temuan (PLOR)', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
   // Master data
   { id: 'seksi', label: 'Kelola Seksi', icon: <Settings size={18} />, group: 'Master Data' },
   { id: 'proses', label: 'Kelola Proses', icon: <Workflow size={18} />, group: 'Master Data' },
+  { id: 'plant-admin', label: 'Plant, Model & Shift', icon: <Factory size={18} />, group: 'Master Data' },
 ];
 
 interface SidebarProps {

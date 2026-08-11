@@ -1,0 +1,423 @@
+// Tabel baris instruksi audit (audit_instruction_rows).
+// Manual add row. Fitur generate otomatis menyusul batch berikutnya.
+
+import { useState } from 'react';
+import { Plus, Trash2, Pencil, SquareCheck as CheckSquare, Square } from 'lucide-react';
+import type {
+  AuditInstructionRow, Proses, Seksi, Auditor,
+  Plant, TargetModel, Shift,
+  SeksiMark, AuditorAssignment,
+} from '../../../lib/types';
+import { computeStatusProgress } from '../../../lib/types';
+import { TIPE_BARIS_LIST, TIPE_BARIS_LABEL, TIPE_SEKSI_MARK } from '../../../lib/enums';
+import type { TipeBaris, TipeSeksiMark } from '../../../lib/enums';
+import { saveRow, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
+import { formatTanggal } from '../../../lib/utils';
+import { Modal } from '../../ui/Modal';
+import { Field, Input, Select, Textarea } from '../../ui/Field';
+import { Button, Card, Badge, EmptyState } from '../../ui';
+
+interface RowsTableProps {
+  instructionId: string;
+  prefixNomorAudit: string;
+  rows: AuditInstructionRow[];
+  prosesList: Proses[];
+  seksiList: Seksi[];
+  auditorList: Auditor[];
+  plants: Plant[];
+  targetModels: TargetModel[];
+  shifts: Shift[];
+  readOnly: boolean;
+  onReload: () => void;
+  onError: (msg: string) => void;
+}
+
+interface RowForm {
+  team: string;
+  proses_id: string;
+  tipe_baris: TipeBaris;
+  seksi_marks: SeksiMark[];
+  auditor: AuditorAssignment[];
+  matriks_produk_marks: { plant_id: string; target_model_id: string }[];
+  matriks_manufaktur_shift_marks: { plant_id: string; shift_id: string }[];
+  tanggal_audit_produk: string;
+  nama_auditor_produk: string;
+  kualifikasi: string;
+  item_lain_diperiksa: string;
+  tanggal_plan_audit: string;
+  tanggal_pelaksanaan_audit: string;
+  cek_selesai: boolean;
+}
+
+function emptyForm(): RowForm {
+  return {
+    team: '', proses_id: '', tipe_baris: 'Reguler',
+    seksi_marks: [], auditor: [],
+    matriks_produk_marks: [], matriks_manufaktur_shift_marks: [],
+    tanggal_audit_produk: '', nama_auditor_produk: '', kualifikasi: '',
+    item_lain_diperiksa: '', tanggal_plan_audit: '', tanggal_pelaksanaan_audit: '',
+    cek_selesai: false,
+  };
+}
+
+export function RowsTable({
+  instructionId, prefixNomorAudit, rows, prosesList, seksiList, auditorList,
+  plants, targetModels, shifts, readOnly, onReload, onError,
+}: RowsTableProps) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<AuditInstructionRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<RowForm>(emptyForm());
+
+  function openCreate() { setEditingRow(null); setForm(emptyForm()); setEditOpen(true); }
+
+  function openEdit(row: AuditInstructionRow) {
+    setEditingRow(row);
+    setForm({
+      team: row.team ?? '', proses_id: row.proses_id ?? '', tipe_baris: row.tipe_baris,
+      seksi_marks: row.seksi_marks ?? [], auditor: row.auditor ?? [],
+      matriks_produk_marks: row.matriks_produk_marks ?? [],
+      matriks_manufaktur_shift_marks: row.matriks_manufaktur_shift_marks ?? [],
+      tanggal_audit_produk: row.tanggal_audit_produk ?? '', nama_auditor_produk: row.nama_auditor_produk ?? '',
+      kualifikasi: row.kualifikasi ?? '', item_lain_diperiksa: row.item_lain_diperiksa ?? '',
+      tanggal_plan_audit: row.tanggal_plan_audit ?? '', tanggal_pelaksanaan_audit: row.tanggal_pelaksanaan_audit ?? '',
+      cek_selesai: row.cek_selesai,
+    });
+    setEditOpen(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const isReguler = form.tipe_baris === 'Reguler';
+      const isProduk = form.tipe_baris === 'AuditProduk';
+      const isManufakturOrShift = form.tipe_baris === 'AuditManufaktur' || form.tipe_baris === 'AuditShift';
+
+      // tipeBaris eksklusif: Reguler mengunci matriks lain, tipe khusus mengunci matriks Seksi
+      const finalSeksiMarks = isReguler ? form.seksi_marks : [];
+      const finalProdukMarks = isProduk ? form.matriks_produk_marks : [];
+      const finalManufakturMarks = isManufakturOrShift ? form.matriks_manufaktur_shift_marks : [];
+
+      const pemilikProses = resolvePemilikProses(form.proses_id || null, prosesList, seksiList, finalSeksiMarks);
+
+      if (editingRow) {
+        await saveRow({
+          ...editingRow,
+          team: form.team || null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
+          seksi_marks: finalSeksiMarks, auditor: form.auditor, tipe_baris: form.tipe_baris,
+          matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
+          tanggal_audit_produk: form.tanggal_audit_produk || null,
+          nama_auditor_produk: form.nama_auditor_produk || null,
+          kualifikasi: form.kualifikasi || null, item_lain_diperiksa: form.item_lain_diperiksa || null,
+          tanggal_plan_audit: form.tanggal_plan_audit || null,
+          tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
+          cek_selesai: form.cek_selesai,
+        });
+      } else {
+        const kodeAudit = await generateNextKodeAudit(prefixNomorAudit);
+        await saveRow({
+          instruction_id: instructionId, kode_audit: kodeAudit,
+          team: form.team || null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
+          seksi_marks: finalSeksiMarks, auditor: form.auditor, tipe_baris: form.tipe_baris,
+          matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
+          tanggal_audit_produk: form.tanggal_audit_produk || null,
+          nama_auditor_produk: form.nama_auditor_produk || null,
+          kualifikasi: form.kualifikasi || null, item_lain_diperiksa: form.item_lain_diperiksa || null,
+          tanggal_plan_audit: form.tanggal_plan_audit || null,
+          tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
+          cek_selesai: form.cek_selesai,
+        });
+      }
+      setEditOpen(false);
+      onReload();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Gagal menyimpan baris');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(row: AuditInstructionRow) {
+    try { await deleteRow(row.id); onReload(); }
+    catch (e) { onError(e instanceof Error ? e.message : 'Gagal menghapus baris'); }
+  }
+
+  async function handleToggleCek(row: AuditInstructionRow) {
+    try { await saveRow({ ...row, cek_selesai: !row.cek_selesai }); onReload(); }
+    catch (e) { onError(e instanceof Error ? e.message : 'Gagal update cek selesai'); }
+  }
+
+  // Seksi mark helpers
+  function toggleSeksiMark(seksiId: string) {
+    setForm((prev) => {
+      if (prev.seksi_marks.find((m) => m.seksi_id === seksiId))
+        return { ...prev, seksi_marks: prev.seksi_marks.filter((m) => m.seksi_id !== seksiId) };
+      return { ...prev, seksi_marks: [...prev.seksi_marks, { seksi_id: seksiId, tipe: TIPE_SEKSI_MARK.TARGET }] };
+    });
+  }
+  function setSeksiMarkTipe(seksiId: string, tipe: TipeSeksiMark) {
+    setForm((prev) => ({ ...prev, seksi_marks: prev.seksi_marks.map((m) => m.seksi_id === seksiId ? { ...m, tipe } : m) }));
+  }
+
+  // Auditor helpers
+  function toggleAuditor(auditorId: string) {
+    setForm((prev) => {
+      if (prev.auditor.find((a) => a.auditor_id === auditorId))
+        return { ...prev, auditor: prev.auditor.filter((a) => a.auditor_id !== auditorId) };
+      return { ...prev, auditor: [...prev.auditor, { auditor_id: auditorId, is_lead: false }] };
+    });
+  }
+  function toggleAuditorLead(auditorId: string) {
+    setForm((prev) => ({ ...prev, auditor: prev.auditor.map((a) => a.auditor_id === auditorId ? { ...a, is_lead: !a.is_lead } : { ...a, is_lead: false }) }));
+  }
+
+  // Matriks produk helpers
+  function toggleProdukMark(plantId: string, modelId: string) {
+    setForm((prev) => {
+      if (prev.matriks_produk_marks.find((m) => m.plant_id === plantId && m.target_model_id === modelId))
+        return { ...prev, matriks_produk_marks: prev.matriks_produk_marks.filter((m) => !(m.plant_id === plantId && m.target_model_id === modelId)) };
+      return { ...prev, matriks_produk_marks: [...prev.matriks_produk_marks, { plant_id: plantId, target_model_id: modelId }] };
+    });
+  }
+
+  // Matriks manufaktur/shift helpers
+  function toggleManufakturMark(plantId: string, shiftId: string) {
+    setForm((prev) => {
+      if (prev.matriks_manufaktur_shift_marks.find((m) => m.plant_id === plantId && m.shift_id === shiftId))
+        return { ...prev, matriks_manufaktur_shift_marks: prev.matriks_manufaktur_shift_marks.filter((m) => !(m.plant_id === plantId && m.shift_id === shiftId)) };
+      return { ...prev, matriks_manufaktur_shift_marks: [...prev.matriks_manufaktur_shift_marks, { plant_id: plantId, shift_id: shiftId }] };
+    });
+  }
+
+  const isReguler = form.tipe_baris === 'Reguler';
+  const isProduk = form.tipe_baris === 'AuditProduk';
+  const isManufakturOrShift = form.tipe_baris === 'AuditManufaktur' || form.tipe_baris === 'AuditShift';
+
+  function getProsesName(id: string | null): string {
+    if (!id) return '-';
+    return prosesList.find((p) => p.id === id)?.nama_proses ?? id;
+  }
+  function getAuditorNames(assignments: AuditorAssignment[]): string {
+    if (assignments.length === 0) return '-';
+    return assignments.map((a) => {
+      const nama = auditorList.find((au) => au.id === a.auditor_id)?.nama ?? a.auditor_id;
+      return a.is_lead ? `${nama} (Lead)` : nama;
+    }).join(', ');
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-gray-900">Daftar Audit</h3>
+          <Badge variant="gray">{rows.length} baris</Badge>
+        </div>
+        {!readOnly && <Button size="sm" onClick={openCreate}><Plus size={14} /> Tambah Baris</Button>}
+      </div>
+
+      {rows.length === 0 ? (
+        <Card className="p-12">
+          <EmptyState title="Belum ada baris audit" message="Tambahkan baris audit manual. Fitur generate otomatis menyusul batch berikutnya."
+            action={!readOnly ? <Button size="sm" onClick={openCreate}><Plus size={14} /> Tambah Baris</Button> : undefined} />
+        </Card>
+      ) : (
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Kode</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipe</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Proses</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tim</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Auditor</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Pemilik Proses</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Plan Audit</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Pelaksanaan</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Progress</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase">Cek</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Aksi</th>
+            </tr></thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map((row) => (
+                <tr key={row.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 font-mono text-xs font-medium text-gray-900 whitespace-nowrap">{row.kode_audit}</td>
+                  <td className="px-3 py-2"><Badge variant={row.tipe_baris === 'Reguler' ? 'gray' : 'blue'}>{TIPE_BARIS_LABEL[row.tipe_baris]}</Badge></td>
+                  <td className="px-3 py-2 text-gray-700">{getProsesName(row.proses_id)}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.team ?? '-'}</td>
+                  <td className="px-3 py-2 text-gray-700 text-xs">{getAuditorNames(row.auditor)}</td>
+                  <td className="px-3 py-2 text-gray-700 text-xs">{row.pemilik_proses ?? '-'}</td>
+                  <td className="px-3 py-2 text-gray-600 text-xs whitespace-nowrap">{row.tanggal_plan_audit ? formatTanggal(row.tanggal_plan_audit) : '-'}</td>
+                  <td className="px-3 py-2 text-gray-600 text-xs whitespace-nowrap">{row.tanggal_pelaksanaan_audit ? formatTanggal(row.tanggal_pelaksanaan_audit) : '-'}</td>
+                  <td className="px-3 py-2"><Badge variant="gray">{computeStatusProgress(row)}</Badge></td>
+                  <td className="px-3 py-2 text-center">
+                    <button onClick={() => !readOnly && handleToggleCek(row)} disabled={readOnly} className="inline-flex" title="Cek selesai">
+                      {row.cek_selesai ? <CheckSquare size={16} className="text-green-600" /> : <Square size={16} className="text-gray-300" />}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {!readOnly && (<>
+                      <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
+                      <button onClick={() => handleDelete(row)} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
+                    </>)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)}
+        title={editingRow ? `Edit Baris ${editingRow.kode_audit}` : 'Tambah Baris Audit'}
+        size="xl"
+        footer={<><Button variant="secondary" onClick={() => setEditOpen(false)}>Batal</Button><Button onClick={handleSave} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button></>}
+      >
+        <div className="space-y-4">
+          <Field label="Tipe Baris" required>
+            <Select value={form.tipe_baris} onChange={(e) => setForm({ ...form, tipe_baris: e.target.value as TipeBaris })}>
+              {TIPE_BARIS_LIST.map((t) => <option key={t} value={t}>{TIPE_BARIS_LABEL[t]}</option>)}
+            </Select>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Team"><Input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} placeholder="mis. Tim A" /></Field>
+            <Field label="Proses">
+              <Select value={form.proses_id} onChange={(e) => setForm({ ...form, proses_id: e.target.value })}>
+                <option value="">— Pilih Proses —</option>
+                {prosesList.map((p) => <option key={p.id} value={p.id}>{p.kode_proses} — {p.nama_proses}</option>)}
+              </Select>
+            </Field>
+          </div>
+
+          {isReguler && (
+            <Field label="Seksi Marks (Target/Terkait)">
+              <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {seksiList.map((s) => {
+                  const mark = form.seksi_marks.find((m) => m.seksi_id === s.id);
+                  return (
+                    <div key={s.id} className="flex items-center gap-3">
+                      <input type="checkbox" checked={!!mark} onChange={() => toggleSeksiMark(s.id)} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                      <span className="text-sm flex-1">{s.nama}</span>
+                      {mark && (
+                        <Select value={mark.tipe} onChange={(e) => setSeksiMarkTipe(s.id, e.target.value as TipeSeksiMark)} className="w-32">
+                          <option value={TIPE_SEKSI_MARK.TARGET}>Target</option>
+                          <option value={TIPE_SEKSI_MARK.TERKAIT}>Terkait</option>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
+
+          <Field label="Auditor">
+            <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+              {auditorList.length === 0 && <p className="text-xs text-gray-400">Belum ada data auditor</p>}
+              {auditorList.map((a) => {
+                const assigned = form.auditor.find((x) => x.auditor_id === a.id);
+                return (
+                  <div key={a.id} className="flex items-center gap-3">
+                    <input type="checkbox" checked={!!assigned} onChange={() => toggleAuditor(a.id)} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                    <span className="text-sm flex-1">{a.nama}</span>
+                    {assigned && (
+                      <label className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" checked={assigned.is_lead} onChange={() => toggleAuditorLead(a.id)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                        Lead
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Field>
+
+          {isProduk && (
+            <Field label="Matriks Produk (Plant x Target Model)">
+              <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                {plants.map((plant) => {
+                  const plantModels = targetModels.filter((m) => m.plant_id === plant.id);
+                  if (plantModels.length === 0) return null;
+                  return (
+                    <div key={plant.id} className="mb-3">
+                      <p className="text-xs font-medium text-gray-600 mb-1">{plant.nama}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {plantModels.map((model) => {
+                          const checked = form.matriks_produk_marks.some((m) => m.plant_id === plant.id && m.target_model_id === model.id);
+                          return (
+                            <label key={model.id} className="flex items-center gap-1 text-sm cursor-pointer">
+                              <input type="checkbox" checked={checked} onChange={() => toggleProdukMark(plant.id, model.id)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                              {model.nama}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
+
+          {isManufakturOrShift && (
+            <Field label="Matriks Manufaktur/Shift (Plant x Shift)">
+              <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                {plants.map((plant) => {
+                  const plantShifts = shifts.filter((s) => s.plant_id === plant.id);
+                  if (plantShifts.length === 0) return null;
+                  return (
+                    <div key={plant.id} className="mb-3">
+                      <p className="text-xs font-medium text-gray-600 mb-1">{plant.nama}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {plantShifts.map((shift) => {
+                          const checked = form.matriks_manufaktur_shift_marks.some((m) => m.plant_id === plant.id && m.shift_id === shift.id);
+                          return (
+                            <label key={shift.id} className="flex items-center gap-1 text-sm cursor-pointer">
+                              <input type="checkbox" checked={checked} onChange={() => toggleManufakturMark(plant.id, shift.id)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                              {shift.nama}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
+
+          {isProduk && (<>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Tanggal Audit Produk"><Input type="date" value={form.tanggal_audit_produk} onChange={(e) => setForm({ ...form, tanggal_audit_produk: e.target.value })} /></Field>
+              <Field label="Kualifikasi">
+                <Select value={form.kualifikasi} onChange={(e) => setForm({ ...form, kualifikasi: e.target.value })}>
+                  <option value="">—</option><option value="Y">Y</option><option value="N">N</option>
+                </Select>
+              </Field>
+            </div>
+            <Field label="Nama Auditor Produk">
+              <div className="flex items-center gap-2">
+                <Input value={form.nama_auditor_produk} onChange={(e) => setForm({ ...form, nama_auditor_produk: e.target.value })} placeholder="Kosongkan lalu klik tombol di kanan" />
+                <Button variant="secondary" size="sm" onClick={() => setForm({ ...form, nama_auditor_produk: '(Lihat kolom Auditor)' })} title="Isi dengan placeholder referensi ke kolom Auditor">Sama dengan Auditor</Button>
+              </div>
+              {form.nama_auditor_produk === '(Lihat kolom Auditor)' && (
+                <p className="mt-1 text-xs text-blue-600">Label diisi "(Lihat kolom Auditor)" — merujuk ke kolom Auditor di baris ini.</p>
+              )}
+            </Field>
+          </>)}
+
+          <Field label="Item Lain Diperiksa"><Textarea value={form.item_lain_diperiksa} onChange={(e) => setForm({ ...form, item_lain_diperiksa: e.target.value })} rows={2} placeholder="Item lain yang diperiksa..." /></Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Tanggal Plan Audit"><Input type="date" value={form.tanggal_plan_audit} onChange={(e) => setForm({ ...form, tanggal_plan_audit: e.target.value })} /></Field>
+            <Field label="Tanggal Pelaksanaan Audit"><Input type="date" value={form.tanggal_pelaksanaan_audit} onChange={(e) => setForm({ ...form, tanggal_pelaksanaan_audit: e.target.value })} /></Field>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.cek_selesai} onChange={(e) => setForm({ ...form, cek_selesai: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+            <span className="text-sm text-gray-700">Cek Selesai</span>
+          </label>
+        </div>
+      </Modal>
+    </div>
+  );
+}
