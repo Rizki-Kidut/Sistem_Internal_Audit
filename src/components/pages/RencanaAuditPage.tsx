@@ -123,13 +123,18 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     setLoadingDetail(true);
     setError(null);
     try {
-      // Sync proses aktif dari master data sebelum load
+      // Sync proses aktif dari master data sebelum load.
+      // Non-fatal: jika sync gagal, tetap lanjut load matriks supaya halaman tidak kosong.
       const masterList = Array.from(masterProsesMap.values()).map((p) => ({
         id: p.id,
         nama_proses: p.nama_proses,
         kode_proses: p.kode_proses,
       }));
-      await syncProcessesFromMaster(planId, masterList);
+      try {
+        await syncProcessesFromMaster(planId, masterList);
+      } catch {
+        // sync gagal (mis. constraint) — tidak blok render matriks
+      }
 
       const [p, procs, links, scheds] = await Promise.all([
         getAuditPlanById(planId),
