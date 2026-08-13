@@ -2,16 +2,18 @@
 // List menampilkan semua instruksi; detail menampilkan header + RowsTable.
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileCheck, Plus, Trash2, Pencil, Eye } from 'lucide-react';
+import { FileCheck, Plus, Trash2, Pencil, Eye, Sparkles } from 'lucide-react';
 import type {
   AuditInstruction, AuditInstructionRow,
   Proses, Seksi, Auditor,
   Plant, TargetModel, Shift,
+  AuditProgram,
 } from '../../lib/types';
 import {
   getInstructions, getInstructionById, saveInstruction, deleteInstruction,
-  getRowsByInstruction,
+  getRowsByInstruction, generateFromProgram,
 } from '../../services/auditInstructionService';
+import { getAuditPrograms } from '../../services/auditProgramService';
 import { getAllProses } from '../../services/prosesService';
 import { getSeksiList } from '../../services/seksiService';
 import { getActiveAuditors } from '../../services/auditorService';
@@ -49,6 +51,13 @@ export function InstruksiAuditPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<AuditInstruction | null>(null);
   const [headerChanged, setHeaderChanged] = useState(false);
+
+  // Generate dari Program state
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [programs, setPrograms] = useState<AuditProgram[]>([]);
+  const [generateLoading, setGenerateLoading] = useState(false);
+  const [generateSaving, setGenerateSaving] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -113,6 +122,38 @@ export function InstruksiAuditPage() {
       setError(e instanceof Error ? e.message : 'Gagal membuat instruksi');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function openGenerateModal() {
+    setGenerateOpen(true);
+    setGenerateLoading(true);
+    setSelectedProgramId('');
+    try {
+      const progs = await getAuditPrograms();
+      setPrograms(progs);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat program');
+    } finally {
+      setGenerateLoading(false);
+    }
+  }
+
+  async function handleGenerate() {
+    if (!selectedProgramId) return;
+    const prog = programs.find((p) => p.id === selectedProgramId);
+    if (!prog) return;
+    setGenerateSaving(true);
+    setError(null);
+    try {
+      const result = await generateFromProgram(prog.id, prog.tahun, seksiList);
+      setGenerateOpen(false);
+      await loadList();
+      await openDetail(result.instruction);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal generate instruksi');
+    } finally {
+      setGenerateSaving(false);
     }
   }
 
@@ -189,7 +230,10 @@ export function InstruksiAuditPage() {
           <h1 className="text-2xl font-bold text-gray-900">Instruksi Internal Audit</h1>
           <p className="mt-1 text-sm text-gray-500">Daftar instruksi audit dan baris pelaksanaannya.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Buat Instruksi</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => openGenerateModal()}><Sparkles size={16} /> Generate dari Program</Button>
+          <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Buat Instruksi</Button>
+        </div>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
@@ -254,6 +298,32 @@ export function InstruksiAuditPage() {
             <p className="mt-1">Status awal: <Badge variant="gray">Draft</Badge></p>
             <p className="mt-1">Tanggal buat: {toDateInput(new Date())}</p>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={generateOpen} onClose={() => setGenerateOpen(false)}
+        title="Generate Instruksi dari Program Internal Audit"
+        size="md"
+        footer={<><Button variant="secondary" onClick={() => setGenerateOpen(false)}>Batal</Button><Button onClick={handleGenerate} disabled={generateSaving || !selectedProgramId}>{generateSaving ? 'Memproses...' : 'Generate'}</Button></>}
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+            Membuat instruksi audit + satu baris per proses di Rencana Audit Tahunan sumber program. Kode audit, seksi, pemilik proses, tanggal plan, dan auditor tim akan terisi otomatis.
+          </div>
+          <Field label="Pilih Program Internal Audit" required>
+            {generateLoading ? (
+              <p className="text-sm text-gray-400">Memuat program...</p>
+            ) : programs.length === 0 ? (
+              <p className="text-sm text-gray-400">Belum ada program audit. Buat program dari Rencana Audit Tahunan yang berstatus Approved terlebih dahulu.</p>
+            ) : (
+              <Select value={selectedProgramId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedProgramId(e.target.value)}>
+                <option value="">— Pilih Program —</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>{p.jenis_ronde} ke-{p.nomor_ke} — FY {p.tahun} ({p.kode_dokumen})</option>
+                ))}
+              </Select>
+            )}
+          </Field>
         </div>
       </Modal>
 

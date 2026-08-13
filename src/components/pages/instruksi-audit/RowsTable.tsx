@@ -205,6 +205,35 @@ export function RowsTable({
     }).join(', ');
   }
 
+  // Matrix display helpers
+  function seksiMarkSymbol(seksiId: string, marks: SeksiMark[]): string {
+    const mark = marks.find((m) => m.seksi_id === seksiId);
+    if (!mark) return '';
+    return mark.tipe === TIPE_SEKSI_MARK.TARGET ? '★' : '•';
+  }
+
+  function isProdukMarked(plantId: string, modelId: string, marks: { plant_id: string; target_model_id: string }[]): boolean {
+    return marks.some((m) => m.plant_id === plantId && m.target_model_id === modelId);
+  }
+
+  function isManufakturMarked(plantId: string, shiftId: string, marks: { plant_id: string; shift_id: string }[]): boolean {
+    return marks.some((m) => m.plant_id === plantId && m.shift_id === shiftId);
+  }
+
+  // Build flat column lists for 2-level headers
+  const produkCols = plants.flatMap((p) =>
+    targetModels.filter((m) => m.plant_id === p.id).map((m) => ({ plant: p, model: m }))
+  );
+  const manufakturCols = plants.flatMap((p) =>
+    shifts.filter((s) => s.plant_id === p.id).map((s) => ({ plant: p, shift: s }))
+  );
+
+  // Colspan for plant group headers
+  function plantColspan(plantId: string, type: 'produk' | 'manufaktur'): number {
+    if (type === 'produk') return targetModels.filter((m) => m.plant_id === plantId).length;
+    return shifts.filter((s) => s.plant_id === plantId).length;
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -217,50 +246,142 @@ export function RowsTable({
 
       {rows.length === 0 ? (
         <Card className="p-12">
-          <EmptyState title="Belum ada baris audit" message="Tambahkan baris audit manual. Fitur generate otomatis menyusul batch berikutnya."
+          <EmptyState title="Belum ada baris audit" message="Klik 'Generate dari Program' di halaman daftar instruksi untuk auto-generate, atau tambah baris manual."
             action={!readOnly ? <Button size="sm" onClick={openCreate}><Plus size={14} /> Tambah Baris</Button> : undefined} />
         </Card>
       ) : (
         <Card className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Kode</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipe</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Proses</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tim</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Auditor</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Pemilik Proses</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Plan Audit</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Pelaksanaan</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Progress</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase">Cek</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Aksi</th>
-            </tr></thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 font-mono text-xs font-medium text-gray-900 whitespace-nowrap">{row.kode_audit}</td>
-                  <td className="px-3 py-2"><Badge variant={row.tipe_baris === 'Reguler' ? 'gray' : 'blue'}>{TIPE_BARIS_LABEL[row.tipe_baris]}</Badge></td>
-                  <td className="px-3 py-2 text-gray-700">{getProsesName(row.proses_id)}</td>
-                  <td className="px-3 py-2 text-gray-700">{row.team ?? '-'}</td>
-                  <td className="px-3 py-2 text-gray-700 text-xs">{getAuditorNames(row.auditor)}</td>
-                  <td className="px-3 py-2 text-gray-700 text-xs">{row.pemilik_proses ?? '-'}</td>
-                  <td className="px-3 py-2 text-gray-600 text-xs whitespace-nowrap">{row.tanggal_plan_audit ? formatTanggal(row.tanggal_plan_audit) : '-'}</td>
-                  <td className="px-3 py-2 text-gray-600 text-xs whitespace-nowrap">{row.tanggal_pelaksanaan_audit ? formatTanggal(row.tanggal_pelaksanaan_audit) : '-'}</td>
-                  <td className="px-3 py-2"><Badge variant="gray">{computeStatusProgress(row)}</Badge></td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => !readOnly && handleToggleCek(row)} disabled={readOnly} className="inline-flex" title="Cek selesai">
-                      {row.cek_selesai ? <CheckSquare size={16} className="text-green-600" /> : <Square size={16} className="text-gray-300" />}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    {!readOnly && (<>
-                      <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
-                      <button onClick={() => handleDelete(row)} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
-                    </>)}
-                  </td>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              {/* Row 1: top-level group headers */}
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">No. Audit</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Tipe</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Team</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Proses</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Pemilik Proses</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Auditor</th>
+                {/* Matriks Seksi */}
+                <th colSpan={seksiList.length} className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase border-r border-gray-200">Matriks Seksi</th>
+                {/* Matriks Audit Produk */}
+                {produkCols.length > 0 && (
+                  <th colSpan={produkCols.length} className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase border-r border-gray-200">Matriks Audit Produk</th>
+                )}
+                {/* Matriks Manufaktur & Shift */}
+                {manufakturCols.length > 0 && (
+                  <th colSpan={manufakturCols.length} className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase border-r border-gray-200">Manufaktur & Shift</th>
+                )}
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Item Lain</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Tanggal Plan</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Pelaksanaan</th>
+                <th rowSpan={2} className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Cek</th>
+                <th rowSpan={2} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap border-r border-gray-200">Status</th>
+                <th rowSpan={2} className="px-2 py-2 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Aksi</th>
+              </tr>
+              {/* Row 2: sub-level headers */}
+              <tr className="border-b border-gray-200 bg-gray-50">
+                {/* Seksi sub-headers */}
+                {seksiList.map((s) => (
+                  <th key={s.id} className="px-1 py-1 text-center text-[10px] font-medium text-gray-400 whitespace-nowrap" title={s.nama}>
+                    {s.nama.slice(0, 3)}
+                  </th>
+                ))}
+                {/* Produk: Plant → Model sub-headers */}
+                {produkCols.map(({ plant, model }) => (
+                  <th key={`${plant.id}-${model.id}`} className="px-1 py-1 text-center text-[10px] font-medium text-gray-400 whitespace-nowrap" title={`${plant.nama} → ${model.nama}`}>
+                    {model.nama}
+                  </th>
+                ))}
+                {/* Manufaktur: Plant → Shift sub-headers */}
+                {manufakturCols.map(({ plant, shift }) => (
+                  <th key={`${plant.id}-${shift.id}`} className="px-1 py-1 text-center text-[10px] font-medium text-gray-400 whitespace-nowrap" title={`${plant.nama} → ${shift.nama}`}>
+                    {shift.nama}
+                  </th>
+                ))}
+              </tr>
+              {/* Row 3: plant group labels (only for produk & manufaktur) */}
+              {plants.length > 0 && (produkCols.length > 0 || manufakturCols.length > 0) && (
+                <tr className="border-b border-gray-200 bg-gray-50/50">
+                  <th colSpan={6} className="px-2 py-1 border-r border-gray-200"></th>
+                  {seksiList.length > 0 && <th colSpan={seksiList.length} className="border-r border-gray-200"></th>}
+                  {plants.map((p) => {
+                    const pc = plantColspan(p.id, 'produk');
+                    return pc > 0 ? (
+                      <th key={p.id} colSpan={pc} className="px-1 py-1 text-center text-[9px] font-medium text-gray-400 border-r border-gray-100">{p.nama}</th>
+                    ) : null;
+                  })}
+                  {plants.map((p) => {
+                    const mc = plantColspan(p.id, 'manufaktur');
+                    return mc > 0 ? (
+                      <th key={p.id} colSpan={mc} className="px-1 py-1 text-center text-[9px] font-medium text-gray-400 border-r border-gray-100">{p.nama}</th>
+                    ) : null;
+                  })}
+                  <th colSpan={4} className="border-r border-gray-200"></th>
+                  <th></th>
                 </tr>
-              ))}
+              )}
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map((row) => {
+                const isSpecial = row.tipe_baris !== 'Reguler';
+                const status: string = computeStatusProgress(row);
+                const statusVariant = status === 'Selesai' ? 'green' : status === 'Berjalan' ? 'blue' : 'gray';
+                return (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="px-2 py-2 font-mono text-xs font-medium text-gray-900 whitespace-nowrap border-r border-gray-100">{row.kode_audit}</td>
+                    <td className="px-2 py-2 whitespace-nowrap border-r border-gray-100">
+                      {isSpecial ? (
+                        <Badge variant="blue">{TIPE_BARIS_LABEL[row.tipe_baris]}</Badge>
+                      ) : (
+                        <Badge variant="gray">{TIPE_BARIS_LABEL[row.tipe_baris]}</Badge>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{row.team ?? '-'}</td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getProsesName(row.proses_id)}</td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{row.pemilik_proses ?? '-'}</td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getAuditorNames(row.auditor)}</td>
+                    {/* Matriks Seksi cells */}
+                    {seksiList.map((s) => (
+                      <td key={s.id} className="px-1 py-2 text-center text-sm border-r border-gray-50">
+                        <span className={seksiMarkSymbol(s.id, row.seksi_marks) === '★' ? 'text-blue-600' : 'text-gray-400'}>
+                          {seksiMarkSymbol(s.id, row.seksi_marks) || <span className="text-gray-200">·</span>}
+                        </span>
+                      </td>
+                    ))}
+                    {/* Matriks Produk cells */}
+                    {produkCols.map(({ plant, model }) => (
+                      <td key={`${plant.id}-${model.id}`} className="px-1 py-2 text-center text-xs border-r border-gray-50">
+                        <span className={isProdukMarked(plant.id, model.id, row.matriks_produk_marks) ? 'text-blue-600 font-bold' : 'text-gray-200'}>
+                          {isProdukMarked(plant.id, model.id, row.matriks_produk_marks) ? '✓' : '·'}
+                        </span>
+                      </td>
+                    ))}
+                    {/* Matriks Manufaktur cells */}
+                    {manufakturCols.map(({ plant, shift }) => (
+                      <td key={`${plant.id}-${shift.id}`} className="px-1 py-2 text-center text-xs border-r border-gray-50">
+                        <span className={isManufakturMarked(plant.id, shift.id, row.matriks_manufaktur_shift_marks) ? 'text-blue-600 font-bold' : 'text-gray-200'}>
+                          {isManufakturMarked(plant.id, shift.id, row.matriks_manufaktur_shift_marks) ? '✓' : '·'}
+                        </span>
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 text-gray-600 text-xs border-r border-gray-100 max-w-[120px] truncate" title={row.item_lain_diperiksa ?? ''}>{row.item_lain_diperiksa ?? '-'}</td>
+                    <td className="px-2 py-2 text-gray-600 text-xs whitespace-nowrap border-r border-gray-100">{row.tanggal_plan_audit ? formatTanggal(row.tanggal_plan_audit) : '-'}</td>
+                    <td className="px-2 py-2 text-gray-600 text-xs whitespace-nowrap border-r border-gray-100">{row.tanggal_pelaksanaan_audit ? formatTanggal(row.tanggal_pelaksanaan_audit) : '-'}</td>
+                    <td className="px-2 py-2 text-center border-r border-gray-100">
+                      <button onClick={() => !readOnly && handleToggleCek(row)} disabled={readOnly} className="inline-flex" title="Cek selesai">
+                        {row.cek_selesai ? <CheckSquare size={16} className="text-green-600" /> : <Square size={16} className="text-gray-300" />}
+                      </button>
+                    </td>
+                    <td className="px-2 py-2 border-r border-gray-100"><Badge variant={statusVariant}>{status}</Badge></td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap">
+                      {!readOnly && (<>
+                        <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
+                        <button onClick={() => handleDelete(row)} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
+                      </>)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </Card>
