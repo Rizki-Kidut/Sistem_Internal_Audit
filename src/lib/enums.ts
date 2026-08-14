@@ -55,7 +55,27 @@ export const HASIL_CHECKLIST = {
   MAJOR: 'A',
   MINOR: 'B',
   OFI: 'C',
+  N_A: 'N-A', // Not Applicable
 } as const;
+export type HasilChecklist = (typeof HASIL_CHECKLIST)[keyof typeof HASIL_CHECKLIST];
+
+export const HASIL_CHECKLIST_LIST: string[] = [
+  HASIL_CHECKLIST.SESUAI,
+  HASIL_CHECKLIST.MAJOR,
+  HASIL_CHECKLIST.MINOR,
+  HASIL_CHECKLIST.OFI,
+  HASIL_CHECKLIST.N_A,
+];
+
+export const HASIL_CHECKLIST_LABEL: Record<string, string> = {
+  'O': 'O — Sesuai',
+  'A': 'A — Major',
+  'B': 'B — Minor',
+  'C': 'C — OFI',
+  'N-A': 'N/A',
+};
+
+export const KODE_DOKUMEN_CHECKLIST = 'Q-120-ISE-001-FORM-005';
 
 export const CHECKLIST_BANK_STATUS = {
   AKTIF: 'Aktif',

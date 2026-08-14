@@ -2,7 +2,7 @@
 // List menampilkan semua instruksi; detail menampilkan header + RowsTable.
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileCheck, Plus, Trash2, Pencil, Eye, Sparkles } from 'lucide-react';
+import { FileCheck, Plus, Trash2, Pencil, Eye, Sparkles, ClipboardList, ListChecks } from 'lucide-react';
 import type {
   AuditInstruction, AuditInstructionRow,
   Proses, Seksi, Auditor,
@@ -27,6 +27,7 @@ import { Field, Input, Select, Textarea } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { InstructionHeader } from './instruksi-audit/InstructionHeader';
 import { RowsTable } from './instruksi-audit/RowsTable';
+import { ChecklistTab } from './instruksi-audit/ChecklistTab';
 
 const STATUS_BADGE: Record<string, 'gray' | 'green' | 'blue'> = {
   Draft: 'gray', Berjalan: 'blue', Selesai: 'green',
@@ -58,6 +59,7 @@ export function InstruksiAuditPage() {
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateSaving, setGenerateSaving] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
+  const [detailTab, setDetailTab] = useState<'rows' | 'checklist'>('rows');
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -205,20 +207,54 @@ export function InstruksiAuditPage() {
             <Button onClick={handleHeaderSave}>Simpan Header</Button>
           </div>
         )}
-        <RowsTable
-          instructionId={detailInstruction.id}
-          prefixNomorAudit={detailInstruction.prefix_nomor_audit}
-          rows={rows}
-          prosesList={prosesList}
-          seksiList={seksiList}
-          auditorList={auditorList}
-          plants={plants}
-          targetModels={targetModels}
-          shifts={shifts}
-          readOnly={readOnly}
-          onReload={() => loadRows(detailInstruction.id)}
-          onError={(msg) => setError(msg)}
-        />
+
+        <div className="mb-4 flex gap-1 border-b border-gray-200">
+          <button
+            onClick={() => setDetailTab('rows')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              detailTab === 'rows'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2"><ListChecks size={16} /> Baris Audit</span>
+          </button>
+          <button
+            onClick={() => setDetailTab('checklist')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              detailTab === 'checklist'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2"><ClipboardList size={16} /> Checklist</span>
+          </button>
+        </div>
+
+        {detailTab === 'rows' ? (
+          <RowsTable
+            instructionId={detailInstruction.id}
+            prefixNomorAudit={detailInstruction.prefix_nomor_audit}
+            rows={rows}
+            prosesList={prosesList}
+            seksiList={seksiList}
+            auditorList={auditorList}
+            plants={plants}
+            targetModels={targetModels}
+            shifts={shifts}
+            readOnly={readOnly}
+            onReload={() => loadRows(detailInstruction.id)}
+            onError={(msg) => setError(msg)}
+          />
+        ) : (
+          <ChecklistTab
+            rows={rows}
+            seksiList={seksiList}
+            auditorList={auditorList}
+            readOnly={readOnly}
+            onError={(msg) => setError(msg)}
+          />
+        )}
       </div>
     );
   }

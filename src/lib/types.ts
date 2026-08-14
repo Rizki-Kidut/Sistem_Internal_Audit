@@ -359,3 +359,48 @@ export function computeStatusProgress(row: AuditInstructionRow): RowStatusProgre
   void row;
   return 'Belum Mulai';
 }
+
+// ============================================================
+// BATCH 5: CHECKLIST PELAKSANAAN AUDIT
+// ============================================================
+
+export interface ChecklistSubPertanyaan {
+  teks: string;
+  sesuai: boolean | null;
+}
+
+export interface Checklist {
+  id: string;
+  row_id: string;
+  kode_audit: string;
+  judul_checklist: string;
+  seksi_auditee: string[];
+  section_manager: string | null;
+  tanggal_dibuat: string;
+  dibuat_oleh: string | null;
+  penanggung_jawab_qms: string | null;
+  kode_dokumen: string;
+  pic_proses: string | null;
+  item_monitoring_jelas: string | null;
+  kondisi_pencapaian_target: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklist_id: string;
+  bank_item_id: string | null;
+  sub_proses: string;
+  kelompok_ipo: KelompokIPO;
+  nomor: string;
+  klausul: string | null;
+  pertanyaan_utama: string;
+  sub_pertanyaan: ChecklistSubPertanyaan[];
+  metode_verifikasi: MetodeVerifikasi;
+  hasil: string | null;
+  komentar_auditor: string | null;
+  finding_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
