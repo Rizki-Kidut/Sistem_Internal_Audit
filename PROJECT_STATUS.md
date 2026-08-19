@@ -37,13 +37,24 @@ not started and the nested `project/` snapshot was not modified.
 
 ### Validation result
 
+- [x] Clean migration chain passed **11/11** migrations on the Supabase staging project.
+- [x] Staging QA allocation smoke check returned `QA-01`, `QA-02`, and `QA-03` in sequence.
+- [x] Supabase Security Advisor identified mutable `search_path` configuration on
+      `update_updated_at`, `next_qa_audit_code`, `protect_qa_audit_code`,
+      `sync_instruction_row_scope_team`, and `generate_instruction_from_program`.
+- [x] Supabase Performance Advisor identified unindexed foreign keys on
+      `audit_instruction_rows.proses_id`, `audit_plan_seksi_link.seksi_id`,
+      `audit_program_distribusi.seksi_id`, and `checklist_items.bank_item_id`.
+- [x] Additive migration `20260819211000_harden_functions_and_index_foreign_keys.sql` fixes those
+      advisor findings by setting explicit safe function search paths and adding covering indexes;
+      it does not recreate functions, rewrite rows, or remove existing indexes.
 - [x] `npm run typecheck` passed.
 - [x] `npm run build` passed.
 - [ ] `npm run lint` remains blocked by 26 pre-existing unused-import/function errors, including
       errors inside the protected nested `project/` snapshot. A detached worktree comparison against
       the base commit produced the same 26 errors, so this stabilization diff introduces none.
-- [ ] Supabase migrations/RPCs require clean-database and existing-data integration verification
-      against a real project; no Supabase credentials or local CLI stack are present in this export.
+- [ ] Existing-data upgrade and transactional functional tests remain pending; stabilization is not
+      yet `VERIFIED_COMPLETE`.
 - [ ] Browser screenshot automation is unavailable in the current container, so the perceptible
       Program/Detail Sesi UI changes were verified by typecheck/build only.
 
@@ -70,6 +81,7 @@ src/components/pages/ProgramAuditPage.tsx
 src/components/pages/JadwalAuditPage.tsx
 supabase/migrations/20260819090000_stabilize_batch4_batch5a.sql
 supabase/migrations/20260819090100_fix_proses_seksi_select_policy.sql
+supabase/migrations/20260819211000_harden_functions_and_index_foreign_keys.sql
 PROJECT_STATUS.md
 ```
 
