@@ -3,6 +3,9 @@
 
 import { supabase } from '../lib/supabaseClient';
 import type { AuditTeam } from '../lib/types';
+import { getScopesBySchedule } from './auditScheduleService';
+import { getSeksiAktif } from './seksiService';
+import { getActiveAuditors, checkIndependensi } from './auditorService';
 
 function mapTeam(row: Record<string, unknown>): AuditTeam {
   return {
@@ -72,6 +75,20 @@ export async function upsertTeam(
     catatan_justifikasi: string | null;
   },
 ): Promise<AuditTeam> {
+  const [scopes, seksiList, auditors] = await Promise.all([
+    getScopesBySchedule(scheduleId), getSeksiAktif(), getActiveAuditors(),
+  ]);
+  const auditedSeksiNames = scopes
+    .map((scope) => seksiList.find((seksi) => seksi.id === scope.seksi_terkait)?.nama)
+    .filter((nama): nama is string => Boolean(nama));
+  const selectedIds = [data.lead_auditor_id, ...data.member_ids].filter(Boolean);
+  const requiresJustification = selectedIds.some((id) => {
+    const auditor = auditors.find((candidate) => candidate.id === id);
+    return auditor ? checkIndependensi(auditor, auditedSeksiNames).hasConflict : false;
+  });
+  if (requiresJustification && !data.catatan_justifikasi?.trim()) {
+    throw new Error('Catatan justifikasi wajib diisi karena ada potensi konflik independensi');
+  }
   const existing = await getTeamBySchedule(scheduleId);
   return saveTeam({
     id: existing?.id,

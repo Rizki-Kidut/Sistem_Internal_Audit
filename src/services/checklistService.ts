@@ -10,7 +10,7 @@ import type {
 } from '../lib/types';
 import type { KelompokIPO, MetodeVerifikasi } from '../lib/enums';
 import { KODE_DOKUMEN_CHECKLIST, KELAMPOK_IPO, METODE_VERIFIKASI } from '../lib/enums';
-import { toDateInput } from '../lib/utils';
+import { toDateInput, validateRequired } from '../lib/utils';
 
 // ============================================================
 // MAPPERS
@@ -81,6 +81,10 @@ export async function getChecklistById(id: string): Promise<Checklist | null> {
 }
 
 export async function saveChecklist(cl: Partial<Checklist>): Promise<Checklist> {
+  validateRequired(
+    { row_id: cl.row_id, kode_audit: cl.kode_audit, judul_checklist: cl.judul_checklist },
+    { row_id: 'Baris Instruksi', kode_audit: 'Kode Audit', judul_checklist: 'Judul Checklist' },
+  );
   const payload = {
     row_id: cl.row_id,
     kode_audit: cl.kode_audit,
@@ -129,6 +133,16 @@ export async function getItemsByChecklist(checklistId: string): Promise<Checklis
 }
 
 export async function saveItem(item: Partial<ChecklistItem>): Promise<ChecklistItem> {
+  validateRequired(
+    {
+      checklist_id: item.checklist_id, sub_proses: item.sub_proses, nomor: item.nomor,
+      pertanyaan_utama: item.pertanyaan_utama, metode_verifikasi: item.metode_verifikasi,
+    },
+    {
+      checklist_id: 'Checklist', sub_proses: 'Sub-Proses', nomor: 'Nomor',
+      pertanyaan_utama: 'Pertanyaan Utama', metode_verifikasi: 'Metode Verifikasi',
+    },
+  );
   const payload = {
     checklist_id: item.checklist_id,
     bank_item_id: item.bank_item_id ?? null,

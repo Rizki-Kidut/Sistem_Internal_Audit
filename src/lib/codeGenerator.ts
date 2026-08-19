@@ -4,36 +4,13 @@
 
 import { supabase } from './supabaseClient';
 
-/**
- * Generate kodeAudit berikutnya (format "QA-01", "QA-02", dst).
- * Membaca nomor audit terbesar yang sudah ada dari tabel instruksi_audit
- * (Batch 4) dan menambah 1. Untuk Batch 1-3, tabel instruksi_audit belum ada,
- * jadi fallback ke sequence sederhana berdasarkan count di audit_plans.
- */
+/** Allocate the next globally unique central QA code through the database sequence. */
 export async function generateKodeAudit(): Promise<string> {
-  // Cek apakah tabel instruksi_audit ada (Batch 4+). Jika belum, gunakan fallback.
-  try {
-    const { data, error } = await supabase
-      .from('instruksi_audit')
-      .select('kode_audit')
-      .order('kode_audit', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!error && data?.kode_audit) {
-      const nextNum = parseKodeAuditNumber(data.kode_audit) + 1;
-      return formatKodeAudit(nextNum);
-    }
-  } catch {
-    // Tabel belum ada — fallback ke count audit_plans
+  const { data, error } = await supabase.rpc('next_qa_audit_code');
+  if (error || typeof data !== 'string') {
+    throw new Error(`Gagal generate kode audit: ${error?.message ?? 'respons tidak valid'}`);
   }
-
-  // Fallback: gunakan count dari audit_plans sebagai basis (sementara)
-  const { count } = await supabase
-    .from('audit_plans')
-    .select('*', { count: 'exact', head: true });
-
-  return formatKodeAudit((count ?? 0) + 1);
+  return data;
 }
 
 // Format nomor menjadi kode audit: 1 → "QA-01"

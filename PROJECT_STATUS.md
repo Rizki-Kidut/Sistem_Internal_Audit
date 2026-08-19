@@ -1,5 +1,78 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Stabilization Pass — 19 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+The stabilization gate was implemented against the repository-root application only. Batch 5b was
+not started and the nested `project/` snapshot was not modified.
+
+### Completed
+
+- [x] Added additive, version-controlled schemas, indexes, RLS policies, and relationships for
+      `audit_instructions`, `audit_instruction_rows`, `plants`, `target_models`, `shifts`,
+      `checklists`, and `checklist_items`.
+- [x] Added a separate corrective migration that moves the misplaced `anon_select_proses_seksi`
+      policy to `proses_seksi` without changing the historical migration or application data.
+- [x] Centralized QA allocation in the database `qa_audit_code_seq` / `next_qa_audit_code()` path.
+      Existing values seed the sequence; QA codes are immutable; new duplicate inserts are rejected.
+      A unique index is added when existing data has no duplicates, so an existing-data upgrade does
+      not destructively rewrite duplicate historical values.
+- [x] Replaced the per-program `QA-01` loop with the transactional
+      `generate_instruction_from_program()` RPC. Header, all rows, matching scope propagation, and
+      QA allocation now commit or roll back together. When no session exists yet, completing the
+      instruction grid creates its schedule/scope/team in the same row-save transaction.
+- [x] Added the specified **Generate dari Program** entry point to Program Internal Audit while
+      retaining the existing Instruksi Audit entry point for compatibility.
+- [x] Added dynamic period-label editing (add, rename, remove) and keeps every step's
+      `periode_target` array aligned with the labels.
+- [x] Enforced Scheduled scope prerequisites inside `saveAuditSchedule()`, rather than only in UI.
+- [x] Enforced required independence justification inside `upsertTeam()` in addition to UI.
+- [x] Added required checklist header/item validation in the checklist service.
+- [x] Enabled Detail Sesi Audit → Checklist and reused the existing Checklist Sistem component and
+      `checklists`/`checklist_items` records by resolving instruction rows through propagated QA codes.
+      No parallel checklist storage was introduced.
+- [x] Added transactional synchronization from instruction-grid auditor assignments to the related
+      schedule team.
+
+### Validation result
+
+- [x] `npm run typecheck` passed.
+- [x] `npm run build` passed.
+- [ ] `npm run lint` remains blocked by 26 pre-existing unused-import/function errors, including
+      errors inside the protected nested `project/` snapshot. A detached worktree comparison against
+      the base commit produced the same 26 errors, so this stabilization diff introduces none.
+- [ ] Supabase migrations/RPCs require clean-database and existing-data integration verification
+      against a real project; no Supabase credentials or local CLI stack are present in this export.
+- [ ] Browser screenshot automation is unavailable in the current container, so the perceptible
+      Program/Detail Sesi UI changes were verified by typecheck/build only.
+
+### Remaining blockers / decisions
+
+- The local `auditors` table remains a temporary compatibility proxy. Tim Audit and Instruksi must
+  move behind an adapter when the real Training module source/schema is supplied; no external schema
+  was invented and the proxy was not expanded.
+- Existing duplicate QA values, if present in a live database, are preserved and reported by the
+  conditional uniqueness setup; they must be audited before a unique index can be added there.
+- Process-master reorder/schema divergence and the Program document-code difference remain product
+  decisions outside this smallest safe stabilization change.
+- Batch 5b and all later batches remain `NOT_STARTED`.
+
+### Files changed in this pass
+
+```text
+src/lib/codeGenerator.ts
+src/services/auditInstructionService.ts
+src/services/auditScheduleService.ts
+src/services/auditTeamService.ts
+src/services/checklistService.ts
+src/components/pages/ProgramAuditPage.tsx
+src/components/pages/JadwalAuditPage.tsx
+supabase/migrations/20260819090000_stabilize_batch4_batch5a.sql
+supabase/migrations/20260819090100_fix_proses_seksi_select_policy.sql
+PROJECT_STATUS.md
+```
+
 > **Repository audit performed from uploaded GitHub export: 19 Aug 2026**
 >
 > Audited source: repository-root `src/` and root `supabase/migrations/`.

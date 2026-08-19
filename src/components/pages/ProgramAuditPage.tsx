@@ -3,7 +3,7 @@
 // Tombol "Buat Program Internal Audit" ada di halaman Rencana Audit Tahunan (Batch 1).
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileCheck, ArrowLeft } from 'lucide-react';
+import { FileCheck, ArrowLeft, Plus, Trash2, WandSparkles } from 'lucide-react';
 import type {
   AuditProgram,
   AuditProgramDistribusi,
@@ -42,6 +42,8 @@ import { RisikoTable } from './audit-program/RisikoTable';
 import { StepsTable } from './audit-program/StepsTable';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
+import { Input } from '../ui/Field';
+import { generateFromProgram } from '../../services/auditInstructionService';
 
 interface ProgramAuditPageProps {
   // Jika ada initialProgramId, langsung buka detail program tersebut
@@ -67,6 +69,8 @@ export function ProgramAuditPage({ initialProgramId, onClearInitial }: ProgramAu
   // Confirm dialogs
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<AuditProgram | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState<string | null>(null);
 
   // --- Load list ---
   const loadPrograms = useCallback(async () => {
@@ -147,6 +151,37 @@ export function ProgramAuditPage({ initialProgramId, onClearInitial }: ProgramAu
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan');
     }
+  }
+
+  async function handlePeriodeLabels(labels: string[]) {
+    const normalized = labels.map((label) => label.trim()).filter(Boolean);
+    if (!program || normalized.length === 0) {
+      setError('Program wajib memiliki minimal satu label periode');
+      return;
+    }
+    const resizedSteps = steps.map((step) => ({
+      ...step,
+      periode_target: normalized.map((_, index) => step.periode_target[index] ?? false),
+    }));
+    try {
+      await saveAuditProgram({ ...program, periode_label: normalized });
+      await Promise.all(resizedSteps.map((step) => saveStep(step)));
+      setProgram({ ...program, periode_label: normalized });
+      setSteps(resizedSteps);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan label periode');
+    }
+  }
+
+  async function handleGenerateInstruction() {
+    if (!program) return;
+    setGenerating(true); setGenerateMessage(null); setError(null);
+    try {
+      const result = await generateFromProgram(program.id, program.tahun, seksiList);
+      setGenerateMessage(`Instruksi berhasil dibuat dengan ${result.rowsCreated} baris audit.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal generate instruksi');
+    } finally { setGenerating(false); }
   }
 
   async function handleApprove() {
@@ -321,6 +356,21 @@ export function ProgramAuditPage({ initialProgramId, onClearInitial }: ProgramAu
         )}
 
         <TujuanPoinPerhatian program={program} readOnly={isReadOnly} onFieldChange={handleFieldChange} />
+
+        <Card className="p-5 mb-5">
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <div><h3 className="font-semibold text-gray-900">Label Periode</h3><p className="text-xs text-gray-500">Jumlah dan nama kolom periode dapat disesuaikan sebelum program disetujui.</p></div>
+            {!isReadOnly && <Button size="sm" variant="secondary" onClick={() => handlePeriodeLabels([...program.periode_label, `Periode ${program.periode_label.length + 1}`])}><Plus size={14}/> Tambah Periode</Button>}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {program.periode_label.map((label, index) => <div key={index} className="flex gap-2"><Input disabled={isReadOnly} value={label} onBlur={(e: React.FocusEvent<HTMLInputElement>) => handlePeriodeLabels(program.periode_label.map((v,i) => i===index ? e.target.value : v))} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProgram({...program, periode_label: program.periode_label.map((v,i) => i===index ? e.target.value : v)})}/>{!isReadOnly && program.periode_label.length > 1 && <button className="text-gray-400 hover:text-red-600" title="Hapus periode" onClick={() => handlePeriodeLabels(program.periode_label.filter((_,i) => i!==index))}><Trash2 size={15}/></button>}</div>)}
+          </div>
+        </Card>
+
+        <Card className="p-5 mb-5 flex items-center justify-between gap-4">
+          <div><h3 className="font-semibold text-gray-900">Instruksi Internal Audit</h3><p className="text-xs text-gray-500">Generate header, baris QA, dan tautan ruang lingkup yang tersedia dalam satu transaksi.</p>{generateMessage && <p className="text-sm text-green-700 mt-2">{generateMessage}</p>}</div>
+          <Button onClick={handleGenerateInstruction} disabled={generating}><WandSparkles size={15}/>{generating ? 'Memproses...' : 'Generate dari Program'}</Button>
+        </Card>
 
         <DistribusiTable
           seksiList={seksiList}
