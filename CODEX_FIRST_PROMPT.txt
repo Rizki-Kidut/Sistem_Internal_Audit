@@ -1,0 +1,11 @@
+Read AGENTS.md, PROJECT_PLAN.md, and PROJECT_STATUS.md completely.
+
+Do not restart the project and do not implement Batch 5b yet.
+
+Use the audited PROJECT_STATUS.md as the current handoff state. Confirm the findings against the root source, then perform the Stabilization Pass in the order documented there.
+
+Do not modify the nested project/ snapshot.
+
+Preserve all existing working functionality. Add safe migrations, fix central QA identifier generation/atomicity, complete missing Batch 4b behavior, add service-layer validation, and wire the existing Checklist Sistem into Detail Sesi Audit without duplicating data.
+
+Run typecheck, lint, and build when dependencies are available. Update PROJECT_STATUS.md and stop after reporting the stabilization result.
