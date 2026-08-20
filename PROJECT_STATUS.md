@@ -16,8 +16,13 @@
       complete Instruction row context plus Team assignment through one atomic RPC.
 - [x] Relocking validates the live roster against every referenced QA's plan, execution-date
       competency, and independence/justification; referenced Teams cannot be deactivated.
-- [x] Added additive migration `20260820160000_scope_team_master_by_annual_plan.sql`; it remains
-      pending CertiTrack-Staging and real-browser verification.
+- [x] Migration `20260820160000_scope_team_master_by_annual_plan.sql` was applied to
+      CertiTrack-Staging. Runtime checks passed for annual scoping, cross-plan rejection,
+      lock/delete/deactivation, multi-QA competency relock, atomic row/Team save, no orphan rows,
+      and checklist locking.
+- [x] Staging exposed a same-Team unlocked-planning deadlock. Additive migration
+      `20260820170000_allow_unlocked_team_planning_updates.sql` allows planning repairs while
+      preserving relock and checklist execution gates; this fix still requires Staging verification.
 
 The Workflow Architecture Refactor and Batch 5c remain `IMPLEMENTED_UNVERIFIED`. Batch 5b remains
 `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
