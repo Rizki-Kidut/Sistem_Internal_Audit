@@ -1,5 +1,43 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 5c — Checklist Audit Manufaktur & Shift — 20 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+### Implemented
+
+- [x] Added one additive migration for `checklist_manufaktur_shift`,
+      `checklist_manufaktur_bank_items`, and `checklist_manufaktur_items`, including foreign keys,
+      required indexes, updated-at triggers, current anon/authenticated RLS policies, and safe
+      `search_path = pg_catalog, public` functions.
+- [x] Added an atomic database function that creates a header from an `AuditManufaktur` or
+      `AuditShift` instruction row and initializes its active bank items. It uses the instruction
+      `row_id` and QA code, so Instruksi Audit and Jadwal Audit open the same persisted record.
+- [x] Seeded only the known structural bank entries A-1 through A-19 and B-1 through B-3. Klausul
+      and `item_pemeriksaan` remain null because no authoritative item-to-clause/question mapping is
+      available and PROJECT_PLAN explicitly permits the full text to be completed later.
+- [x] Added centralized Manufacturing/Shift types, structured multi-value Plant/Shift JSON entries,
+      status/document constants, and reused the existing O/A/B/C/N-A result constants.
+- [x] Added a dedicated service for header/item CRUD, atomic row-based creation, active-bank item
+      initialization, bank editing/soft deactivation, relationship/result/numeric validation, and
+      service-level Draft/Selesai mutation protection.
+- [x] Added an Indonesian Manufacturing/Shift Checklist panel with inherited read-only QA code,
+      manager, date, and auditors; Plant/Shift suggestions; editable operational header fields;
+      item table; result editing; explicit return-to-Draft lifecycle; and compact bank management.
+- [x] Routed both `AuditManufaktur` and `AuditShift` through the shared Checklist tab. `Reguler` and
+      `AuditProduk` routing remains unchanged, and no placeholder remains for the four supported row
+      types.
+- [x] Database triggers reject completed-checklist header mutation/deletion and all child item
+      mutation until the header is explicitly returned to Draft. `finding_id` is reserved only;
+      no Finding/PLOR generation was added.
+
+### Verification remaining
+
+- [ ] Apply the migration to a real Supabase project and verify RLS/RPC/trigger behavior.
+- [ ] Run real-browser verification through both Instruksi Audit and Jadwal Audit Detail Sesi.
+
+Batch 5b remains `VERIFIED_COMPLETE`. Batch 5d and all later batches remain `NOT_STARTED`.
+
 ## PR #3 Refinement — 20 Aug 2026
 
 - Instruksi Audit Matriks Seksi retains complete, non-wrapping `-90deg` labels and now anchors their
@@ -14,7 +52,7 @@
   for future Program print/export output and collapses equal dates to one Indonesian date.
 - Completed Product Checklists are immutable at service and database layers: checklist deletion and
   all phase/item/evidence mutations require returning the checklist to Draft first.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and later remain `NOT_STARTED`.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
 
@@ -68,7 +106,7 @@
 - [x] Temporary `2097`, `QA-995`, and `IA-2097-995` fixtures were removed from Staging, and no
       temporary Product Checklist evidence objects remain.
 
-Batch 5c and all later batches remain `NOT_STARTED`. The stabilization status below remains
+Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and all later batches remain `NOT_STARTED`. The stabilization status below remains
 `VERIFIED_COMPLETE`.
 
 ## Stabilization Pass — 19 Aug 2026
@@ -190,7 +228,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
   decisions outside this smallest safe stabilization change.
 - Remaining unused-index notices are informational only.
 - Manual real-browser coverage does not provide automated E2E coverage.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and all later batches remain `NOT_STARTED`.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain `NOT_STARTED`.
 
 ### Files changed in this pass
 
@@ -723,9 +761,11 @@ manual real-browser smoke testing on the PR #3 Vercel Preview.
 
 ## Batch 5c — Checklist Audit Manufaktur & Shift
 
-**Status:** `NOT_STARTED`
+**Status:** `IMPLEMENTED_UNVERIFIED`
 
-No Manufacturing/Shift Checklist implementation matching Batch 5c was found.
+Schema, structural bank seed, service/domain validation, shared row-based routing, Manufacturing/Shift
+UI, and service/database completed-checklist protection are implemented. Real Supabase migration and
+browser verification remain outstanding; official bank question text is intentionally incomplete.
 
 ---
 
@@ -820,7 +860,8 @@ Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remai
 Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
-Batch 5c+   NOT_STARTED
+Batch 5c    IMPLEMENTED_UNVERIFIED
+Batch 5d+   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and

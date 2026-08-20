@@ -27,6 +27,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../../ui';
 import { ProductChecklistPanel } from './ProductChecklistPanel';
+import { ManufacturingChecklistPanel } from './ManufacturingChecklistPanel';
 
 interface ChecklistTabProps {
   rows: AuditInstructionRow[];
@@ -91,8 +92,7 @@ export function ChecklistTab(props: ChecklistTabProps) {
     {selectedRow?.tipe_baris === TIPE_BARIS.REGULER && <SystemChecklistPanel {...props} rows={[selectedRow]} hideRowSelector />}
     {selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductChecklistPanel key={selectedRow.id} row={selectedRow} readOnly={readOnly} onError={onError} />}
     {(selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) &&
-      <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title={`Checklist ${TIPE_BARIS_LABEL[selectedRow.tipe_baris]}`}
-        message="Checklist Audit Manufaktur dan Shift menyusul Batch 5c." /></Card>}
+      <ManufacturingChecklistPanel key={selectedRow.id} row={selectedRow} auditorList={props.auditorList} readOnly={readOnly} onError={onError} />}
   </div>;
 }
 

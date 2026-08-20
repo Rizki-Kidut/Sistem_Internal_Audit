@@ -461,3 +461,61 @@ export interface ChecklistProdukItem {
   created_at: string;
   updated_at: string;
 }
+
+export type { ChecklistManufakturStatus } from './enums';
+import type { ChecklistManufakturStatus, HasilChecklist } from './enums';
+
+export interface JenisChecklistManufakturShift {
+  plant_id: string;
+  plant_nama: string;
+  shift_id: string;
+  shift_nama: string;
+}
+
+export interface ChecklistManufakturShift {
+  id: string;
+  row_id: string;
+  kode_audit: string;
+  jenis_checklist: JenisChecklistManufakturShift[];
+  nama_seksi: string | null;
+  manager_proses_line_leader: string | null;
+  tanggal_audit: string | null;
+  auditor: AuditorAssignment[];
+  nama_part: string | null;
+  nomor_part: string | null;
+  nomor_line: string | null;
+  control_plan_no: string | null;
+  p_fmea_no: string | null;
+  customer: string | null;
+  jumlah_operator: number | null;
+  status: ChecklistManufakturStatus;
+  kode_dokumen: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistManufakturBankItem {
+  id: string;
+  bagian: string;
+  nomor: string;
+  klausul: string | null;
+  item_pemeriksaan: string | null;
+  urutan_tampil: number;
+  status: ChecklistBankStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistManufakturItem {
+  id: string;
+  checklist_id: string;
+  bank_item_id: string | null;
+  no_proses_dicek: string | null;
+  hasil_pengamatan: string | null;
+  hasil: HasilChecklist | null;
+  finding_id: string | null;
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+  bank_item?: ChecklistManufakturBankItem | null;
+}
