@@ -34,7 +34,7 @@ const STATUS_BADGE: Record<string, 'gray' | 'green' | 'blue'> = {
   Draft: 'gray', Berjalan: 'blue', Selesai: 'green',
 };
 
-export function InstruksiAuditPage({ onNavigateToChecklist }: { onNavigateToChecklist: (rowId: string) => void }) {
+export function InstruksiAuditPage({ onNavigateToChecklist, onNavigateToAgenda }: { onNavigateToChecklist: (rowId: string) => void; onNavigateToAgenda: (rowId: string) => void }) {
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [instructions, setInstructions] = useState<AuditInstruction[]>([]);
   const [detailInstruction, setDetailInstruction] = useState<AuditInstruction | null>(null);
@@ -226,6 +226,7 @@ export function InstruksiAuditPage({ onNavigateToChecklist }: { onNavigateToChec
             onError={(msg) => setError(msg)}
             teamMasters={teamMasters}
             onOpenChecklist={onNavigateToChecklist}
+            onOpenAgenda={onNavigateToAgenda}
           />
       </div>
     );

@@ -32,6 +32,7 @@ interface RowsTableProps {
   onError: (msg: string) => void;
   teamMasters: AuditTeamMaster[];
   onOpenChecklist: (rowId: string) => void;
+  onOpenAgenda: (rowId: string) => void;
 }
 
 interface RowForm {
@@ -64,7 +65,7 @@ function emptyForm(): RowForm {
 
 export function RowsTable({
   instructionId, prefixNomorAudit, rows, prosesList, seksiList, auditorList,
-  plants, targetModels, shifts, readOnly, onReload, onError, teamMasters, onOpenChecklist,
+  plants, targetModels, shifts, readOnly, onReload, onError, teamMasters, onOpenChecklist, onOpenAgenda,
 }: RowsTableProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<AuditInstructionRow | null>(null);
@@ -411,6 +412,7 @@ export function RowsTable({
                     <td className="px-2 py-2 border-r border-gray-100"><Badge variant={statusVariant}>{status}</Badge></td>
                     <td className="px-2 py-2 text-right whitespace-nowrap">
                       <button onClick={() => onOpenChecklist(row.id)} className="p-1 text-blue-600 text-xs mr-2" title="Buka Checklist">Checklist</button>
+                      <button onClick={() => onOpenAgenda(row.id)} className="p-1 text-blue-600 text-xs mr-2" title="Buka Agenda">Agenda</button>
                       {!readOnly && (<>
                         <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
                         <button onClick={() => handleDelete(row)} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>

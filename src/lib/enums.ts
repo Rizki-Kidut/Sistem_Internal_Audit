@@ -76,6 +76,9 @@ export const HASIL_CHECKLIST_LABEL: Record<string, string> = {
 };
 
 export const KODE_DOKUMEN_CHECKLIST = 'Q-120-ISE-001-FORM-005';
+export const KODE_DOKUMEN_AGENDA_INTERNAL_AUDIT = 'Q-120-ISE-001-FORM-004';
+export const AUDIT_AGENDA_STATUS = { DRAFT: 'Draft', FINAL: 'Final' } as const;
+export type AuditAgendaStatus = (typeof AUDIT_AGENDA_STATUS)[keyof typeof AUDIT_AGENDA_STATUS];
 
 export const CHECKLIST_BANK_STATUS = {
   AKTIF: 'Aktif',

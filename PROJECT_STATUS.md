@@ -840,9 +840,21 @@ bank question text remains intentionally incomplete.
 
 ## Batch 5d — Agenda Internal Audit
 
-**Status:** `NOT_STARTED`
+**Status:** `IMPLEMENTED_UNVERIFIED`
 
-Agenda remains a disabled/soon tab in Detail Sesi Audit.
+Implemented as a central, QA-row-backed workspace with one Agenda per Instruction row, live
+Instruction/section/manager/Annual Team roster context, Agenda-owned document fields, manual timeline,
+location inheritance, and database-authoritative Draft/Final transitions and immutability. Added
+`src/components/pages/AgendaAuditPage.tsx`, `src/services/auditAgendaService.ts`, centralized types and
+constants, Instruksi cross-page navigation, and additive migration
+`20260821010000_create_batch5d_agenda_internal_audit.sql`. No Checklist relationship or legacy
+schedule/scope/team write is introduced.
+
+Remaining verification: apply the migration on CertiTrack-Staging; runtime-check RLS, RPCs, and
+triggers; verify idempotent create/duplicate protection, Draft/Final immutability, inherited location,
+timeline time/overlap validation, browser worklist/detail smoke, Instruksi → Buka Agenda navigation,
+and confirm that no Checklist or legacy IA records are created. The migration was intentionally not
+applied during static implementation. Batch 6 and later remain `NOT_STARTED`.
 
 ---
 
@@ -930,7 +942,8 @@ Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database ver
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
 Batch 5c    VERIFIED_COMPLETE
-Batch 5d+   NOT_STARTED
+Batch 5d    IMPLEMENTED_UNVERIFIED (static implementation; staging/runtime verification pending)
+Batch 6+    NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
