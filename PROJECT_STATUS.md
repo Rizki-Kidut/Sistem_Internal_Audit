@@ -1,5 +1,112 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Annual Team Audit Refinement — 20 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+- [x] Scoped normal Team Masters to an Annual Audit Plan with per-plan codes; existing NULL-plan
+      records remain compatibility-only and are hidden from normal selection.
+- [x] Added searchable Lead and searchable Member multi-select with chips, annual plan filtering,
+      live Instruksi roster preview, and explicit Team lock/unlock lifecycle.
+- [x] Team Master members are now authoritative for new QA workflow; legacy row/checklist auditor
+      columns remain preserved but are no longer populated or used as current roster authority.
+- [x] Added plan-matched locked-Team assignment, dynamic competency/independence checks, checklist
+      prerequisites, locked-roster protection, and checklist-based assignment/unlock locks.
+- [x] Final integrity correction makes locked Team headers/deletes database-stable and saves the
+      complete Instruction row context plus Team assignment through one atomic RPC.
+- [x] Relocking validates the live roster against every referenced QA's plan, execution-date
+      competency, and independence/justification; referenced Teams cannot be deactivated.
+- [x] Migrations `20260820160000_scope_team_master_by_annual_plan.sql` and
+      `20260820170000_allow_unlocked_team_planning_updates.sql` were applied and runtime verified on
+      CertiTrack-Staging.
+- [x] Annual-plan scoping, reuse of the same Team code across plans, and cross-plan assignment
+      rejection passed.
+- [x] Locked header/roster/delete/deactivation protection, all-referenced-QA competency relock,
+      independence/justification relock, and same-Team unlocked planning repair passed.
+- [x] Atomic Instruction row/Team save passed; invalid Add Baris Audit left no orphan row.
+- [x] Checklist creation required a valid locked Team, and Team unlock after checklist creation was
+      rejected. Normal workflow created zero new legacy IA schedules.
+- [x] Supabase Security Advisor reported zero security lints; final manual browser smoke passed.
+      Annual Plan 2095/2096 and QA-970..QA-973 fixtures were cleaned, with no temporary Product
+      evidence remaining.
+
+The Workflow Architecture Refactor, Annual Team Audit Refinement, Batch 5b, and Batch 5c are
+`VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
+
+## Workflow Architecture Refactor — Instruksi / Team / Checklist — 20 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+- [x] Removed Jadwal & Tim Audit from normal navigation while retaining its legacy page/services and
+      database tables for compatibility.
+- [x] Added an additive migration that disables automatic legacy schedule/scope/team creation and
+      replaces Generate-from-Program without legacy schedule dependencies.
+- [x] Added reusable Team Audit master/member schema, atomic master save, one-Lead enforcement, RLS,
+      and normalized indexes.
+- [x] Added Team selection, competency/independence checks, justification, and checklist locking;
+      the annual refinement above supersedes this pass's former QA snapshot authority.
+- [x] Added the active central Checklist Audit worklist/router and removed the full editor tab from
+      Instruksi in favor of row-level `Buka Checklist` navigation.
+- [x] QA remains the primary identifier; IA schedules/scopes/teams are legacy and receive no new
+      writes from normal Instruksi workflow.
+
+The centralized Checklist Audit and annual Team workflows passed CertiTrack-Staging runtime and
+manual browser verification. QA remains the primary identifier, normal workflow created zero new
+legacy IA schedules, and Reguler/AuditProduk/AuditManufaktur/AuditShift routing passed. Batch 5b and
+Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
+
+New migration: `supabase/migrations/20260820140000_centralize_checklist_and_team_master.sql`.
+Changed application areas: App/sidebar navigation, Instruksi rows, central Checklist workspace, Team
+master page/service, checklist creation guards, centralized types/enums, and project documentation.
+Static validation completed with typecheck/build/diff checks; lint remains at the known 26-error,
+zero-warning unused-symbol baseline.
+
+## Batch 5c — Checklist Audit Manufaktur & Shift — 20 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+### Implemented
+
+- [x] Preserves persisted Plant/Shift selections alongside current matrix suggestions; legacy auditor
+      JSON remains readable, while the annual Team master now drives the current roster display.
+- [x] Added one additive migration for `checklist_manufaktur_shift`,
+      `checklist_manufaktur_bank_items`, and `checklist_manufaktur_items`, including foreign keys,
+      required indexes, updated-at triggers, current anon/authenticated RLS policies, and safe
+      `search_path = pg_catalog, public` functions.
+- [x] Added an atomic database function that creates a header from an `AuditManufaktur` or
+      `AuditShift` instruction row and initializes its active bank items. It uses the instruction
+      `row_id` and QA code, so Instruksi Audit and Jadwal Audit open the same persisted record.
+- [x] Seeded only the known structural bank entries A-1 through A-19 and B-1 through B-3. Klausul
+      and `item_pemeriksaan` remain null because no authoritative item-to-clause/question mapping is
+      available and PROJECT_PLAN explicitly permits the full text to be completed later.
+- [x] Added centralized Manufacturing/Shift types, structured multi-value Plant/Shift JSON entries,
+      status/document constants, and reused the existing O/A/B/C/N-A result constants.
+- [x] Added a dedicated service for header/item CRUD, atomic row-based creation, active-bank item
+      initialization, bank editing/soft deactivation, relationship/result/numeric validation, and
+      service-level Draft/Selesai mutation protection.
+- [x] Added an Indonesian Manufacturing/Shift Checklist panel with inherited read-only QA code,
+      manager, date, and auditors; Plant/Shift suggestions; editable operational header fields;
+      item table; result editing; explicit return-to-Draft lifecycle; and compact bank management.
+- [x] Routed both `AuditManufaktur` and `AuditShift` through the shared Checklist tab. `Reguler` and
+      `AuditProduk` routing remains unchanged, and no placeholder remains for the four supported row
+      types.
+- [x] Database triggers reject completed-checklist header mutation/deletion and all child item
+      mutation until the header is explicitly returned to Draft. `finding_id` is reserved only;
+      no Finding/PLOR generation was added.
+
+### CertiTrack-Staging verification
+
+- [x] Migration `20260820130000_create_batch5c_manufacturing_shift_checklist.sql` applied
+      successfully; database runtime, safe `search_path`, and security verification passed.
+- [x] The live annual Team roster is authoritative; legacy Manufacturing auditor JSON remained
+      empty for new records.
+- [x] AuditManufaktur and AuditShift browser routes passed. QA-972 and QA-973 each created FORM-007
+      with exactly 22 items.
+- [x] Team unlock after checklist creation was rejected, no legacy IA schedule was created, and all
+      final fixtures were cleaned.
+
+Batch 5b remains `VERIFIED_COMPLETE`. Batch 5d and all later batches remain `NOT_STARTED`.
+
 ## PR #3 Refinement — 20 Aug 2026
 
 - Instruksi Audit Matriks Seksi retains complete, non-wrapping `-90deg` labels and now anchors their
@@ -14,7 +121,7 @@
   for future Program print/export output and collapses equal dates to one Indonesian date.
 - Completed Product Checklists are immutable at service and database layers: checklist deletion and
   all phase/item/evidence mutations require returning the checklist to Draft first.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and later remain `NOT_STARTED`.
+- Batch 5b and Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
 
@@ -68,7 +175,7 @@
 - [x] Temporary `2097`, `QA-995`, and `IA-2097-995` fixtures were removed from Staging, and no
       temporary Product Checklist evidence objects remain.
 
-Batch 5c and all later batches remain `NOT_STARTED`. The stabilization status below remains
+Batch 5c is `VERIFIED_COMPLETE`; Batch 5d and all later batches remain `NOT_STARTED`. The stabilization status below remains
 `VERIFIED_COMPLETE`.
 
 ## Stabilization Pass — 19 Aug 2026
@@ -190,7 +297,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
   decisions outside this smallest safe stabilization change.
 - Remaining unused-index notices are informational only.
 - Manual real-browser coverage does not provide automated E2E coverage.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and all later batches remain `NOT_STARTED`.
+- Batch 5b and Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 ### Files changed in this pass
 
@@ -723,9 +830,11 @@ manual real-browser smoke testing on the PR #3 Vercel Preview.
 
 ## Batch 5c — Checklist Audit Manufaktur & Shift
 
-**Status:** `NOT_STARTED`
+**Status:** `VERIFIED_COMPLETE`
 
-No Manufacturing/Shift Checklist implementation matching Batch 5c was found.
+Schema, structural bank seed, service/domain validation, shared row-based routing, Manufacturing/Shift
+UI, and service/database completed-checklist protection were verified on CertiTrack-Staging. Official
+bank question text remains intentionally incomplete.
 
 ---
 
@@ -820,7 +929,8 @@ Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remai
 Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
-Batch 5c+   NOT_STARTED
+Batch 5c    VERIFIED_COMPLETE
+Batch 5d+   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and

@@ -27,6 +27,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../../ui';
 import { ProductChecklistPanel } from './ProductChecklistPanel';
+import { ManufacturingChecklistPanel } from './ManufacturingChecklistPanel';
 
 interface ChecklistTabProps {
   rows: AuditInstructionRow[];
@@ -34,6 +35,7 @@ interface ChecklistTabProps {
   auditorList: Auditor[];
   readOnly: boolean;
   onError: (msg: string) => void;
+  initialSelectedRowId?: string | null;
 }
 
 const HASIL_VARIANT: Record<string, 'gray' | 'green' | 'red' | 'amber' | 'blue'> = {
@@ -66,7 +68,7 @@ function emptyItem(checklistId: string): ChecklistItem {
 
 export function ChecklistTab(props: ChecklistTabProps) {
   const { rows, readOnly, onError } = props;
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(props.initialSelectedRowId ?? null);
   const selectedRow = rows.find((row) => row.id === selectedRowId) ?? null;
 
   useEffect(() => {
@@ -91,8 +93,7 @@ export function ChecklistTab(props: ChecklistTabProps) {
     {selectedRow?.tipe_baris === TIPE_BARIS.REGULER && <SystemChecklistPanel {...props} rows={[selectedRow]} hideRowSelector />}
     {selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductChecklistPanel key={selectedRow.id} row={selectedRow} readOnly={readOnly} onError={onError} />}
     {(selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) &&
-      <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title={`Checklist ${TIPE_BARIS_LABEL[selectedRow.tipe_baris]}`}
-        message="Checklist Audit Manufaktur dan Shift menyusul Batch 5c." /></Card>}
+      <ManufacturingChecklistPanel key={selectedRow.id} row={selectedRow} auditorList={props.auditorList} readOnly={readOnly} onError={onError} />}
   </div>;
 }
 

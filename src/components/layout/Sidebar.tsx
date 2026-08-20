@@ -6,7 +6,6 @@ export type PageId =
   | 'training'
   | 'rencana-audit'
   | 'program-audit'
-  | 'jadwal-audit'
   | 'instruksi-audit'
   | 'plant-admin'
   | 'checklist'
@@ -18,7 +17,8 @@ export type PageId =
   | 'analisa'
   | 'seksi'
   | 'proses'
-  | 'bank-checklist';
+  | 'bank-checklist'
+  | 'team-master';
 
 interface NavItem {
   id: PageId;
@@ -39,9 +39,8 @@ const navItems: NavItem[] = [
   { id: 'rencana-audit', label: 'Rencana Audit Tahunan', icon: <CalendarCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'bank-checklist', label: 'Bank Checklist', icon: <ListChecks size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'program-audit', label: 'Program Internal Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'jadwal-audit', label: 'Jadwal & Tim Audit', icon: <Users size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'instruksi-audit', label: 'Instruksi Internal Audit', icon: <FileCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'checklist', label: 'Checklist Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'checklist', label: 'Checklist Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'agenda', label: 'Agenda Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'temuan', label: 'Temuan (PLOR)', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'car', label: 'CAR Tracker', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
@@ -52,6 +51,7 @@ const navItems: NavItem[] = [
   // Master data
   { id: 'seksi', label: 'Kelola Seksi', icon: <Settings size={18} />, group: 'Master Data' },
   { id: 'proses', label: 'Kelola Proses', icon: <Workflow size={18} />, group: 'Master Data' },
+  { id: 'team-master', label: 'Kelola Tim Audit', icon: <Users size={18} />, group: 'Master Data' },
   { id: 'plant-admin', label: 'Plant, Model & Shift', icon: <Factory size={18} />, group: 'Master Data' },
 ];
 

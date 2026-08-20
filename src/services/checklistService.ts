@@ -3,6 +3,7 @@
 // proses pada baris instruksi, dikelompokkan per Sub-Proses → IPO.
 
 import { supabase } from '../lib/supabaseClient';
+import { getAuditTeamMasterById } from './auditTeamMasterService';
 import type {
   Checklist, ChecklistItem, ChecklistSubPertanyaan,
   AuditInstructionRow, Seksi, Auditor,
@@ -187,6 +188,7 @@ export async function createChecklistFromRow(
   auditorList: Auditor[],
   bankItems: ChecklistBankItem[],
 ): Promise<Checklist> {
+  if (!row.team_master_id) throw new Error('Pilih dan kunci Tim Audit pada Instruksi Internal Audit sebelum membuat checklist.');
   // 1. Auto-derive fields from the row
   const targetSeksiIds = row.seksi_marks
     .filter((m) => m.tipe === 'target')
@@ -197,9 +199,10 @@ export async function createChecklistFromRow(
 
   const sectionManager = row.pemilik_proses ?? null;
 
-  const leadAuditor = row.auditor.find((a) => a.is_lead);
+  const team = row.team_master_id ? await getAuditTeamMasterById(row.team_master_id) : null;
+  const leadAuditor = team?.members.find((member) => member.peran === 'Lead');
   const dibuatOleh = leadAuditor
-    ? auditorList.find((a) => a.id === leadAuditor.auditor_id)?.nama ?? null
+    ? leadAuditor.auditor?.nama ?? auditorList.find((a) => a.id === leadAuditor.auditor_id)?.nama ?? null
     : null;
 
   // 2. Create the checklist header

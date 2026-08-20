@@ -335,11 +335,13 @@ export interface AuditInstructionRow {
   id: string;
   instruction_id: string;
   kode_audit: string;
-  team: string | null;
+  team: string | null; // legacy compatibility only; Team master is authoritative
+  team_master_id: string | null;
+  catatan_justifikasi_tim: string | null;
   proses_id: string | null;
   pemilik_proses: string | null;
   seksi_marks: SeksiMark[];
-  auditor: AuditorAssignment[];
+  auditor: AuditorAssignment[]; // legacy compatibility only
   tipe_baris: TipeBaris;
   matriks_produk_marks: MatriksProdukMark[];
   matriks_manufaktur_shift_marks: MatriksManufakturShiftMark[];
@@ -353,6 +355,29 @@ export interface AuditInstructionRow {
   urutan_tampil: number;
   created_at: string;
   updated_at: string;
+}
+
+import type { AuditTeamMasterStatus, AuditTeamMemberRole } from './enums';
+export interface AuditTeamMasterMember {
+  id: string;
+  team_id: string;
+  auditor_id: string;
+  peran: AuditTeamMemberRole;
+  urutan_tampil: number;
+  auditor?: Auditor;
+}
+export interface AuditTeamMaster {
+  id: string;
+  kode_tim: string;
+  nama_tim: string;
+  plan_id: string | null;
+  is_locked: boolean;
+  locked_at: string | null;
+  status: AuditTeamMasterStatus;
+  catatan: string | null;
+  created_at: string;
+  updated_at: string;
+  members: AuditTeamMasterMember[];
 }
 
 export type RowStatusProgress = StatusProgress;
@@ -460,4 +485,62 @@ export interface ChecklistProdukItem {
   urutan_tampil: number;
   created_at: string;
   updated_at: string;
+}
+
+export type { ChecklistManufakturStatus } from './enums';
+import type { ChecklistManufakturStatus, HasilChecklist } from './enums';
+
+export interface JenisChecklistManufakturShift {
+  plant_id: string;
+  plant_nama: string;
+  shift_id: string;
+  shift_nama: string;
+}
+
+export interface ChecklistManufakturShift {
+  id: string;
+  row_id: string;
+  kode_audit: string;
+  jenis_checklist: JenisChecklistManufakturShift[];
+  nama_seksi: string | null;
+  manager_proses_line_leader: string | null;
+  tanggal_audit: string | null;
+  auditor: AuditorAssignment[];
+  nama_part: string | null;
+  nomor_part: string | null;
+  nomor_line: string | null;
+  control_plan_no: string | null;
+  p_fmea_no: string | null;
+  customer: string | null;
+  jumlah_operator: number | null;
+  status: ChecklistManufakturStatus;
+  kode_dokumen: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistManufakturBankItem {
+  id: string;
+  bagian: string;
+  nomor: string;
+  klausul: string | null;
+  item_pemeriksaan: string | null;
+  urutan_tampil: number;
+  status: ChecklistBankStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistManufakturItem {
+  id: string;
+  checklist_id: string;
+  bank_item_id: string | null;
+  no_proses_dicek: string | null;
+  hasil_pengamatan: string | null;
+  hasil: HasilChecklist | null;
+  finding_id: string | null;
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+  bank_item?: ChecklistManufakturBankItem | null;
 }

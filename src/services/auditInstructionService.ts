@@ -46,6 +46,8 @@ function mapRow(row: Record<string, unknown>): AuditInstructionRow {
     instruction_id: row.instruction_id as string,
     kode_audit: (row.kode_audit as string) ?? '',
     team: (row.team as string) ?? null,
+    team_master_id: (row.team_master_id as string) ?? null,
+    catatan_justifikasi_tim: (row.catatan_justifikasi_tim as string) ?? null,
     proses_id: (row.proses_id as string) ?? null,
     pemilik_proses: (row.pemilik_proses as string) ?? null,
     seksi_marks: (row.seksi_marks as SeksiMark[]) ?? [],
@@ -134,6 +136,11 @@ export async function getRowsByInstruction(instructionId: string): Promise<Audit
   if (error) throw new Error(`Gagal memuat baris instruksi: ${error.message}`);
   return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
 }
+export async function getAllInstructionRows(): Promise<AuditInstructionRow[]> {
+  const { data, error } = await supabase.from('audit_instruction_rows').select('*').order('kode_audit');
+  if (error) throw new Error(`Gagal memuat worklist Checklist Audit: ${error.message}`);
+  return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+}
 
 export async function getRowsByKodeAudits(kodeAudits: string[]): Promise<AuditInstructionRow[]> {
   const uniqueCodes = [...new Set(kodeAudits.filter(Boolean))];
@@ -151,6 +158,8 @@ export async function saveRow(row: Partial<AuditInstructionRow>): Promise<AuditI
     instruction_id: row.instruction_id,
     kode_audit: row.kode_audit,
     team: row.team ?? null,
+    team_master_id: row.team_master_id ?? null,
+    catatan_justifikasi_tim: row.catatan_justifikasi_tim ?? null,
     proses_id: row.proses_id ?? null,
     pemilik_proses: row.pemilik_proses ?? null,
     seksi_marks: row.seksi_marks ?? [],
@@ -177,6 +186,41 @@ export async function saveRow(row: Partial<AuditInstructionRow>): Promise<AuditI
     .from('audit_instruction_rows').insert(payload).select().single();
   if (error) throw new Error(`Gagal menambah baris: ${error.message}`);
   return mapRow(data as Record<string, unknown>);
+}
+
+export async function saveInstructionRowWithTeam(row: Partial<AuditInstructionRow>): Promise<AuditInstructionRow> {
+  validateRequired(
+    { instruction_id: row.instruction_id, kode_audit: row.kode_audit },
+    { instruction_id: 'Instruction', kode_audit: 'No. Audit QA' },
+  );
+  const payload = {
+    team_master_id: row.team_master_id ?? null,
+    catatan_justifikasi_tim: row.catatan_justifikasi_tim ?? null,
+    proses_id: row.proses_id ?? null,
+    pemilik_proses: row.pemilik_proses ?? null,
+    seksi_marks: row.seksi_marks ?? [],
+    tipe_baris: row.tipe_baris ?? TIPE_BARIS.REGULER,
+    matriks_produk_marks: row.matriks_produk_marks ?? [],
+    matriks_manufaktur_shift_marks: row.matriks_manufaktur_shift_marks ?? [],
+    tanggal_audit_produk: row.tanggal_audit_produk ?? null,
+    nama_auditor_produk: row.nama_auditor_produk ?? null,
+    kualifikasi: row.kualifikasi ?? null,
+    item_lain_diperiksa: row.item_lain_diperiksa ?? null,
+    tanggal_plan_audit: row.tanggal_plan_audit ?? null,
+    tanggal_pelaksanaan_audit: row.tanggal_pelaksanaan_audit ?? null,
+    cek_selesai: row.cek_selesai ?? false,
+    urutan_tampil: row.urutan_tampil ?? 0,
+  };
+  const { data, error } = await supabase.rpc('save_instruction_row_with_team', {
+    p_row_id: row.id || null,
+    p_instruction_id: row.instruction_id,
+    p_kode_audit: row.kode_audit,
+    p_payload: payload,
+  });
+  if (error) throw new Error(`Gagal menyimpan baris Instruksi dan Tim Audit: ${error.message}`);
+  const { data: saved, error: loadError } = await supabase.from('audit_instruction_rows').select('*').eq('id', data as string).single();
+  if (loadError) throw new Error(`Baris tersimpan tetapi gagal dimuat: ${loadError.message}`);
+  return mapRow(saved as Record<string, unknown>);
 }
 
 export async function deleteRow(id: string): Promise<void> {

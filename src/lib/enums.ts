@@ -282,3 +282,21 @@ export type JudgmentProduk = (typeof JUDGMENT_PRODUK)[keyof typeof JUDGMENT_PROD
 export const JUDGMENT_PRODUK_LIST: JudgmentProduk[] = Object.values(JUDGMENT_PRODUK);
 
 export const KODE_DOKUMEN_CHECKLIST_PRODUK = 'Q-120-ISE-001-FORM-006';
+
+// ============================================================
+// BATCH 5c: CHECKLIST AUDIT MANUFAKTUR & SHIFT
+// ============================================================
+
+export const CHECKLIST_MANUFAKTUR_STATUS = {
+  DRAFT: 'Draft',
+  SELESAI: 'Selesai',
+} as const;
+export type ChecklistManufakturStatus = (typeof CHECKLIST_MANUFAKTUR_STATUS)[keyof typeof CHECKLIST_MANUFAKTUR_STATUS];
+export const CHECKLIST_MANUFAKTUR_STATUS_LIST: ChecklistManufakturStatus[] = Object.values(CHECKLIST_MANUFAKTUR_STATUS);
+
+export const KODE_DOKUMEN_CHECKLIST_MANUFAKTUR = 'Q-120-ISE-001-FORM-007';
+
+export const AUDIT_TEAM_MASTER_STATUS = { AKTIF: 'Aktif', NONAKTIF: 'Nonaktif' } as const;
+export type AuditTeamMasterStatus = (typeof AUDIT_TEAM_MASTER_STATUS)[keyof typeof AUDIT_TEAM_MASTER_STATUS];
+export const AUDIT_TEAM_MEMBER_ROLE = { LEAD: 'Lead', MEMBER: 'Member' } as const;
+export type AuditTeamMemberRole = (typeof AUDIT_TEAM_MEMBER_ROLE)[keyof typeof AUDIT_TEAM_MEMBER_ROLE];
