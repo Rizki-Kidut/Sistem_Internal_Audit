@@ -347,6 +347,10 @@ Jika keduanya diisi, Tanggal Akhir tidak boleh lebih awal dari Tanggal Awal. Fie
 `periodeLabel` dan `periodeTarget` tetap disimpan hanya untuk kompatibilitas data historis dan tidak
 ditampilkan sebagai editor/toggle pada UI.
 
+Rentang satu hari valid (`tanggalAwal === tanggalAkhir`). Setiap tampilan cetak/ekspor Program
+Internal Audit di masa depan wajib memakai formatter terpusat `formatRentangTanggal()` agar tanggal
+yang sama hanya dicetak sekali dan rentang berbeda memakai format Indonesia yang ringkas.
+
 ### Distribution
 
 When a section is selected:

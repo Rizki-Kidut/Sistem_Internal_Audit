@@ -10,6 +10,8 @@
   with service and database validation that rejects an inverted date range.
 - Existing `audit_programs.periode_label` and `audit_program_steps.periode_target` fields are retained
   unchanged for historical/backward compatibility only.
+- Schedule Dasar permits a same-day range. The centralized `formatRentangTanggal()` helper is ready
+  for future Program print/export output and collapses equal dates to one Indonesian date.
 - Batch 5b remains `IMPLEMENTED_UNVERIFIED`; Batch 5c and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
