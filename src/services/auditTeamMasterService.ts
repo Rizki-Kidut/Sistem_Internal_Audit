@@ -47,6 +47,9 @@ export async function deactivateAuditTeamMaster(id: string): Promise<void> {
   const team = await getAuditTeamMasterById(id);
   if (!team) throw new Error('Tim Audit tidak ditemukan');
   if (team.is_locked) throw new Error('Tim Audit terkunci. Buka kunci sebelum menonaktifkan.');
+  const { count, error: usageError } = await supabase.from('audit_instruction_rows').select('id', { count: 'exact', head: true }).eq('team_master_id', id);
+  if (usageError) throw new Error(`Gagal memeriksa penggunaan Tim Audit: ${usageError.message}`);
+  if (count) throw new Error('Tim Audit masih digunakan pada Instruksi Audit dan tidak dapat dinonaktifkan. Pindahkan Instruksi ke Tim lain terlebih dahulu.');
   const { error } = await supabase.from('audit_team_masters').update({ status: AUDIT_TEAM_MASTER_STATUS.NONAKTIF }).eq('id', id);
   if (error) throw new Error(`Gagal menonaktifkan Tim Audit: ${error.message}`);
 }

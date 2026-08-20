@@ -91,6 +91,10 @@ CREATE OR REPLACE FUNCTION public.protect_audit_team_identity() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF OLD.plan_id IS DISTINCT FROM NEW.plan_id THEN RAISE EXCEPTION 'Rencana Audit Tahunan pemilik Tim tidak dapat diubah'; END IF;
+  IF OLD.status='Aktif' AND NEW.status='Nonaktif'
+    AND EXISTS(SELECT 1 FROM public.audit_instruction_rows WHERE team_master_id=OLD.id) THEN
+    RAISE EXCEPTION 'Tim Audit masih digunakan pada Instruksi Audit dan tidak dapat dinonaktifkan. Pindahkan Instruksi ke Tim lain terlebih dahulu.';
+  END IF;
   IF OLD.is_locked THEN
     IF current_setting('app.team_lock_id',true) IS DISTINCT FROM NEW.id::text
       OR (OLD.plan_id,OLD.kode_tim,OLD.nama_tim,OLD.status,OLD.catatan)
@@ -165,10 +169,32 @@ $$;
 
 CREATE FUNCTION public.lock_audit_team_master(p_team_id uuid) RETURNS void
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE v_row public.audit_instruction_rows%ROWTYPE;v_plan_id uuid;v_names text;
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.audit_team_masters WHERE id=p_team_id AND plan_id IS NOT NULL AND status='Aktif') THEN RAISE EXCEPTION 'Tim Audit aktif dengan Rencana Tahunan tidak ditemukan'; END IF;
   IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=p_team_id AND peran='Lead')<>1 OR NOT EXISTS(SELECT 1 FROM public.audit_team_master_members WHERE team_id=p_team_id) THEN RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead dan minimal satu auditor'; END IF;
   IF EXISTS(SELECT 1 FROM public.audit_team_master_members m LEFT JOIN public.auditors a ON a.id=m.auditor_id WHERE m.team_id=p_team_id AND(a.id IS NULL OR a.status<>'Aktif')) THEN RAISE EXCEPTION 'Semua anggota Tim Audit harus aktif sebelum Tim dikunci'; END IF;
+  FOR v_row IN SELECT * FROM public.audit_instruction_rows WHERE team_master_id=p_team_id ORDER BY kode_audit LOOP
+    v_plan_id:=public.resolve_instruction_plan_id(v_row.id);
+    IF NOT EXISTS(SELECT 1 FROM public.audit_team_masters WHERE id=p_team_id AND plan_id=v_plan_id) THEN
+      RAISE EXCEPTION 'Tim Audit tidak dapat dikunci. Rencana Audit Tahunan tidak sesuai untuk %.',v_row.kode_audit;
+    END IF;
+    SELECT string_agg(a.nama,', ' ORDER BY a.nama) INTO v_names
+      FROM public.audit_team_master_members m JOIN public.auditors a ON a.id=m.auditor_id
+      WHERE m.team_id=p_team_id AND (a.tanggal_berlaku IS NULL OR a.tanggal_berlaku<COALESCE(v_row.tanggal_pelaksanaan_audit,CURRENT_DATE));
+    IF v_names IS NOT NULL THEN
+      RAISE EXCEPTION 'Tim Audit tidak dapat dikunci. Auditor % tidak memenuhi kompetensi untuk % pada tanggal pelaksanaan.',v_names,v_row.kode_audit;
+    END IF;
+    SELECT string_agg(DISTINCT a.nama,', ' ORDER BY a.nama) INTO v_names
+      FROM public.audit_team_master_members m JOIN public.auditors a ON a.id=m.auditor_id
+      JOIN jsonb_array_elements(v_row.seksi_marks) mark ON true
+      JOIN public.seksi s ON s.id=(mark->>'seksi_id')::uuid
+      WHERE m.team_id=p_team_id AND nullif(btrim(a.departemen),'') IS NOT NULL
+        AND lower(s.nama) LIKE '%'||lower(a.departemen)||'%';
+    IF v_names IS NOT NULL AND nullif(btrim(v_row.catatan_justifikasi_tim),'') IS NULL THEN
+      RAISE EXCEPTION 'Tim Audit tidak dapat dikunci. % memiliki konflik independensi dan belum memiliki Catatan Justifikasi.',v_row.kode_audit;
+    END IF;
+  END LOOP;
   PERFORM set_config('app.team_lock_id',p_team_id::text,true);
   UPDATE public.audit_team_masters SET is_locked=true,locked_at=now() WHERE id=p_team_id;
 END;

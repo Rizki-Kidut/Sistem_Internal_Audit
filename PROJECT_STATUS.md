@@ -14,6 +14,8 @@
       prerequisites, locked-roster protection, and checklist-based assignment/unlock locks.
 - [x] Final integrity correction makes locked Team headers/deletes database-stable and saves the
       complete Instruction row context plus Team assignment through one atomic RPC.
+- [x] Relocking validates the live roster against every referenced QA's plan, execution-date
+      competency, and independence/justification; referenced Teams cannot be deactivated.
 - [x] Added additive migration `20260820160000_scope_team_master_by_annual_plan.sql`; it remains
       pending CertiTrack-Staging and real-browser verification.
 
