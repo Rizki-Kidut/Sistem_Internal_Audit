@@ -26,6 +26,7 @@ import { Modal } from '../../ui/Modal';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../../ui';
+import { ProductChecklistPanel } from './ProductChecklistPanel';
 
 interface ChecklistTabProps {
   rows: AuditInstructionRow[];
@@ -63,9 +64,42 @@ function emptyItem(checklistId: string): ChecklistItem {
   };
 }
 
-export function ChecklistTab({
+export function ChecklistTab(props: ChecklistTabProps) {
+  const { rows, readOnly, onError } = props;
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const selectedRow = rows.find((row) => row.id === selectedRowId) ?? null;
+
+  useEffect(() => {
+    if (selectedRowId && !rows.some((row) => row.id === selectedRowId)) setSelectedRowId(null);
+  }, [rows, selectedRowId]);
+
+  if (rows.length === 0) {
+    return <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title="Belum ada baris audit"
+      message="Checklist tersedia setelah baris Instruksi Audit terhubung ke sesi ini." /></Card>;
+  }
+
+  return <div className="space-y-4">
+    <Card className="p-4"><div className="flex items-center gap-4 flex-wrap">
+      <label className="text-sm font-medium text-gray-700">Pilih Baris Audit:</label>
+      <Select value={selectedRowId ?? ''} onChange={(event) => setSelectedRowId(event.target.value || null)} className="min-w-[240px]">
+        <option value="">— Pilih Baris —</option>
+        {rows.map((row) => <option key={row.id} value={row.id}>{row.kode_audit} — {TIPE_BARIS_LABEL[row.tipe_baris]}</option>)}
+      </Select>
+    </div></Card>
+    {!selectedRow && <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title="Pilih baris audit"
+      message="Pilih QA dan tipe audit untuk membuka checklist yang sesuai." /></Card>}
+    {selectedRow?.tipe_baris === TIPE_BARIS.REGULER && <SystemChecklistPanel {...props} rows={[selectedRow]} hideRowSelector />}
+    {selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductChecklistPanel key={selectedRow.id} row={selectedRow} readOnly={readOnly} onError={onError} />}
+    {(selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) &&
+      <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title={`Checklist ${TIPE_BARIS_LABEL[selectedRow.tipe_baris]}`}
+        message="Checklist Audit Manufaktur dan Shift menyusul Batch 5c." /></Card>}
+  </div>;
+}
+
+function SystemChecklistPanel({
   rows, seksiList, auditorList, readOnly, onError,
-}: ChecklistTabProps) {
+  hideRowSelector = false,
+}: ChecklistTabProps & { hideRowSelector?: boolean }) {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [checklistLoading, setChecklistLoading] = useState(false);
@@ -86,6 +120,10 @@ export function ChecklistTab({
       .then((all) => setBankItems(all.filter((b) => b.status === 'Aktif')))
       .catch((e) => onError(e instanceof Error ? e.message : 'Gagal memuat bank checklist'));
   }, [onError]);
+
+  useEffect(() => {
+    if (hideRowSelector && rows.length === 1 && selectedRowId !== rows[0].id) setSelectedRowId(rows[0].id);
+  }, [hideRowSelector, rows, selectedRowId]);
 
   const loadChecklists = useCallback(async (rowId: string) => {
     setChecklistLoading(true);
@@ -210,7 +248,7 @@ export function ChecklistTab({
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      {!hideRowSelector && <Card className="p-4">
         <div className="flex items-center gap-4 flex-wrap">
           <label className="text-sm font-medium text-gray-700">Pilih Baris Audit:</label>
           <Select
@@ -229,7 +267,13 @@ export function ChecklistTab({
             </Button>
           )}
         </div>
-      </Card>
+      </Card>}
+
+      {hideRowSelector && selectedRowId && !readOnly && (
+        <div className="flex justify-end"><Button size="sm" onClick={handleCreateChecklist} disabled={creating}>
+          <Plus size={14} /> {creating ? 'Membuat...' : 'Buat Checklist Sistem'}
+        </Button></div>
+      )}
 
       {rows.some((r) => r.tipe_baris !== TIPE_BARIS.REGULER) && (
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500">

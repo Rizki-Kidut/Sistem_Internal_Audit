@@ -265,3 +265,20 @@ export const STATUS_PROGRESS = {
   BELUM_MULAI: 'Belum Mulai',
 } as const;
 export type StatusProgress = (typeof STATUS_PROGRESS)[keyof typeof STATUS_PROGRESS];
+
+// ============================================================
+// BATCH 5b: CHECKLIST AUDIT PRODUK
+// ============================================================
+
+export const CHECKLIST_PRODUK_STATUS = {
+  DRAFT: 'Draft',
+  SELESAI: 'Selesai',
+} as const;
+export type ProductChecklistStatus = (typeof CHECKLIST_PRODUK_STATUS)[keyof typeof CHECKLIST_PRODUK_STATUS];
+export const CHECKLIST_PRODUK_STATUS_LIST: ProductChecklistStatus[] = Object.values(CHECKLIST_PRODUK_STATUS);
+
+export const JUDGMENT_PRODUK = { OK: 'OK', NG: 'NG' } as const;
+export type JudgmentProduk = (typeof JUDGMENT_PRODUK)[keyof typeof JUDGMENT_PRODUK];
+export const JUDGMENT_PRODUK_LIST: JudgmentProduk[] = Object.values(JUDGMENT_PRODUK);
+
+export const KODE_DOKUMEN_CHECKLIST_PRODUK = 'Q-120-ISE-001-FORM-006';
