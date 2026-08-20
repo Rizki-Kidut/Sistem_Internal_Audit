@@ -1,5 +1,17 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## PR #3 Refinement — 20 Aug 2026
+
+- Instruksi Audit Matriks Seksi retains complete, non-wrapping `-90deg` labels and now anchors their
+  lower end 10px above the bottom header border while preserving dynamic height and column widths.
+- Program Internal Audit Schedule Dasar now uses `Tanggal Awal` / `Tanggal Akhir` instead of period
+  checkbox columns. The Label Periode editor is no longer exposed in Program detail.
+- `audit_program_steps.tanggal_awal` and `tanggal_akhir` are added through a new additive migration,
+  with service and database validation that rejects an inverted date range.
+- Existing `audit_programs.periode_label` and `audit_program_steps.periode_target` fields are retained
+  unchanged for historical/backward compatibility only.
+- Batch 5b remains `IMPLEMENTED_UNVERIFIED`; Batch 5c and later remain `NOT_STARTED`.
+
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
 
 **Status:** `IMPLEMENTED_UNVERIFIED`
@@ -65,8 +77,8 @@ not started and the nested `project/` snapshot was not modified.
       instruction grid creates its schedule/scope/team in the same row-save transaction.
 - [x] Added the specified **Generate dari Program** entry point to Program Internal Audit while
       retaining the existing Instruksi Audit entry point for compatibility.
-- [x] Added dynamic period-label editing (add, rename, remove) and keeps every step's
-      `periode_target` array aligned with the labels.
+- [x] Dynamic period-label editing was implemented and verified during stabilization; it has since
+      been intentionally superseded by the Schedule Dasar date-range decision documented above.
 - [x] Enforced Scheduled scope prerequisites inside `saveAuditSchedule()`, rather than only in UI.
 - [x] Enforced required independence justification inside `upsertTeam()` in addition to UI.
 - [x] Added required checklist header/item validation in the checklist service.
@@ -432,14 +444,14 @@ supabase/migrations/20260805020305_create_proses_master_tables.sql
 - [x] 7-step template table migration
 - [x] seven standard steps seeded
 - [x] steps copied into new program
-- [x] dynamic rendering of period columns based on `periode_label`
-- [x] step period toggles
+- [x] Schedule Dasar renders Tanggal Awal / Tanggal Akhir and preserves legacy period fields only for compatibility
+- [x] legacy `periode_target` remains compatible in schema/service; period toggle UI is intentionally removed
 - [x] step reorder
 - [x] Draft / Approved handling
 
 ### Missing / divergent
 
-- [ ] no UI was found to change the **number or names** of `periode_label`
+- [x] Label Periode editing is intentionally absent after the explicit date-range product decision
 - [ ] repository constant is `Q-120-ISE-001-FORM-002-REV.1`, while supplied plan says
       `Q-120-ISE-001-FORM-002`
 - [ ] full runtime verification not completed

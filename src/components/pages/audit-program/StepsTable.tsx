@@ -1,6 +1,5 @@
-// Tabel Schedule Dasar (7 langkah) dengan kolom periode dinamis sesuai periode_label program.
-// Bukan 4 kolom kaku — jumlah kolom mengikuti panjang periode_label.
-// Bisa tambah/hapus baris, toggle periode_target via klik sel, drag-and-drop urutan.
+// Tabel Schedule Dasar (7 langkah) dengan rentang Tanggal Awal/Tanggal Akhir.
+// Bisa tambah/hapus baris dan drag-and-drop urutan.
 
 import { GripVertical, Plus, Trash2, ListChecks } from 'lucide-react';
 import type { AuditProgramStep } from '../../../lib/types';
@@ -9,9 +8,7 @@ import { Input, Textarea } from '../../ui/Field';
 
 interface StepsTableProps {
   steps: AuditProgramStep[];
-  periodeLabel: string[];
   readOnly: boolean;
-  onTogglePeriode: (stepId: string, periodeIndex: number, currentValue: boolean[]) => void;
   onUpdateField: (stepId: string, field: keyof AuditProgramStep, value: string) => void;
   onAdd: () => void;
   onDelete: (stepId: string) => void;
@@ -20,9 +17,7 @@ interface StepsTableProps {
 
 export function StepsTable({
   steps,
-  periodeLabel,
   readOnly,
-  onTogglePeriode,
   onUpdateField,
   onAdd,
   onDelete,
@@ -53,7 +48,6 @@ export function StepsTable({
         <div className="flex items-center gap-2">
           <ListChecks className="text-blue-600" size={18} />
           <h3 className="text-sm font-semibold text-gray-900">Schedule Dasar</h3>
-          <span className="text-xs text-gray-400">({periodeLabel.length} periode)</span>
         </div>
         {!readOnly && (
           <button
@@ -74,8 +68,7 @@ export function StepsTable({
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-8"></th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">
                   No
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -84,38 +77,29 @@ export function StepsTable({
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Prosedur Pelaksanaan
                 </th>
-                {periodeLabel.map((label, pIdx) => (
-                  <th
-                    key={pIdx}
-                    className="px-1 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    style={{ minWidth: 70 }}
-                  >
-                    {label}
-                  </th>
-                ))}
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Tanggal Awal</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Tanggal Akhir</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   PIC
                 </th>
-                {!readOnly && (
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
-                    Aksi
-                  </th>
-                )}
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {steps.map((step, idx) => (
                 <tr key={step.id} className="hover:bg-gray-50 group">
                   <td
-                    className="align-middle px-1 py-2 text-center cursor-grab active:cursor-grabbing"
+                    className="align-middle px-2 py-2 text-center cursor-grab active:cursor-grabbing"
                     draggable={!readOnly}
                     onDragStart={() => handleDragStart(idx)}
                     onDragOver={handleDragOver}
                     onDrop={() => handleDrop(idx)}
                   >
-                    {!readOnly && <GripVertical className="text-gray-300 group-hover:text-gray-400 inline" size={14} />}
+                    <span className="inline-flex items-center justify-center gap-1 text-sm text-gray-500">
+                      {!readOnly && <GripVertical className="text-gray-300 group-hover:text-gray-400" size={14} />}
+                      {step.nomor}
+                    </span>
                   </td>
-                  <td className="px-2 py-2 text-center text-sm text-gray-500">{step.nomor}</td>
                   <td className="px-3 py-2">
                     <Input
                       value={step.item_pelaksanaan ?? ''}
@@ -139,25 +123,14 @@ export function StepsTable({
                       className="text-sm"
                     />
                   </td>
-                  {periodeLabel.map((_, pIdx) => {
-                    const isChecked = step.periode_target?.[pIdx] ?? false;
-                    return (
-                      <td key={pIdx} className="px-1 py-2 text-center">
-                        <button
-                          disabled={readOnly}
-                          onClick={() => onTogglePeriode(step.id, pIdx, step.periode_target ?? [])}
-                          className={`w-6 h-6 rounded transition-all ${
-                            isChecked
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-50 hover:bg-blue-100'
-                          } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-                          title={isChecked ? 'Aktif (klik untuk hapus)' : 'Tidak aktif (klik untuk set)'}
-                        >
-                          {isChecked ? '■' : ''}
-                        </button>
-                      </td>
-                    );
-                  })}
+                  <td className="px-3 py-2">
+                    <Input type="date" value={step.tanggal_awal ?? ''} disabled={readOnly}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField(step.id, 'tanggal_awal', e.target.value)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="date" value={step.tanggal_akhir ?? ''} min={step.tanggal_awal ?? undefined} disabled={readOnly}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdateField(step.id, 'tanggal_akhir', e.target.value)} />
+                  </td>
                   <td className="px-3 py-2">
                     <Input
                       value={step.pic ?? ''}
@@ -169,8 +142,8 @@ export function StepsTable({
                       className="text-sm"
                     />
                   </td>
-                  {!readOnly && (
-                    <td className="px-2 py-2 text-center">
+                  <td className="px-2 py-2 text-center">
+                    {!readOnly && (
                       <button
                         onClick={() => onDelete(step.id)}
                         className="p-1 text-gray-400 hover:text-red-500 transition-colors"
@@ -178,8 +151,8 @@ export function StepsTable({
                       >
                         <Trash2 size={14} />
                       </button>
-                    </td>
-                  )}
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -187,12 +160,6 @@ export function StepsTable({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-blue-500"></span> Periode aktif
-        </span>
-        <span className="text-gray-400">Klik sel untuk toggle periode. Drag handle untuk urutan.</span>
-      </div>
     </Card>
   );
 }

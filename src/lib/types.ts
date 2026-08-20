@@ -144,7 +144,9 @@ export interface AuditProgramStep {
   nomor: number;
   item_pelaksanaan: string | null;
   prosedur_pelaksanaan: string | null;
-  periode_target: boolean[]; // array sepanjang periode_label program
+  periode_target: boolean[]; // legacy/backward compatibility
+  tanggal_awal: string | null;
+  tanggal_akhir: string | null;
   pic: string | null;
   created_at: string;
   updated_at: string;

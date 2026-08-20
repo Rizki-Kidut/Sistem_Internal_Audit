@@ -75,6 +75,8 @@ function mapStep(row: Record<string, unknown>): AuditProgramStep {
     item_pelaksanaan: (row.item_pelaksanaan as string) ?? null,
     prosedur_pelaksanaan: (row.prosedur_pelaksanaan as string) ?? null,
     periode_target: (row.periode_target as boolean[]) ?? [],
+    tanggal_awal: (row.tanggal_awal as string) ?? null,
+    tanggal_akhir: (row.tanggal_akhir as string) ?? null,
     pic: (row.pic as string) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -236,6 +238,8 @@ export async function createProgramFromPlan(
       item_pelaksanaan: t.item_pelaksanaan,
       prosedur_pelaksanaan: t.prosedur_pelaksanaan,
       periode_target: new Array(periodeCount).fill(false),
+      tanggal_awal: null,
+      tanggal_akhir: null,
       pic: t.pic,
     }));
     const { error: stepErr } = await supabase.from('audit_program_steps').insert(stepsData);
@@ -394,12 +398,18 @@ export async function saveStep(step: Partial<AuditProgramStep>): Promise<AuditPr
     { program_id: 'Program' },
   );
 
+  if (step.tanggal_awal && step.tanggal_akhir && step.tanggal_akhir < step.tanggal_awal) {
+    throw new Error('Tanggal Akhir tidak boleh lebih awal dari Tanggal Awal');
+  }
+
   const payload = {
     program_id: step.program_id,
     nomor: step.nomor ?? 0,
     item_pelaksanaan: step.item_pelaksanaan ?? null,
     prosedur_pelaksanaan: step.prosedur_pelaksanaan ?? null,
     periode_target: step.periode_target ?? [],
+    tanggal_awal: step.tanggal_awal ?? null,
+    tanggal_akhir: step.tanggal_akhir ?? null,
     pic: step.pic ?? null,
   };
 
