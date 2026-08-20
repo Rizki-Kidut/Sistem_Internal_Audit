@@ -76,6 +76,78 @@ CREATE TRIGGER trg_validate_checklist_produk_completion
 BEFORE INSERT OR UPDATE OF status ON public.checklist_produk
 FOR EACH ROW EXECUTE FUNCTION public.validate_checklist_produk_completion();
 
+CREATE FUNCTION public.assert_checklist_produk_draft(p_checklist_id uuid) RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.checklist_produk
+    WHERE id = p_checklist_id AND status = 'Selesai'
+  ) THEN
+    RAISE EXCEPTION 'Checklist Audit Produk sudah Selesai. Kembalikan ke Draft sebelum mengubah data.';
+  END IF;
+END;
+$$;
+
+CREATE FUNCTION public.protect_completed_checklist_produk_delete() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  PERFORM public.assert_checklist_produk_draft(OLD.id);
+  RETURN OLD;
+END;
+$$;
+
+CREATE TRIGGER trg_protect_completed_checklist_produk_delete
+BEFORE DELETE ON public.checklist_produk
+FOR EACH ROW EXECUTE FUNCTION public.protect_completed_checklist_produk_delete();
+
+CREATE FUNCTION public.protect_completed_checklist_produk_fase() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    PERFORM public.assert_checklist_produk_draft(OLD.checklist_produk_id);
+  END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE')
+     AND (TG_OP = 'INSERT' OR NEW.checklist_produk_id IS DISTINCT FROM OLD.checklist_produk_id) THEN
+    PERFORM public.assert_checklist_produk_draft(NEW.checklist_produk_id);
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_protect_completed_checklist_produk_fase
+BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_fase
+FOR EACH ROW EXECUTE FUNCTION public.protect_completed_checklist_produk_fase();
+
+CREATE FUNCTION public.protect_completed_checklist_produk_item() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE
+  v_old_checklist_id uuid;
+  v_new_checklist_id uuid;
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    SELECT checklist_produk_id INTO v_old_checklist_id
+    FROM public.checklist_produk_fase WHERE id = OLD.fase_id;
+    PERFORM public.assert_checklist_produk_draft(v_old_checklist_id);
+  END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE') AND (TG_OP = 'INSERT' OR NEW.fase_id IS DISTINCT FROM OLD.fase_id) THEN
+    SELECT checklist_produk_id INTO v_new_checklist_id
+    FROM public.checklist_produk_fase WHERE id = NEW.fase_id;
+    PERFORM public.assert_checklist_produk_draft(v_new_checklist_id);
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_protect_completed_checklist_produk_item
+BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_items
+FOR EACH ROW EXECUTE FUNCTION public.protect_completed_checklist_produk_item();
+
 DO $$ DECLARE t text; BEGIN
   FOREACH t IN ARRAY ARRAY['checklist_produk','checklist_produk_fase','checklist_produk_items'] LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);

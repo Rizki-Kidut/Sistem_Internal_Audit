@@ -12,6 +12,8 @@
   unchanged for historical/backward compatibility only.
 - Schedule Dasar permits a same-day range. The centralized `formatRentangTanggal()` helper is ready
   for future Program print/export output and collapses equal dates to one Indonesian date.
+- Completed Product Checklists are immutable at service and database layers: checklist deletion and
+  all phase/item/evidence mutations require returning the checklist to Draft first.
 - Batch 5b remains `IMPLEMENTED_UNVERIFIED`; Batch 5c and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026

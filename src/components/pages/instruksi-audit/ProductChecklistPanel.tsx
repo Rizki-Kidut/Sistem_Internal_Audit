@@ -173,7 +173,7 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
           onUpload={(file) => upload(phase, file)} onOpen={openEvidence} onDeleteEvidence={(evidence) => removeEvidence(phase, evidence)} />)}
       </div>
     </Card>
-    {!readOnly && <div className="flex justify-end"><Button variant="danger" size="sm" onClick={() => setDeleteTarget({ type: 'checklist', id: active.id, label: active.kode_audit })}><Trash2 size={14} /> Hapus Checklist</Button></div>}
+    {editable && <div className="flex justify-end"><Button variant="danger" size="sm" onClick={() => setDeleteTarget({ type: 'checklist', id: active.id, label: active.kode_audit })}><Trash2 size={14} /> Hapus Checklist</Button></div>}
 
     <Modal open={editingHeader} onClose={() => { setEditingHeader(false); setHeaderDraft(active); }} title="Edit Header Checklist Audit Produk" footer={<><Button variant="secondary" onClick={() => setEditingHeader(false)}>Batal</Button><Button onClick={() => saveHeader()}>Simpan</Button></>}>
       <div className="space-y-3"><Field label="Nama Inspector (dari Instruksi Audit)"><Input value={headerDraft.nama_inspector ?? ''} disabled /></Field><Field label="Kualifikasi Inspector (dari Instruksi Audit)"><Input value={headerDraft.kualifikasi_inspector ?? ''} disabled /></Field>

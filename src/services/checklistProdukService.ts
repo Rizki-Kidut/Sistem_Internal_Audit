@@ -10,6 +10,7 @@ import {
 import { validateRequired } from '../lib/utils';
 
 const BUCKET = 'audit-evidence';
+const COMPLETED_MUTATION_ERROR = 'Checklist Audit Produk sudah Selesai. Kembalikan ke Draft sebelum mengubah data.';
 
 function mapChecklist(row: Record<string, unknown>): ChecklistProduk {
   return { ...row } as unknown as ChecklistProduk;
@@ -31,6 +32,28 @@ export async function getProductChecklistById(id: string): Promise<ChecklistProd
   const { data, error } = await supabase.from('checklist_produk').select('*').eq('id', id).maybeSingle();
   if (error) throw new Error(`Gagal memuat Checklist Audit Produk: ${error.message}`);
   return data ? mapChecklist(data as Record<string, unknown>) : null;
+}
+
+export async function assertProductChecklistDraft(checklistId: string): Promise<void> {
+  const checklist = await getProductChecklistById(checklistId);
+  if (!checklist) throw new Error('Checklist Audit Produk tidak ditemukan');
+  if (checklist.status === CHECKLIST_PRODUK_STATUS.SELESAI) throw new Error(COMPLETED_MUTATION_ERROR);
+}
+
+async function getChecklistIdForPhase(faseId: string): Promise<string> {
+  const { data, error } = await supabase.from('checklist_produk_fase')
+    .select('checklist_produk_id').eq('id', faseId).maybeSingle();
+  if (error) throw new Error(`Gagal memuat fase produk: ${error.message}`);
+  if (!data) throw new Error('Fase Checklist Audit Produk tidak ditemukan');
+  return data.checklist_produk_id as string;
+}
+
+async function getPhaseIdForItem(itemId: string): Promise<string> {
+  const { data, error } = await supabase.from('checklist_produk_items')
+    .select('fase_id').eq('id', itemId).maybeSingle();
+  if (error) throw new Error(`Gagal memuat item produk: ${error.message}`);
+  if (!data) throw new Error('Item Checklist Audit Produk tidak ditemukan');
+  return data.fase_id as string;
 }
 
 export async function createProductChecklistFromRow(row: AuditInstructionRow): Promise<ChecklistProduk> {
@@ -77,6 +100,7 @@ export async function saveProductChecklist(checklist: Partial<ChecklistProduk>):
 }
 
 export async function deleteProductChecklist(id: string): Promise<void> {
+  await assertProductChecklistDraft(id);
   const phases = await getProductPhases(id);
   const paths = phases.flatMap((phase) => phase.dokumen_bukti.map((evidence) => evidence.path));
   const { error } = await supabase.from('checklist_produk').delete().eq('id', id);
@@ -99,6 +123,10 @@ export async function saveProductPhase(phase: Partial<ChecklistProdukFase>): Pro
     { checklist_produk_id: phase.checklist_produk_id, nama_fase: phase.nama_fase },
     { checklist_produk_id: 'Checklist Audit Produk', nama_fase: 'Nama Fase' },
   );
+  if (phase.id) {
+    await assertProductChecklistDraft(await getChecklistIdForPhase(phase.id));
+  }
+  await assertProductChecklistDraft(phase.checklist_produk_id!);
   const payload = {
     checklist_produk_id: phase.checklist_produk_id, nama_fase: phase.nama_fase,
     nama_proses: phase.nama_proses ?? null, inspection_result_chart: phase.inspection_result_chart ?? false,
@@ -114,7 +142,11 @@ export async function saveProductPhase(phase: Partial<ChecklistProdukFase>): Pro
 }
 
 export async function deleteProductPhase(id: string): Promise<void> {
-  const { data: phase } = await supabase.from('checklist_produk_fase').select('dokumen_bukti').eq('id', id).maybeSingle();
+  const { data: phase, error: phaseError } = await supabase.from('checklist_produk_fase')
+    .select('checklist_produk_id,dokumen_bukti').eq('id', id).maybeSingle();
+  if (phaseError) throw new Error(`Gagal memuat fase produk: ${phaseError.message}`);
+  if (!phase) throw new Error('Fase Checklist Audit Produk tidak ditemukan');
+  await assertProductChecklistDraft(phase.checklist_produk_id as string);
   const paths = ((phase?.dokumen_bukti as ProductChecklistEvidence[] | undefined) ?? []).map((file) => file.path);
   const { error } = await supabase.from('checklist_produk_fase').delete().eq('id', id);
   if (error) throw new Error(`Gagal menghapus fase produk: ${error.message}`);
@@ -136,6 +168,11 @@ export async function saveProductItem(item: Partial<ChecklistProdukItem>): Promi
     { fase_id: item.fase_id, item_pemeriksaan: item.item_pemeriksaan },
     { fase_id: 'Fase', item_pemeriksaan: 'Item Pemeriksaan' },
   );
+  if (item.id) {
+    const oldPhaseId = await getPhaseIdForItem(item.id);
+    await assertProductChecklistDraft(await getChecklistIdForPhase(oldPhaseId));
+  }
+  await assertProductChecklistDraft(await getChecklistIdForPhase(item.fase_id!));
   if ((item.jumlah_sampel_minimal ?? 0) < 0 || (item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel tidak boleh negatif');
   if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
   const payload = {
@@ -155,6 +192,8 @@ export async function saveProductItem(item: Partial<ChecklistProdukItem>): Promi
 }
 
 export async function deleteProductItem(id: string): Promise<void> {
+  const faseId = await getPhaseIdForItem(id);
+  await assertProductChecklistDraft(await getChecklistIdForPhase(faseId));
   const { error } = await supabase.from('checklist_produk_items').delete().eq('id', id);
   if (error) throw new Error(`Gagal menghapus item produk: ${error.message}`);
 }
@@ -164,6 +203,9 @@ function sanitizeFileName(name: string): string {
 }
 
 export async function uploadProductEvidence(checklistId: string, faseId: string, file: File): Promise<ChecklistProdukFase> {
+  await assertProductChecklistDraft(checklistId);
+  const phaseChecklistId = await getChecklistIdForPhase(faseId);
+  if (phaseChecklistId !== checklistId) throw new Error('Fase tidak terkait dengan Checklist Audit Produk ini');
   const path = `product-checklists/${checklistId}/${faseId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined });
   if (uploadError) throw new Error(`Gagal mengunggah dokumen bukti: ${uploadError.message}`);
@@ -185,6 +227,7 @@ export async function uploadProductEvidence(checklistId: string, faseId: string,
 }
 
 export async function deleteProductEvidence(phase: ChecklistProdukFase, evidence: ProductChecklistEvidence): Promise<ChecklistProdukFase> {
+  await assertProductChecklistDraft(await getChecklistIdForPhase(phase.id));
   const updated = await saveProductPhase({ ...phase, dokumen_bukti: phase.dokumen_bukti.filter((file) => file.path !== evidence.path) });
   const { error } = await supabase.storage.from(BUCKET).remove([evidence.path]);
   if (error) throw new Error(`Metadata bukti terhapus, tetapi file Storage gagal dibersihkan: ${error.message}`);
