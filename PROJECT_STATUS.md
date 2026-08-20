@@ -12,6 +12,8 @@
       columns remain preserved but are no longer populated or used as current roster authority.
 - [x] Added plan-matched locked-Team assignment, dynamic competency/independence checks, checklist
       prerequisites, locked-roster protection, and checklist-based assignment/unlock locks.
+- [x] Final integrity correction makes locked Team headers/deletes database-stable and saves the
+      complete Instruction row context plus Team assignment through one atomic RPC.
 - [x] Added additive migration `20260820160000_scope_team_master_by_annual_plan.sql`; it remains
       pending CertiTrack-Staging and real-browser verification.
 

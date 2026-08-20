@@ -11,8 +11,7 @@ import type {
 import { computeStatusProgress } from '../../../lib/types';
 import { TIPE_BARIS_LIST, TIPE_BARIS_LABEL, TIPE_SEKSI_MARK } from '../../../lib/enums';
 import type { TipeBaris, TipeSeksiMark } from '../../../lib/enums';
-import { saveRow, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
-import { assignTeamToInstructionRow } from '../../../services/auditTeamMasterService';
+import { saveRow, saveInstructionRowWithTeam, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
 import { formatTanggal } from '../../../lib/utils';
 import { Modal } from '../../ui/Modal';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
@@ -104,9 +103,9 @@ export function RowsTable({
       const pemilikProses = resolvePemilikProses(form.proses_id || null, prosesList, seksiList, finalSeksiMarks);
 
       if (editingRow) {
-        const teamChanged = form.team_master_id !== (editingRow.team_master_id ?? '');
-        const saved = await saveRow({
+        await saveInstructionRowWithTeam({
           ...editingRow,
+          team_master_id: form.team_master_id || null,
           proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
           seksi_marks: finalSeksiMarks, tipe_baris: form.tipe_baris,
           matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
@@ -115,16 +114,14 @@ export function RowsTable({
           kualifikasi: form.kualifikasi || null, item_lain_diperiksa: form.item_lain_diperiksa || null,
           tanggal_plan_audit: form.tanggal_plan_audit || null,
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
-          catatan_justifikasi_tim: teamChanged ? editingRow.catatan_justifikasi_tim : form.catatan_justifikasi_tim || null,
+          catatan_justifikasi_tim: form.catatan_justifikasi_tim || null,
           cek_selesai: form.cek_selesai,
         });
-        if (teamChanged)
-          await assignTeamToInstructionRow(saved.id, form.team_master_id || null, form.catatan_justifikasi_tim);
       } else {
         const kodeAudit = await generateNextKodeAudit(prefixNomorAudit);
-        const saved = await saveRow({
+        await saveInstructionRowWithTeam({
           instruction_id: instructionId, kode_audit: kodeAudit,
-          team: null, team_master_id: null, catatan_justifikasi_tim: null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
+          team: null, team_master_id: form.team_master_id || null, catatan_justifikasi_tim: form.catatan_justifikasi_tim || null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
           seksi_marks: finalSeksiMarks, auditor: [], tipe_baris: form.tipe_baris,
           matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
           tanggal_audit_produk: form.tanggal_audit_produk || null,
@@ -134,7 +131,6 @@ export function RowsTable({
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
           cek_selesai: form.cek_selesai,
         });
-        if (form.team_master_id) await assignTeamToInstructionRow(saved.id, form.team_master_id, form.catatan_justifikasi_tim);
       }
       setEditOpen(false);
       onReload();

@@ -44,6 +44,9 @@ export async function saveAuditTeamMaster(team: Partial<AuditTeamMaster>): Promi
 export async function lockAuditTeamMaster(id:string):Promise<void>{const {error}=await supabase.rpc('lock_audit_team_master',{p_team_id:id});if(error)throw new Error(error.message);}
 export async function unlockAuditTeamMaster(id:string):Promise<void>{const {error}=await supabase.rpc('unlock_audit_team_master',{p_team_id:id});if(error)throw new Error(error.message);}
 export async function deactivateAuditTeamMaster(id: string): Promise<void> {
+  const team = await getAuditTeamMasterById(id);
+  if (!team) throw new Error('Tim Audit tidak ditemukan');
+  if (team.is_locked) throw new Error('Tim Audit terkunci. Buka kunci sebelum menonaktifkan.');
   const { error } = await supabase.from('audit_team_masters').update({ status: AUDIT_TEAM_MASTER_STATUS.NONAKTIF }).eq('id', id);
   if (error) throw new Error(`Gagal menonaktifkan Tim Audit: ${error.message}`);
 }

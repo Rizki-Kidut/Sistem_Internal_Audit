@@ -31,7 +31,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.validate_live_instruction_team() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
-DECLARE v_team public.audit_team_masters%ROWTYPE; v_plan_id uuid; v_names text;
+DECLARE v_team public.audit_team_masters%ROWTYPE; v_plan_id uuid; v_names text;v_tahun integer;v_count integer;
 BEGIN
   IF NEW.team_master_id IS NULL THEN
     IF TG_OP='UPDATE' AND NEW.team_master_id IS DISTINCT FROM OLD.team_master_id
@@ -48,7 +48,15 @@ BEGIN
   IF NOT FOUND OR v_team.status<>'Aktif' OR NOT v_team.is_locked OR v_team.plan_id IS NULL THEN
     RAISE EXCEPTION 'Pilih Tim Audit aktif dan terkunci dari Rencana Audit Tahunan yang sesuai';
   END IF;
-  v_plan_id:=public.resolve_instruction_plan_id(NEW.id);
+  IF TG_OP='INSERT' THEN
+    SELECT p.plan_id,i.tahun_fiskal INTO v_plan_id,v_tahun FROM public.audit_instructions i LEFT JOIN public.audit_programs p ON p.id=i.program_id WHERE i.id=NEW.instruction_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Instruksi Audit tidak ditemukan'; END IF;
+    IF v_plan_id IS NULL THEN
+      SELECT count(*) INTO v_count FROM public.audit_plans WHERE tahun=v_tahun;
+      IF v_count<>1 THEN RAISE EXCEPTION 'Rencana Audit Tahunan untuk Instruksi tidak dapat ditentukan secara unik'; END IF;
+      SELECT id INTO v_plan_id FROM public.audit_plans WHERE tahun=v_tahun LIMIT 1;
+    END IF;
+  ELSE v_plan_id:=public.resolve_instruction_plan_id(NEW.id); END IF;
   IF v_team.plan_id<>v_plan_id THEN RAISE EXCEPTION 'Tim Audit harus berasal dari Rencana Audit Tahunan yang sama dengan Instruksi'; END IF;
   IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=v_team.id AND peran='Lead')<>1
     OR NOT EXISTS(SELECT 1 FROM public.audit_team_master_members WHERE team_id=v_team.id) THEN
@@ -83,18 +91,33 @@ CREATE OR REPLACE FUNCTION public.protect_audit_team_identity() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF OLD.plan_id IS DISTINCT FROM NEW.plan_id THEN RAISE EXCEPTION 'Rencana Audit Tahunan pemilik Tim tidak dapat diubah'; END IF;
-  IF OLD.is_locked IS DISTINCT FROM NEW.is_locked
+  IF OLD.is_locked THEN
+    IF current_setting('app.team_lock_id',true) IS DISTINCT FROM NEW.id::text
+      OR (OLD.plan_id,OLD.kode_tim,OLD.nama_tim,OLD.status,OLD.catatan)
+        IS DISTINCT FROM (NEW.plan_id,NEW.kode_tim,NEW.nama_tim,NEW.status,NEW.catatan) THEN
+      RAISE EXCEPTION 'Tim Audit terkunci tidak dapat diubah. Buka kunci terlebih dahulu.';
+    END IF;
+  ELSIF OLD.is_locked IS DISTINCT FROM NEW.is_locked
     AND current_setting('app.team_lock_id',true) IS DISTINCT FROM NEW.id::text THEN
     RAISE EXCEPTION 'Status kunci Tim Audit hanya dapat diubah melalui aksi Kunci/Buka Kunci';
-  END IF;
-  IF OLD.is_locked AND (OLD.kode_tim IS DISTINCT FROM NEW.kode_tim OR OLD.plan_id IS DISTINCT FROM NEW.plan_id) THEN
-    RAISE EXCEPTION 'Identitas Tim Audit terkunci tidak dapat diubah';
   END IF;
   RETURN NEW;
 END;
 $$;
 CREATE TRIGGER trg_protect_audit_team_identity BEFORE UPDATE ON public.audit_team_masters
 FOR EACH ROW EXECUTE FUNCTION public.protect_audit_team_identity();
+
+CREATE OR REPLACE FUNCTION public.protect_audit_team_delete() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF OLD.is_locked OR EXISTS(SELECT 1 FROM public.audit_instruction_rows WHERE team_master_id=OLD.id) THEN
+    RAISE EXCEPTION 'Tim Audit terkunci atau sudah digunakan pada Instruksi dan tidak dapat dihapus. Gunakan Nonaktifkan bila diizinkan.';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+CREATE TRIGGER trg_protect_audit_team_delete BEFORE DELETE ON public.audit_team_masters
+FOR EACH ROW EXECUTE FUNCTION public.protect_audit_team_delete();
 
 CREATE OR REPLACE FUNCTION public.protect_locked_audit_team_members() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
@@ -171,6 +194,57 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION public.save_instruction_row_with_team(
+  p_row_id uuid,p_instruction_id uuid,p_kode_audit text,p_payload jsonb
+) RETURNS uuid LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE v_id uuid;v_old_team uuid;v_new_team uuid;
+BEGIN
+  IF p_instruction_id IS NULL OR nullif(btrim(p_kode_audit),'') IS NULL OR jsonb_typeof(p_payload)<>'object' THEN
+    RAISE EXCEPTION 'Data baris Instruksi Audit tidak lengkap';
+  END IF;
+  v_new_team:=nullif(p_payload->>'team_master_id','')::uuid;
+  IF p_row_id IS NOT NULL THEN
+    SELECT team_master_id INTO v_old_team FROM public.audit_instruction_rows WHERE id=p_row_id FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Baris Instruksi Audit tidak ditemukan'; END IF;
+    IF v_old_team IS DISTINCT FROM v_new_team AND (
+      EXISTS(SELECT 1 FROM public.checklists WHERE row_id=p_row_id)
+      OR EXISTS(SELECT 1 FROM public.checklist_produk WHERE row_id=p_row_id)
+      OR EXISTS(SELECT 1 FROM public.checklist_manufaktur_shift WHERE row_id=p_row_id)) THEN
+      RAISE EXCEPTION 'Tim audit tidak dapat diubah karena checklist untuk No. Audit ini sudah dibuat. Hapus checklist Draft terlebih dahulu jika tim harus diganti.';
+    END IF;
+  END IF;
+  PERFORM set_config('app.team_assignment_row_id',COALESCE(p_row_id::text,'new'),true);
+  IF p_row_id IS NULL THEN
+    INSERT INTO public.audit_instruction_rows(
+      instruction_id,kode_audit,team_master_id,catatan_justifikasi_tim,team,auditor,
+      proses_id,pemilik_proses,seksi_marks,tipe_baris,matriks_produk_marks,
+      matriks_manufaktur_shift_marks,tanggal_audit_produk,nama_auditor_produk,kualifikasi,
+      item_lain_diperiksa,tanggal_plan_audit,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)
+    VALUES(p_instruction_id,p_kode_audit,v_new_team,nullif(btrim(p_payload->>'catatan_justifikasi_tim'),''),NULL,'[]'::jsonb,
+      nullif(p_payload->>'proses_id','')::uuid,nullif(p_payload->>'pemilik_proses',''),COALESCE(p_payload->'seksi_marks','[]'),p_payload->>'tipe_baris',COALESCE(p_payload->'matriks_produk_marks','[]'),
+      COALESCE(p_payload->'matriks_manufaktur_shift_marks','[]'),nullif(p_payload->>'tanggal_audit_produk','')::date,nullif(p_payload->>'nama_auditor_produk',''),nullif(p_payload->>'kualifikasi',''),
+      nullif(p_payload->>'item_lain_diperiksa',''),nullif(p_payload->>'tanggal_plan_audit','')::date,nullif(p_payload->>'tanggal_pelaksanaan_audit','')::date,COALESCE((p_payload->>'cek_selesai')::boolean,false),COALESCE((p_payload->>'urutan_tampil')::integer,0))
+    RETURNING id INTO v_id;
+  ELSE
+    PERFORM set_config('app.team_assignment_row_id',p_row_id::text,true);
+    UPDATE public.audit_instruction_rows SET
+      team_master_id=v_new_team,catatan_justifikasi_tim=nullif(btrim(p_payload->>'catatan_justifikasi_tim'),''),
+      team=CASE WHEN v_old_team IS DISTINCT FROM v_new_team THEN NULL ELSE team END,
+      auditor=CASE WHEN v_old_team IS DISTINCT FROM v_new_team THEN '[]'::jsonb ELSE auditor END,
+      proses_id=nullif(p_payload->>'proses_id','')::uuid,pemilik_proses=nullif(p_payload->>'pemilik_proses',''),
+      seksi_marks=COALESCE(p_payload->'seksi_marks','[]'),tipe_baris=p_payload->>'tipe_baris',
+      matriks_produk_marks=COALESCE(p_payload->'matriks_produk_marks','[]'),matriks_manufaktur_shift_marks=COALESCE(p_payload->'matriks_manufaktur_shift_marks','[]'),
+      tanggal_audit_produk=nullif(p_payload->>'tanggal_audit_produk','')::date,nama_auditor_produk=nullif(p_payload->>'nama_auditor_produk',''),
+      kualifikasi=nullif(p_payload->>'kualifikasi',''),item_lain_diperiksa=nullif(p_payload->>'item_lain_diperiksa',''),
+      tanggal_plan_audit=nullif(p_payload->>'tanggal_plan_audit','')::date,tanggal_pelaksanaan_audit=nullif(p_payload->>'tanggal_pelaksanaan_audit','')::date,
+      cek_selesai=COALESCE((p_payload->>'cek_selesai')::boolean,false),urutan_tampil=COALESCE((p_payload->>'urutan_tampil')::integer,urutan_tampil)
+    WHERE id=p_row_id AND instruction_id=p_instruction_id AND kode_audit=p_kode_audit RETURNING id INTO v_id;
+    IF v_id IS NULL THEN RAISE EXCEPTION 'Identitas baris Instruksi Audit tidak sesuai'; END IF;
+  END IF;
+  RETURN v_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.require_instruction_team_for_checklist() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 DECLARE v_row public.audit_instruction_rows%ROWTYPE;v_names text;
@@ -207,7 +281,9 @@ REVOKE ALL ON FUNCTION public.save_audit_team_master(uuid,uuid,text,text,text,te
 REVOKE ALL ON FUNCTION public.lock_audit_team_master(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.unlock_audit_team_master(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.assign_team_to_instruction_row(uuid,uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.save_instruction_row_with_team(uuid,uuid,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.save_audit_team_master(uuid,uuid,text,text,text,text,jsonb) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.lock_audit_team_master(uuid) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.unlock_audit_team_master(uuid) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.assign_team_to_instruction_row(uuid,uuid,text) TO anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.save_instruction_row_with_team(uuid,uuid,text,jsonb) TO anon,authenticated;
