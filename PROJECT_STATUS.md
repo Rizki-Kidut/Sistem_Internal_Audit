@@ -9,6 +9,8 @@ not started and the nested `project/` snapshot was not modified.
 
 ### Completed
 
+- [x] Corrected Instruksi Audit Matriks Seksi headers to rotate each complete, non-wrapping section
+      name bottom-to-top, with bounded dynamic header height and matching compact header/body widths.
 - [x] Added additive, version-controlled schemas, indexes, RLS policies, and relationships for
       `audit_instructions`, `audit_instruction_rows`, `plants`, `target_models`, `shifts`,
       `checklists`, and `checklist_items`.
