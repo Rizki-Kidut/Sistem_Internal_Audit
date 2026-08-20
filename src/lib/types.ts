@@ -144,7 +144,9 @@ export interface AuditProgramStep {
   nomor: number;
   item_pelaksanaan: string | null;
   prosedur_pelaksanaan: string | null;
-  periode_target: boolean[]; // array sepanjang periode_label program
+  periode_target: boolean[]; // legacy/backward compatibility
+  tanggal_awal: string | null;
+  tanggal_akhir: string | null;
   pic: string | null;
   created_at: string;
   updated_at: string;
@@ -401,6 +403,61 @@ export interface ChecklistItem {
   hasil: string | null;
   komentar_auditor: string | null;
   finding_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type { ProductChecklistStatus } from './enums';
+import type { ProductChecklistStatus, JudgmentProduk } from './enums';
+
+export interface ProductChecklistEvidence {
+  name: string;
+  path: string;
+  mime_type: string;
+  size: number;
+  uploaded_at: string;
+}
+
+export interface ChecklistProduk {
+  id: string;
+  row_id: string;
+  kode_audit: string;
+  nama_inspector: string | null;
+  kualifikasi_inspector: string | null;
+  part_name: string | null;
+  part_no: string | null;
+  control_plan_no: string | null;
+  status: ProductChecklistStatus;
+  kode_dokumen: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistProdukFase {
+  id: string;
+  checklist_produk_id: string;
+  nama_fase: string;
+  nama_proses: string | null;
+  inspection_result_chart: boolean;
+  no_inspection_standard: string | null;
+  dokumen_bukti: ProductChecklistEvidence[];
+  urutan_tampil: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistProdukItem {
+  id: string;
+  fase_id: string;
+  kategori: string | null;
+  jumlah_sampel_minimal: number | null;
+  item_pemeriksaan: string;
+  alat_pemeriksaan: string | null;
+  standar_kriteria: string | null;
+  jumlah_sampel: number | null;
+  hasil_pemeriksaan: string | null;
+  judgment: JudgmentProduk | null;
+  urutan_tampil: number;
   created_at: string;
   updated_at: string;
 }

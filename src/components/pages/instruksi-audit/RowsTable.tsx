@@ -304,12 +304,17 @@ export function RowsTable({
                     title={s.nama}
                   >
                     <div
-                      className="relative flex items-center justify-center w-full"
+                      className="relative w-full overflow-visible"
                       style={{ height: seksiHeaderHeight }}
                     >
                       <span
                         className="absolute whitespace-nowrap text-xs font-semibold text-gray-700 leading-none"
-                        style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+                        style={{
+                          left: '50%',
+                          bottom: 10,
+                          transform: 'rotate(-90deg)',
+                          transformOrigin: 'left center',
+                        }}
                       >
                         {s.nama}
                       </span>

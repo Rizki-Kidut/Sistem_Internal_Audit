@@ -305,7 +305,7 @@ auditPrograms: {
   management,
   tujuan,
   poinPerhatian,
-  periodeLabel: string[],
+  periodeLabel: string[], // legacy/backward compatibility; tidak ditampilkan di UI
   status, // Draft | Approved
   kodeDokumen // "Q-120-ISE-001-FORM-002"
 }
@@ -331,23 +331,25 @@ auditProgramSteps: {
   nomor, // 1..7
   itemPelaksanaan,
   prosedurPelaksanaan,
-  periodeTarget: boolean[],
+  tanggalAwal,
+  tanggalAkhir,
+  periodeTarget: boolean[], // legacy/backward compatibility
   pic
 }
 
 auditProgramStepTemplate
 ```
 
-### Period labels
+### Schedule Dasar date range
 
-Default:
+Setiap langkah menggunakan dua kolom tanggal: **Tanggal Awal** dan **Tanggal Akhir**.
+Jika keduanya diisi, Tanggal Akhir tidak boleh lebih awal dari Tanggal Awal. Field lama
+`periodeLabel` dan `periodeTarget` tetap disimpan hanya untuk kompatibilitas data historis dan tidak
+ditampilkan sebagai editor/toggle pada UI.
 
-- Periode 1
-- Periode 2
-- Periode 3
-- Periode 4
-
-User may change both the count and label names.
+Rentang satu hari valid (`tanggalAwal === tanggalAkhir`). Setiap tampilan cetak/ekspor Program
+Internal Audit di masa depan wajib memakai formatter terpusat `formatRentangTanggal()` agar tanggal
+yang sama hanya dicetak sekali dan rentang berbeda memakai format Indonesia yang ringkas.
 
 ### Distribution
 
@@ -380,7 +382,7 @@ When a program is created, copy the template into `auditProgramSteps`.
 - Poin Perhatian
 - Tujuan Distribusi table
 - Risiko/Peluang table
-- 7-step Schedule Dasar with dynamic period columns
+- 7-step Schedule Dasar with Tanggal Awal and Tanggal Akhir columns
 
 ---
 

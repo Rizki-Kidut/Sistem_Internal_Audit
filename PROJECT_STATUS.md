@@ -1,5 +1,76 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## PR #3 Refinement — 20 Aug 2026
+
+- Instruksi Audit Matriks Seksi retains complete, non-wrapping `-90deg` labels and now anchors their
+  lower end 10px above the bottom header border while preserving dynamic height and column widths.
+- Program Internal Audit Schedule Dasar now uses `Tanggal Awal` / `Tanggal Akhir` instead of period
+  checkbox columns. The Label Periode editor is no longer exposed in Program detail.
+- `audit_program_steps.tanggal_awal` and `tanggal_akhir` are added through a new additive migration,
+  with service and database validation that rejects an inverted date range.
+- Existing `audit_programs.periode_label` and `audit_program_steps.periode_target` fields are retained
+  unchanged for historical/backward compatibility only.
+- Schedule Dasar permits a same-day range. The centralized `formatRentangTanggal()` helper is ready
+  for future Program print/export output and collapses equal dates to one Indonesian date.
+- Completed Product Checklists are immutable at service and database layers: checklist deletion and
+  all phase/item/evidence mutations require returning the checklist to Draft first.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and later remain `NOT_STARTED`.
+
+## Batch 5b — Checklist Audit Produk — 20 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+### Implemented
+
+- [x] Added the additive `checklist_produk`, `checklist_produk_fase`, and
+      `checklist_produk_items` schema with foreign keys, lookup indexes, updated-at triggers, RLS,
+      and database-level completion protection.
+- [x] Added private Supabase Storage bucket configuration for `audit-evidence`, bucket-scoped access
+      policies matching the current anon/authenticated application model, signed URL access, and
+      product-checklist evidence metadata stored in `dokumen_bukti` (never binary/base64 data).
+- [x] Added centralized Product Checklist status, judgment, document-code constants, and snake_case
+      domain types.
+- [x] Added a dedicated Product Checklist service for header/phase/item CRUD, inherited creation from
+      an `AuditProduk` instruction row, evidence upload/delete/signed URLs, numeric/judgment
+      validation, and completion evidence validation.
+- [x] Added the Product Checklist UI with inherited read-only inspector details, editable product
+      header, phase cards, evidence warnings/actions, item tables, OK/NG badges, and Draft/Selesai
+      editing behavior.
+- [x] Refactored the shared Checklist tab router: Reguler continues to use Checklist Sistem,
+      AuditProduk uses Checklist Audit Produk, and AuditManufaktur/AuditShift remain Batch 5c
+      placeholders. Both Instruksi Audit and Detail Sesi Audit resolve records by the same instruction
+      `row_id`, so no duplicate page-specific Product Checklist data is created.
+- [x] Static checks passed: `npm run typecheck`, `npm run build`, and `git diff --check`.
+
+### CertiTrack-Staging runtime verification
+
+- [x] Both Batch 5b migrations, `create_batch5b_product_checklist` and
+      `add_program_step_date_range`, applied successfully.
+- [x] **13/13 core database scenarios passed**, including acceptance of a same-day Schedule Dasar
+      range and rejection of an inverted range.
+- [x] Draft completion protection passed: zero phases and phases without evidence were rejected,
+      while a checklist whose phases all contained evidence could become Selesai.
+- [x] Completed-checklist immutability passed: checklist deletion, phase update/delete, and item
+      insert/update/delete were rejected until the checklist returned from Selesai to Draft.
+- [x] Returning Selesai → Draft restored allowed child editing.
+- [x] Product Checklist RLS and intended anon application access were verified.
+- [x] The `audit-evidence` bucket was verified private; its Storage policies were present and scoped
+      only to that bucket.
+- [x] All new Product Checklist functions use `search_path = pg_catalog, public`; Supabase Security
+      Advisor reported zero security lints.
+- [x] Manual real-browser smoke testing passed on the PR #3 Vercel Preview connected to
+      CertiTrack-Staging, and the user confirmed the branch functions normally. This was manual
+      real-browser smoke testing, not automated E2E testing.
+- [x] Program Internal Audit displayed Tanggal Awal / Tanggal Akhir, accepted a same-day range, and
+      `formatRentangTanggal()` collapsed equal dates to one displayed/exported date. Legacy
+      `periode_label` / `periode_target` remained compatibility-only database fields.
+- [x] Instruksi Audit Matriks Seksi vertical labels were bottom-aligned as requested.
+- [x] Temporary `2097`, `QA-995`, and `IA-2097-995` fixtures were removed from Staging, and no
+      temporary Product Checklist evidence objects remain.
+
+Batch 5c and all later batches remain `NOT_STARTED`. The stabilization status below remains
+`VERIFIED_COMPLETE`.
+
 ## Stabilization Pass — 19 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE`
@@ -26,8 +97,8 @@ not started and the nested `project/` snapshot was not modified.
       instruction grid creates its schedule/scope/team in the same row-save transaction.
 - [x] Added the specified **Generate dari Program** entry point to Program Internal Audit while
       retaining the existing Instruksi Audit entry point for compatibility.
-- [x] Added dynamic period-label editing (add, rename, remove) and keeps every step's
-      `periode_target` array aligned with the labels.
+- [x] Dynamic period-label editing was implemented and verified during stabilization; it has since
+      been intentionally superseded by the Schedule Dasar date-range decision documented above.
 - [x] Enforced Scheduled scope prerequisites inside `saveAuditSchedule()`, rather than only in UI.
 - [x] Enforced required independence justification inside `upsertTeam()` in addition to UI.
 - [x] Added required checklist header/item validation in the checklist service.
@@ -119,7 +190,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
   decisions outside this smallest safe stabilization change.
 - Remaining unused-index notices are informational only.
 - Manual real-browser coverage does not provide automated E2E coverage.
-- Batch 5b and all later batches remain `NOT_STARTED`.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and all later batches remain `NOT_STARTED`.
 
 ### Files changed in this pass
 
@@ -393,14 +464,14 @@ supabase/migrations/20260805020305_create_proses_master_tables.sql
 - [x] 7-step template table migration
 - [x] seven standard steps seeded
 - [x] steps copied into new program
-- [x] dynamic rendering of period columns based on `periode_label`
-- [x] step period toggles
+- [x] Schedule Dasar renders Tanggal Awal / Tanggal Akhir and preserves legacy period fields only for compatibility
+- [x] legacy `periode_target` remains compatible in schema/service; period toggle UI is intentionally removed
 - [x] step reorder
 - [x] Draft / Approved handling
 
 ### Missing / divergent
 
-- [ ] no UI was found to change the **number or names** of `periode_label`
+- [x] Label Periode editing is intentionally absent after the explicit date-range product decision
 - [ ] repository constant is `Q-120-ISE-001-FORM-002-REV.1`, while supplied plan says
       `Q-120-ISE-001-FORM-002`
 - [ ] full runtime verification not completed
@@ -641,9 +712,12 @@ src/lib/enums.ts
 
 ## Batch 5b — Checklist Audit Produk
 
-**Status:** `NOT_STARTED`
+**Status:** `VERIFIED_COMPLETE`
 
-No Product Checklist data model/service/component matching Batch 5b was found.
+The schema, private Storage evidence flow, service/domain validation, Product Checklist component,
+shared Checklist-tab routing, database integrity protections, RLS/Storage access, and real-browser
+workflow were verified on CertiTrack-Staging. Verification passed 13/13 core database scenarios and
+manual real-browser smoke testing on the PR #3 Vercel Preview.
 
 ---
 
@@ -735,7 +809,7 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation is verified on both clean and representative existing-data
-Supabase projects. Batch 5b remains `NOT_STARTED`.
+Supabase projects. Batch 5b is now `VERIFIED_COMPLETE`.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -745,7 +819,8 @@ Batch 3b    BLOCKED (external Training integration)
 Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remains in progress)
 Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
-Batch 5b+   NOT_STARTED
+Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
+Batch 5c+   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
@@ -764,7 +839,6 @@ testing passed against the Vercel Preview connected to `CertiTrack-Staging`.
 - [ ] Resolve the process-master divergence and Program document-code product decisions.
 - [ ] Review unused-index INFO notices after representative production usage exists.
 - [ ] Add automated E2E coverage; the completed browser verification was manual real-browser smoke testing.
-- [ ] Keep Batch 5b `NOT_STARTED` until it is explicitly authorized as a separate task.
 
 The missing external Training integration, process-master divergence, and Program document-code
 choice remain product follow-up items, but are not regressions introduced by this stabilization pass.
@@ -791,5 +865,5 @@ choice remain product follow-up items, but are not regressions introduced by thi
 - [x] true simultaneous multi-session database concurrency
 - [x] manual real-browser smoke test (not automated E2E testing)
 
-The stabilization status is `VERIFIED_COMPLETE`. Batch 5b remains `NOT_STARTED` and is not part of
-this status update.
+The stabilization status remains `VERIFIED_COMPLETE`. Batch 5b is also `VERIFIED_COMPLETE` after
+CertiTrack-Staging database, security, Storage, cleanup, and manual real-browser verification.

@@ -5,6 +5,11 @@ const NAMA_BULAN = [
   'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
 ];
 
+const NAMA_BULAN_LENGKAP = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
 // Format tanggal ke format Indonesia DD-MMM-YYYY (mis. "05-Mar-2024").
 export function formatTanggal(date: string | Date | null | undefined): string {
   if (!date) return '-';
@@ -21,6 +26,39 @@ export function parseDate(value: string): Date | null {
   if (!value) return null;
   const d = new Date(value + 'T00:00:00');
   return isNaN(d.getTime()) ? null : d;
+}
+
+// Format rentang tanggal ringkas untuk dokumen/ekspor berbahasa Indonesia.
+export function formatRentangTanggal(
+  tanggalAwal: string | null,
+  tanggalAkhir: string | null,
+): string {
+  const awal = tanggalAwal ? parseDate(tanggalAwal) : null;
+  const akhir = tanggalAkhir ? parseDate(tanggalAkhir) : null;
+  const formatLengkap = (date: Date) =>
+    `${date.getDate()} ${NAMA_BULAN_LENGKAP[date.getMonth()]} ${date.getFullYear()}`;
+
+  if (!awal && !akhir) return '-';
+  if (!awal) return formatLengkap(akhir!);
+  if (!akhir) return formatLengkap(awal);
+
+  const tahunAwal = awal.getFullYear();
+  const tahunAkhir = akhir.getFullYear();
+  const bulanAwal = awal.getMonth();
+  const bulanAkhir = akhir.getMonth();
+  const hariAwal = awal.getDate();
+  const hariAkhir = akhir.getDate();
+
+  if (tahunAwal === tahunAkhir && bulanAwal === bulanAkhir && hariAwal === hariAkhir) {
+    return formatLengkap(awal);
+  }
+  if (tahunAwal === tahunAkhir && bulanAwal === bulanAkhir) {
+    return `${hariAwal}–${hariAkhir} ${NAMA_BULAN_LENGKAP[bulanAwal]} ${tahunAwal}`;
+  }
+  if (tahunAwal === tahunAkhir) {
+    return `${hariAwal} ${NAMA_BULAN_LENGKAP[bulanAwal]}–${hariAkhir} ${NAMA_BULAN_LENGKAP[bulanAkhir]} ${tahunAwal}`;
+  }
+  return `${formatLengkap(awal)}–${formatLengkap(akhir)}`;
 }
 
 // Format Date ke input HTML date value (YYYY-MM-DD).
