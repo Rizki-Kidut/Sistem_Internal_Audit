@@ -21,6 +21,24 @@
 
 ## 1. Project Scope
 
+### Superseding workflow architecture decision — 20 Aug 2026
+
+The active user-facing workflow is now **Rencana Audit Tahunan → Program Internal Audit → Instruksi
+Internal Audit → Checklist Audit → Agenda Audit → Temuan/PLOR → CAR → Laporan**. `QA-xx` is the
+primary business identifier throughout that workflow. The former **Jadwal & Tim Audit** step and its
+`IA-{year}-{NNN}` identifier are legacy compatibility behavior and are not part of new normal usage.
+
+Scheduling dates (`tanggal_plan_audit` and `tanggal_pelaksanaan_audit`) belong to each Instruksi row.
+Team Audit is reusable Master Data. An Instruksi row selects a Team master and snapshots its name in
+`team` and its Lead/Members in `auditor`; later edits to the master never rewrite historical QA rows.
+Instruksi supplies upstream audit data, while the active **Checklist Audit** sidebar page is the one
+primary editor for System, Product, Manufacturing, and Shift checklists.
+
+Legacy `audit_schedules`, `audit_scopes`, and schedule-specific `audit_teams` records remain intact
+for compatibility/history, but new Instruksi generation and editing no longer reads from or writes to
+those tables. Historical Batch 3 sections below are retained as implementation history and are
+superseded wherever they conflict with this decision.
+
 CertiTrack is an internal QMS application.
 
 Existing modules that are outside the implementation scope of this plan:
@@ -84,7 +102,6 @@ Only `A`, `B`, and `C` generate findings.
 Rencana Tahunan
 → Program Audit
 → Instruksi Audit
-→ Jadwal & Tim
 → Checklist
 → Agenda
 → Temuan / PLOR
@@ -387,6 +404,10 @@ When a program is created, copy the template into `auditProgramSteps`.
 ---
 
 # Batch 3a — Jadwal Audit
+
+> **SUPERSEDED FOR NEW WORKFLOW (20 Aug 2026):** This section describes retained legacy
+> `audit_schedules`/`audit_scopes` behavior only. It is not exposed in active navigation and receives
+> no writes from new normal Instruksi operations.
 
 Menu:
 

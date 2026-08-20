@@ -1,5 +1,33 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Workflow Architecture Refactor — Instruksi / Team / Checklist — 20 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+- [x] Removed Jadwal & Tim Audit from normal navigation while retaining its legacy page/services and
+      database tables for compatibility.
+- [x] Added an additive migration that disables automatic legacy schedule/scope/team creation and
+      replaces Generate-from-Program without legacy schedule dependencies.
+- [x] Added reusable Team Audit master/member schema, atomic master save, one-Lead enforcement, RLS,
+      and normalized indexes.
+- [x] Added Team selection to Instruksi rows with immutable team/auditor snapshots, existing
+      competency and independence checks, mandatory conflict justification, and checklist locking.
+- [x] Added the active central Checklist Audit worklist/router and removed the full editor tab from
+      Instruksi in favor of row-level `Buka Checklist` navigation.
+- [x] QA remains the primary identifier; IA schedules/scopes/teams are legacy and receive no new
+      writes from normal Instruksi workflow.
+
+Static implementation is complete, but the new migration, Team Audit workflows, cross-page routing,
+and all four checklist routes still require CertiTrack-Staging and real-browser verification. Batch
+5b remains `VERIFIED_COMPLETE`; Batch 5c remains `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain
+`NOT_STARTED`.
+
+New migration: `supabase/migrations/20260820140000_centralize_checklist_and_team_master.sql`.
+Changed application areas: App/sidebar navigation, Instruksi rows, central Checklist workspace, Team
+master page/service, checklist creation guards, centralized types/enums, and project documentation.
+Static validation completed with typecheck/build/diff checks; lint remains at the known 26-error,
+zero-warning unused-symbol baseline. Runtime migration and browser validation were not performed.
+
 ## Batch 5c — Checklist Audit Manufaktur & Shift — 20 Aug 2026
 
 **Status:** `IMPLEMENTED_UNVERIFIED`

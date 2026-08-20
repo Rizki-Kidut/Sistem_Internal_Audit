@@ -46,6 +46,8 @@ function mapRow(row: Record<string, unknown>): AuditInstructionRow {
     instruction_id: row.instruction_id as string,
     kode_audit: (row.kode_audit as string) ?? '',
     team: (row.team as string) ?? null,
+    team_master_id: (row.team_master_id as string) ?? null,
+    catatan_justifikasi_tim: (row.catatan_justifikasi_tim as string) ?? null,
     proses_id: (row.proses_id as string) ?? null,
     pemilik_proses: (row.pemilik_proses as string) ?? null,
     seksi_marks: (row.seksi_marks as SeksiMark[]) ?? [],
@@ -134,6 +136,11 @@ export async function getRowsByInstruction(instructionId: string): Promise<Audit
   if (error) throw new Error(`Gagal memuat baris instruksi: ${error.message}`);
   return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
 }
+export async function getAllInstructionRows(): Promise<AuditInstructionRow[]> {
+  const { data, error } = await supabase.from('audit_instruction_rows').select('*').order('kode_audit');
+  if (error) throw new Error(`Gagal memuat worklist Checklist Audit: ${error.message}`);
+  return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+}
 
 export async function getRowsByKodeAudits(kodeAudits: string[]): Promise<AuditInstructionRow[]> {
   const uniqueCodes = [...new Set(kodeAudits.filter(Boolean))];
@@ -151,6 +158,8 @@ export async function saveRow(row: Partial<AuditInstructionRow>): Promise<AuditI
     instruction_id: row.instruction_id,
     kode_audit: row.kode_audit,
     team: row.team ?? null,
+    team_master_id: row.team_master_id ?? null,
+    catatan_justifikasi_tim: row.catatan_justifikasi_tim ?? null,
     proses_id: row.proses_id ?? null,
     pemilik_proses: row.pemilik_proses ?? null,
     seksi_marks: row.seksi_marks ?? [],

@@ -5,21 +5,24 @@ import { ProgramAuditPage } from './components/pages/ProgramAuditPage';
 import { BankChecklistPage } from './components/pages/BankChecklistPage';
 import { SeksiPage } from './components/pages/SeksiPage';
 import { ProsesPage } from './components/pages/ProsesPage';
-import { JadwalAuditPage } from './components/pages/JadwalAuditPage';
 import { InstruksiAuditPage } from './components/pages/InstruksiAuditPage';
 import { PlantAdminPage } from './components/pages/PlantAdminPage';
 import { ConstructionPlaceholder } from './components/pages/ConstructionPlaceholder';
+import { AuditTeamMasterPage } from './components/pages/AuditTeamMasterPage';
+import { ChecklistAuditPage } from './components/pages/ChecklistAuditPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('rencana-audit');
   // State untuk navigasi cross-page: ketika "Buat Program Internal Audit" diklik
   // di RencanaAuditPage, kita navigasi ke ProgramAuditPage dengan programId ter-prefill
   const [initialProgramId, setInitialProgramId] = useState<string | null>(null);
+  const [initialChecklistRowId, setInitialChecklistRowId] = useState<string | null>(null);
 
   function handleNavigateToProgram(programId: string) {
     setInitialProgramId(programId);
     setCurrentPage('program-audit');
   }
+  function handleNavigateToChecklist(rowId: string) { setInitialChecklistRowId(rowId); setCurrentPage('checklist'); }
 
   function renderPage() {
     switch (currentPage) {
@@ -38,10 +41,12 @@ function App() {
         return <SeksiPage />;
       case 'proses':
         return <ProsesPage />;
-      case 'jadwal-audit':
-        return <JadwalAuditPage />;
       case 'instruksi-audit':
-        return <InstruksiAuditPage />;
+        return <InstruksiAuditPage onNavigateToChecklist={handleNavigateToChecklist} />;
+      case 'checklist':
+        return <ChecklistAuditPage initialRowId={initialChecklistRowId} onClearInitial={() => setInitialChecklistRowId(null)} />;
+      case 'team-master':
+        return <AuditTeamMasterPage />;
       case 'plant-admin':
         return <PlantAdminPage />;
       case 'kalibrasi':

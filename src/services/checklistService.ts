@@ -187,6 +187,7 @@ export async function createChecklistFromRow(
   auditorList: Auditor[],
   bankItems: ChecklistBankItem[],
 ): Promise<Checklist> {
+  if (!row.team_master_id || row.auditor.length === 0) throw new Error('Pilih Tim Audit pada Instruksi Internal Audit sebelum membuat checklist.');
   // 1. Auto-derive fields from the row
   const targetSeksiIds = row.seksi_marks
     .filter((m) => m.tipe === 'target')

@@ -57,6 +57,7 @@ async function getPhaseIdForItem(itemId: string): Promise<string> {
 }
 
 export async function createProductChecklistFromRow(row: AuditInstructionRow): Promise<ChecklistProduk> {
+  if (!row.team_master_id || row.auditor.length === 0) throw new Error('Pilih Tim Audit pada Instruksi Internal Audit sebelum membuat checklist.');
   if (row.tipe_baris !== 'AuditProduk') throw new Error('Checklist Audit Produk hanya dapat dibuat untuk baris Audit Produk');
   return saveProductChecklist({
     row_id: row.id, kode_audit: row.kode_audit,

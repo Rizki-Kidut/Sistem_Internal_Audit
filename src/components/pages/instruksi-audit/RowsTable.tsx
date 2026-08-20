@@ -4,14 +4,15 @@
 import { useState } from 'react';
 import { Plus, Trash2, Pencil, SquareCheck as CheckSquare, Square } from 'lucide-react';
 import type {
-  AuditInstructionRow, Proses, Seksi, Auditor,
+  AuditInstructionRow, Proses, Seksi, Auditor, AuditTeamMaster,
   Plant, TargetModel, Shift,
-  SeksiMark, AuditorAssignment,
+  SeksiMark,
 } from '../../../lib/types';
 import { computeStatusProgress } from '../../../lib/types';
 import { TIPE_BARIS_LIST, TIPE_BARIS_LABEL, TIPE_SEKSI_MARK } from '../../../lib/enums';
 import type { TipeBaris, TipeSeksiMark } from '../../../lib/enums';
 import { saveRow, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
+import { assignTeamToInstructionRow } from '../../../services/auditTeamMasterService';
 import { formatTanggal } from '../../../lib/utils';
 import { Modal } from '../../ui/Modal';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
@@ -30,14 +31,16 @@ interface RowsTableProps {
   readOnly: boolean;
   onReload: () => void;
   onError: (msg: string) => void;
+  teamMasters: AuditTeamMaster[];
+  onOpenChecklist: (rowId: string) => void;
 }
 
 interface RowForm {
-  team: string;
+  team_master_id: string;
+  catatan_justifikasi_tim: string;
   proses_id: string;
   tipe_baris: TipeBaris;
   seksi_marks: SeksiMark[];
-  auditor: AuditorAssignment[];
   matriks_produk_marks: { plant_id: string; target_model_id: string }[];
   matriks_manufaktur_shift_marks: { plant_id: string; shift_id: string }[];
   tanggal_audit_produk: string;
@@ -51,8 +54,8 @@ interface RowForm {
 
 function emptyForm(): RowForm {
   return {
-    team: '', proses_id: '', tipe_baris: 'Reguler',
-    seksi_marks: [], auditor: [],
+    team_master_id: '', catatan_justifikasi_tim: '', proses_id: '', tipe_baris: 'Reguler',
+    seksi_marks: [],
     matriks_produk_marks: [], matriks_manufaktur_shift_marks: [],
     tanggal_audit_produk: '', nama_auditor_produk: '', kualifikasi: '',
     item_lain_diperiksa: '', tanggal_plan_audit: '', tanggal_pelaksanaan_audit: '',
@@ -62,7 +65,7 @@ function emptyForm(): RowForm {
 
 export function RowsTable({
   instructionId, prefixNomorAudit, rows, prosesList, seksiList, auditorList,
-  plants, targetModels, shifts, readOnly, onReload, onError,
+  plants, targetModels, shifts, readOnly, onReload, onError, teamMasters, onOpenChecklist,
 }: RowsTableProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<AuditInstructionRow | null>(null);
@@ -74,8 +77,8 @@ export function RowsTable({
   function openEdit(row: AuditInstructionRow) {
     setEditingRow(row);
     setForm({
-      team: row.team ?? '', proses_id: row.proses_id ?? '', tipe_baris: row.tipe_baris,
-      seksi_marks: row.seksi_marks ?? [], auditor: row.auditor ?? [],
+      team_master_id: row.team_master_id ?? '', catatan_justifikasi_tim: row.catatan_justifikasi_tim ?? '', proses_id: row.proses_id ?? '', tipe_baris: row.tipe_baris,
+      seksi_marks: row.seksi_marks ?? [],
       matriks_produk_marks: row.matriks_produk_marks ?? [],
       matriks_manufaktur_shift_marks: row.matriks_manufaktur_shift_marks ?? [],
       tanggal_audit_produk: row.tanggal_audit_produk ?? '', nama_auditor_produk: row.nama_auditor_produk ?? '',
@@ -101,10 +104,10 @@ export function RowsTable({
       const pemilikProses = resolvePemilikProses(form.proses_id || null, prosesList, seksiList, finalSeksiMarks);
 
       if (editingRow) {
-        await saveRow({
+        const saved = await saveRow({
           ...editingRow,
-          team: form.team || null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
-          seksi_marks: finalSeksiMarks, auditor: form.auditor, tipe_baris: form.tipe_baris,
+          proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
+          seksi_marks: finalSeksiMarks, tipe_baris: form.tipe_baris,
           matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
           tanggal_audit_produk: form.tanggal_audit_produk || null,
           nama_auditor_produk: form.nama_auditor_produk || null,
@@ -113,12 +116,14 @@ export function RowsTable({
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
           cek_selesai: form.cek_selesai,
         });
+        if (form.team_master_id !== (editingRow.team_master_id ?? '') || form.catatan_justifikasi_tim !== (editingRow.catatan_justifikasi_tim ?? ''))
+          await assignTeamToInstructionRow(saved.id, form.team_master_id || null, form.catatan_justifikasi_tim);
       } else {
         const kodeAudit = await generateNextKodeAudit(prefixNomorAudit);
-        await saveRow({
+        const saved = await saveRow({
           instruction_id: instructionId, kode_audit: kodeAudit,
-          team: form.team || null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
-          seksi_marks: finalSeksiMarks, auditor: form.auditor, tipe_baris: form.tipe_baris,
+          team: null, team_master_id: null, catatan_justifikasi_tim: null, proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
+          seksi_marks: finalSeksiMarks, auditor: [], tipe_baris: form.tipe_baris,
           matriks_produk_marks: finalProdukMarks, matriks_manufaktur_shift_marks: finalManufakturMarks,
           tanggal_audit_produk: form.tanggal_audit_produk || null,
           nama_auditor_produk: form.nama_auditor_produk || null,
@@ -127,6 +132,7 @@ export function RowsTable({
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
           cek_selesai: form.cek_selesai,
         });
+        if (form.team_master_id) await assignTeamToInstructionRow(saved.id, form.team_master_id, form.catatan_justifikasi_tim);
       }
       setEditOpen(false);
       onReload();
@@ -159,18 +165,6 @@ export function RowsTable({
     setForm((prev) => ({ ...prev, seksi_marks: prev.seksi_marks.map((m) => m.seksi_id === seksiId ? { ...m, tipe } : m) }));
   }
 
-  // Auditor helpers
-  function toggleAuditor(auditorId: string) {
-    setForm((prev) => {
-      if (prev.auditor.find((a) => a.auditor_id === auditorId))
-        return { ...prev, auditor: prev.auditor.filter((a) => a.auditor_id !== auditorId) };
-      return { ...prev, auditor: [...prev.auditor, { auditor_id: auditorId, is_lead: false }] };
-    });
-  }
-  function toggleAuditorLead(auditorId: string) {
-    setForm((prev) => ({ ...prev, auditor: prev.auditor.map((a) => a.auditor_id === auditorId ? { ...a, is_lead: !a.is_lead } : { ...a, is_lead: false }) }));
-  }
-
   // Matriks produk helpers
   function toggleProdukMark(plantId: string, modelId: string) {
     setForm((prev) => {
@@ -197,12 +191,12 @@ export function RowsTable({
     if (!id) return '-';
     return prosesList.find((p) => p.id === id)?.nama_proses ?? id;
   }
-  function getAuditorNames(assignments: AuditorAssignment[]): string {
+  function getAuditorNames(assignments: AuditInstructionRow['auditor']): string {
     if (assignments.length === 0) return '-';
-    return assignments.map((a) => {
-      const nama = auditorList.find((au) => au.id === a.auditor_id)?.nama ?? a.auditor_id;
-      return a.is_lead ? `${nama} (Lead)` : nama;
-    }).join(', ');
+    const resolve = (id: string) => auditorList.find((auditor) => auditor.id === id)?.nama ?? id;
+    const lead = assignments.find((assignment) => assignment.is_lead);
+    const members = assignments.filter((assignment) => !assignment.is_lead).map((assignment) => resolve(assignment.auditor_id));
+    return `${lead ? `Lead: ${resolve(lead.auditor_id)}` : 'Lead: -'}${members.length ? `; Member: ${members.join(', ')}` : ''}`;
   }
 
   // Matrix display helpers
@@ -417,6 +411,7 @@ export function RowsTable({
                     </td>
                     <td className="px-2 py-2 border-r border-gray-100"><Badge variant={statusVariant}>{status}</Badge></td>
                     <td className="px-2 py-2 text-right whitespace-nowrap">
+                      <button onClick={() => onOpenChecklist(row.id)} className="p-1 text-blue-600 text-xs mr-2" title="Buka Checklist">Checklist</button>
                       {!readOnly && (<>
                         <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
                         <button onClick={() => handleDelete(row)} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
@@ -443,7 +438,7 @@ export function RowsTable({
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Team"><Input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} placeholder="mis. Tim A" /></Field>
+            <Field label="Team Audit"><Select value={form.team_master_id} onChange={(e) => setForm({ ...form, team_master_id: e.target.value })}><option value="">— Belum dipilih —</option>{teamMasters.map((team) => <option key={team.id} value={team.id}>{team.kode_tim} — {team.nama_tim}</option>)}</Select></Field>
             <Field label="Proses">
               <Select value={form.proses_id} onChange={(e) => setForm({ ...form, proses_id: e.target.value })}>
                 <option value="">— Pilih Proses —</option>
@@ -474,26 +469,8 @@ export function RowsTable({
             </Field>
           )}
 
-          <Field label="Auditor">
-            <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-              {auditorList.length === 0 && <p className="text-xs text-gray-400">Belum ada data auditor</p>}
-              {auditorList.map((a) => {
-                const assigned = form.auditor.find((x) => x.auditor_id === a.id);
-                return (
-                  <div key={a.id} className="flex items-center gap-3">
-                    <input type="checkbox" checked={!!assigned} onChange={() => toggleAuditor(a.id)} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
-                    <span className="text-sm flex-1">{a.nama}</span>
-                    {assigned && (
-                      <label className="flex items-center gap-1 text-xs">
-                        <input type="checkbox" checked={assigned.is_lead} onChange={() => toggleAuditorLead(a.id)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
-                        Lead
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Field>
+          <Field label="Auditor (snapshot read-only)"><Input readOnly value={editingRow ? getAuditorNames(editingRow.auditor) : 'Disalin otomatis setelah Tim Audit dipilih'} /></Field>
+          <Field label="Catatan Justifikasi Tim"><Textarea value={form.catatan_justifikasi_tim} onChange={(e) => setForm({ ...form, catatan_justifikasi_tim: e.target.value })} placeholder="Wajib jika terdapat potensi konflik independensi." /></Field>
 
           {isProduk && (
             <Field label="Matriks Produk (Plant x Target Model)">

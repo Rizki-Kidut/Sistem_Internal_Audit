@@ -336,6 +336,8 @@ export interface AuditInstructionRow {
   instruction_id: string;
   kode_audit: string;
   team: string | null;
+  team_master_id: string | null;
+  catatan_justifikasi_tim: string | null;
   proses_id: string | null;
   pemilik_proses: string | null;
   seksi_marks: SeksiMark[];
@@ -353,6 +355,26 @@ export interface AuditInstructionRow {
   urutan_tampil: number;
   created_at: string;
   updated_at: string;
+}
+
+import type { AuditTeamMasterStatus, AuditTeamMemberRole } from './enums';
+export interface AuditTeamMasterMember {
+  id: string;
+  team_id: string;
+  auditor_id: string;
+  peran: AuditTeamMemberRole;
+  urutan_tampil: number;
+  auditor?: Auditor;
+}
+export interface AuditTeamMaster {
+  id: string;
+  kode_tim: string;
+  nama_tim: string;
+  status: AuditTeamMasterStatus;
+  catatan: string | null;
+  created_at: string;
+  updated_at: string;
+  members: AuditTeamMasterMember[];
 }
 
 export type RowStatusProgress = StatusProgress;

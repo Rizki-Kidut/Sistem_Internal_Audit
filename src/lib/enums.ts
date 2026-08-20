@@ -295,3 +295,8 @@ export type ChecklistManufakturStatus = (typeof CHECKLIST_MANUFAKTUR_STATUS)[key
 export const CHECKLIST_MANUFAKTUR_STATUS_LIST: ChecklistManufakturStatus[] = Object.values(CHECKLIST_MANUFAKTUR_STATUS);
 
 export const KODE_DOKUMEN_CHECKLIST_MANUFAKTUR = 'Q-120-ISE-001-FORM-007';
+
+export const AUDIT_TEAM_MASTER_STATUS = { AKTIF: 'Aktif', NONAKTIF: 'Nonaktif' } as const;
+export type AuditTeamMasterStatus = (typeof AUDIT_TEAM_MASTER_STATUS)[keyof typeof AUDIT_TEAM_MASTER_STATUS];
+export const AUDIT_TEAM_MEMBER_ROLE = { LEAD: 'Lead', MEMBER: 'Member' } as const;
+export type AuditTeamMemberRole = (typeof AUDIT_TEAM_MEMBER_ROLE)[keyof typeof AUDIT_TEAM_MEMBER_ROLE];

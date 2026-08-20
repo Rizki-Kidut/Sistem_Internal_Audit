@@ -35,6 +35,7 @@ interface ChecklistTabProps {
   auditorList: Auditor[];
   readOnly: boolean;
   onError: (msg: string) => void;
+  initialSelectedRowId?: string | null;
 }
 
 const HASIL_VARIANT: Record<string, 'gray' | 'green' | 'red' | 'amber' | 'blue'> = {
@@ -67,7 +68,7 @@ function emptyItem(checklistId: string): ChecklistItem {
 
 export function ChecklistTab(props: ChecklistTabProps) {
   const { rows, readOnly, onError } = props;
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(props.initialSelectedRowId ?? null);
   const selectedRow = rows.find((row) => row.id === selectedRowId) ?? null;
 
   useEffect(() => {
