@@ -2,7 +2,7 @@
 
 ## Annual Team Audit Refinement — 20 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 - [x] Scoped normal Team Masters to an Annual Audit Plan with per-plan codes; existing NULL-plan
       records remain compatibility-only and are hidden from normal selection.
@@ -16,20 +16,26 @@
       complete Instruction row context plus Team assignment through one atomic RPC.
 - [x] Relocking validates the live roster against every referenced QA's plan, execution-date
       competency, and independence/justification; referenced Teams cannot be deactivated.
-- [x] Migration `20260820160000_scope_team_master_by_annual_plan.sql` was applied to
-      CertiTrack-Staging. Runtime checks passed for annual scoping, cross-plan rejection,
-      lock/delete/deactivation, multi-QA competency relock, atomic row/Team save, no orphan rows,
-      and checklist locking.
-- [x] Staging exposed a same-Team unlocked-planning deadlock. Additive migration
-      `20260820170000_allow_unlocked_team_planning_updates.sql` allows planning repairs while
-      preserving relock and checklist execution gates; this fix still requires Staging verification.
+- [x] Migrations `20260820160000_scope_team_master_by_annual_plan.sql` and
+      `20260820170000_allow_unlocked_team_planning_updates.sql` were applied and runtime verified on
+      CertiTrack-Staging.
+- [x] Annual-plan scoping, reuse of the same Team code across plans, and cross-plan assignment
+      rejection passed.
+- [x] Locked header/roster/delete/deactivation protection, all-referenced-QA competency relock,
+      independence/justification relock, and same-Team unlocked planning repair passed.
+- [x] Atomic Instruction row/Team save passed; invalid Add Baris Audit left no orphan row.
+- [x] Checklist creation required a valid locked Team, and Team unlock after checklist creation was
+      rejected. Normal workflow created zero new legacy IA schedules.
+- [x] Supabase Security Advisor reported zero security lints; final manual browser smoke passed.
+      Annual Plan 2095/2096 and QA-970..QA-973 fixtures were cleaned, with no temporary Product
+      evidence remaining.
 
-The Workflow Architecture Refactor and Batch 5c remain `IMPLEMENTED_UNVERIFIED`. Batch 5b remains
+The Workflow Architecture Refactor, Annual Team Audit Refinement, Batch 5b, and Batch 5c are
 `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 ## Workflow Architecture Refactor — Instruksi / Team / Checklist — 20 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 - [x] Removed Jadwal & Tim Audit from normal navigation while retaining its legacy page/services and
       database tables for compatibility.
@@ -44,20 +50,20 @@ The Workflow Architecture Refactor and Batch 5c remain `IMPLEMENTED_UNVERIFIED`.
 - [x] QA remains the primary identifier; IA schedules/scopes/teams are legacy and receive no new
       writes from normal Instruksi workflow.
 
-Static implementation is complete, but the new migration, Team Audit workflows, cross-page routing,
-and all four checklist routes still require CertiTrack-Staging and real-browser verification. Batch
-5b remains `VERIFIED_COMPLETE`; Batch 5c remains `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain
-`NOT_STARTED`.
+The centralized Checklist Audit and annual Team workflows passed CertiTrack-Staging runtime and
+manual browser verification. QA remains the primary identifier, normal workflow created zero new
+legacy IA schedules, and Reguler/AuditProduk/AuditManufaktur/AuditShift routing passed. Batch 5b and
+Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 New migration: `supabase/migrations/20260820140000_centralize_checklist_and_team_master.sql`.
 Changed application areas: App/sidebar navigation, Instruksi rows, central Checklist workspace, Team
 master page/service, checklist creation guards, centralized types/enums, and project documentation.
 Static validation completed with typecheck/build/diff checks; lint remains at the known 26-error,
-zero-warning unused-symbol baseline. Runtime migration and browser validation were not performed.
+zero-warning unused-symbol baseline.
 
 ## Batch 5c — Checklist Audit Manufaktur & Shift — 20 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 ### Implemented
 
@@ -88,10 +94,16 @@ zero-warning unused-symbol baseline. Runtime migration and browser validation we
       mutation until the header is explicitly returned to Draft. `finding_id` is reserved only;
       no Finding/PLOR generation was added.
 
-### Verification remaining
+### CertiTrack-Staging verification
 
-- [ ] Apply the migration to a real Supabase project and verify RLS/RPC/trigger behavior.
-- [ ] Run real-browser verification through both Instruksi Audit and Jadwal Audit Detail Sesi.
+- [x] Migration `20260820130000_create_batch5c_manufacturing_shift_checklist.sql` applied
+      successfully; database runtime, safe `search_path`, and security verification passed.
+- [x] The live annual Team roster is authoritative; legacy Manufacturing auditor JSON remained
+      empty for new records.
+- [x] AuditManufaktur and AuditShift browser routes passed. QA-972 and QA-973 each created FORM-007
+      with exactly 22 items.
+- [x] Team unlock after checklist creation was rejected, no legacy IA schedule was created, and all
+      final fixtures were cleaned.
 
 Batch 5b remains `VERIFIED_COMPLETE`. Batch 5d and all later batches remain `NOT_STARTED`.
 
@@ -109,7 +121,7 @@ Batch 5b remains `VERIFIED_COMPLETE`. Batch 5d and all later batches remain `NOT
   for future Program print/export output and collapses equal dates to one Indonesian date.
 - Completed Product Checklists are immutable at service and database layers: checklist deletion and
   all phase/item/evidence mutations require returning the checklist to Draft first.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain `NOT_STARTED`.
+- Batch 5b and Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
 
@@ -163,7 +175,7 @@ Batch 5b remains `VERIFIED_COMPLETE`. Batch 5d and all later batches remain `NOT
 - [x] Temporary `2097`, `QA-995`, and `IA-2097-995` fixtures were removed from Staging, and no
       temporary Product Checklist evidence objects remain.
 
-Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and all later batches remain `NOT_STARTED`. The stabilization status below remains
+Batch 5c is `VERIFIED_COMPLETE`; Batch 5d and all later batches remain `NOT_STARTED`. The stabilization status below remains
 `VERIFIED_COMPLETE`.
 
 ## Stabilization Pass — 19 Aug 2026
@@ -285,7 +297,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
   decisions outside this smallest safe stabilization change.
 - Remaining unused-index notices are informational only.
 - Manual real-browser coverage does not provide automated E2E coverage.
-- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c is `IMPLEMENTED_UNVERIFIED`; Batch 5d and later remain `NOT_STARTED`.
+- Batch 5b and Batch 5c are `VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
 
 ### Files changed in this pass
 
@@ -818,11 +830,11 @@ manual real-browser smoke testing on the PR #3 Vercel Preview.
 
 ## Batch 5c — Checklist Audit Manufaktur & Shift
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 Schema, structural bank seed, service/domain validation, shared row-based routing, Manufacturing/Shift
-UI, and service/database completed-checklist protection are implemented. Real Supabase migration and
-browser verification remain outstanding; official bank question text is intentionally incomplete.
+UI, and service/database completed-checklist protection were verified on CertiTrack-Staging. Official
+bank question text remains intentionally incomplete.
 
 ---
 
@@ -917,7 +929,7 @@ Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remai
 Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
-Batch 5c    IMPLEMENTED_UNVERIFIED
+Batch 5c    VERIFIED_COMPLETE
 Batch 5d+   NOT_STARTED
 ```
 
