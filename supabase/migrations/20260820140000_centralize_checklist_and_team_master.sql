@@ -96,6 +96,95 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.validate_instruction_team_assignment() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE
+  v_team public.audit_team_masters%ROWTYPE;
+  v_expected_auditor jsonb;
+  v_snapshot_changed boolean;
+  v_assignment_context text;
+  v_invalid_names text;
+  v_incompetent_names text;
+  v_conflict_names text;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_snapshot_changed := true;
+  ELSE
+    v_snapshot_changed := (NEW.team_master_id, NEW.team, NEW.auditor)
+      IS DISTINCT FROM (OLD.team_master_id, OLD.team, OLD.auditor);
+  END IF;
+  v_assignment_context := current_setting('app.team_assignment_row_id', true);
+
+  IF NEW.team_master_id IS NULL THEN
+    IF NEW.team IS NOT NULL OR COALESCE(jsonb_array_length(NEW.auditor), 0) <> 0
+      OR nullif(btrim(NEW.catatan_justifikasi_tim),'') IS NOT NULL THEN
+      RAISE EXCEPTION 'Snapshot Tim Audit tidak valid tanpa Team master';
+    END IF;
+    IF TG_OP = 'UPDATE' AND v_snapshot_changed AND v_assignment_context IS DISTINCT FROM NEW.id::text THEN
+      RAISE EXCEPTION 'Snapshot Tim Audit hanya dapat diubah melalui proses penugasan Tim Audit';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO v_team FROM public.audit_team_masters WHERE id=NEW.team_master_id AND status='Aktif';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Team Audit yang dipilih tidak ditemukan atau sudah tidak aktif'; END IF;
+  IF jsonb_typeof(NEW.auditor) <> 'array' OR jsonb_array_length(NEW.auditor) = 0 THEN
+    RAISE EXCEPTION 'Snapshot auditor Tim Audit wajib diisi';
+  END IF;
+  IF (SELECT count(*) FROM jsonb_array_elements(NEW.auditor) x WHERE COALESCE((x->>'is_lead')::boolean,false)) <> 1 THEN
+    RAISE EXCEPTION 'Snapshot Tim Audit harus memiliki tepat satu Lead';
+  END IF;
+  IF (SELECT count(*) FROM jsonb_array_elements(NEW.auditor)) <>
+     (SELECT count(DISTINCT x->>'auditor_id') FROM jsonb_array_elements(NEW.auditor) x) THEN
+    RAISE EXCEPTION 'Snapshot Tim Audit tidak boleh memuat auditor duplikat';
+  END IF;
+
+  SELECT string_agg(COALESCE(a.nama, x->>'auditor_id'), ', ' ORDER BY COALESCE(a.nama, x->>'auditor_id'))
+    INTO v_invalid_names FROM jsonb_array_elements(NEW.auditor) x
+    LEFT JOIN public.auditors a ON a.id=(x->>'auditor_id')::uuid
+    WHERE a.id IS NULL OR a.status <> 'Aktif';
+  IF v_invalid_names IS NOT NULL THEN
+    RAISE EXCEPTION 'Tim Audit memiliki auditor yang sudah tidak aktif: %', v_invalid_names;
+  END IF;
+
+  SELECT string_agg(a.nama, ', ' ORDER BY a.nama) INTO v_incompetent_names
+    FROM jsonb_array_elements(NEW.auditor) x
+    JOIN public.auditors a ON a.id=(x->>'auditor_id')::uuid
+    WHERE a.tanggal_berlaku IS NULL OR a.tanggal_berlaku < COALESCE(NEW.tanggal_pelaksanaan_audit, CURRENT_DATE);
+  IF v_incompetent_names IS NOT NULL THEN
+    RAISE EXCEPTION 'Auditor tidak memenuhi kompetensi pada tanggal pelaksanaan: %', v_incompetent_names;
+  END IF;
+
+  SELECT string_agg(DISTINCT a.nama, ', ' ORDER BY a.nama) INTO v_conflict_names
+    FROM jsonb_array_elements(NEW.auditor) x
+    JOIN public.auditors a ON a.id=(x->>'auditor_id')::uuid
+    JOIN jsonb_array_elements(NEW.seksi_marks) mark ON true
+    JOIN public.seksi s ON s.id=(mark->>'seksi_id')::uuid
+    WHERE nullif(btrim(a.departemen),'') IS NOT NULL
+      AND lower(s.nama) LIKE '%' || lower(a.departemen) || '%';
+  IF v_conflict_names IS NOT NULL AND nullif(btrim(NEW.catatan_justifikasi_tim),'') IS NULL THEN
+    RAISE EXCEPTION 'Auditor memiliki potensi konflik independensi dengan seksi yang diaudit: %. Catatan Justifikasi wajib diisi.', v_conflict_names;
+  END IF;
+
+  IF v_snapshot_changed THEN
+    IF v_assignment_context IS DISTINCT FROM NEW.id::text THEN
+      RAISE EXCEPTION 'Snapshot Tim Audit hanya dapat diubah melalui proses penugasan Tim Audit';
+    END IF;
+    SELECT COALESCE(jsonb_agg(jsonb_build_object('auditor_id',auditor_id,'is_lead',peran='Lead') ORDER BY urutan_tampil,id),'[]')
+      INTO v_expected_auditor FROM public.audit_team_master_members WHERE team_id=NEW.team_master_id;
+    IF NEW.team IS DISTINCT FROM v_team.nama_tim OR NEW.auditor IS DISTINCT FROM v_expected_auditor THEN
+      RAISE EXCEPTION 'Snapshot Tim Audit tidak sesuai dengan Team master yang dipilih';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_instruction_team_assignment
+BEFORE INSERT OR UPDATE OF team_master_id, team, auditor, catatan_justifikasi_tim,
+  tanggal_pelaksanaan_audit, seksi_marks ON public.audit_instruction_rows
+FOR EACH ROW EXECUTE FUNCTION public.validate_instruction_team_assignment();
+
 CREATE OR REPLACE FUNCTION public.assign_team_to_instruction_row(p_row_id uuid, p_team_id uuid, p_justification text)
 RETURNS void LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 DECLARE v_team public.audit_team_masters%ROWTYPE; v_leads integer; v_snapshot jsonb;
@@ -107,6 +196,7 @@ BEGIN
     RAISE EXCEPTION 'Tim audit tidak dapat diubah karena checklist untuk No. Audit ini sudah dibuat. Hapus checklist Draft terlebih dahulu jika tim harus diganti.';
   END IF;
   IF p_team_id IS NULL THEN
+    PERFORM set_config('app.team_assignment_row_id', p_row_id::text, true);
     UPDATE public.audit_instruction_rows SET team_master_id=NULL,team=NULL,auditor='[]'::jsonb,
       catatan_justifikasi_tim=NULL WHERE id=p_row_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Baris Instruksi Audit tidak ditemukan'; END IF;
@@ -118,6 +208,7 @@ BEGIN
     COALESCE(jsonb_agg(jsonb_build_object('auditor_id',auditor_id,'is_lead',peran='Lead') ORDER BY urutan_tampil,id),'[]')
     INTO v_leads,v_snapshot FROM public.audit_team_master_members WHERE team_id=p_team_id;
   IF v_leads <> 1 THEN RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead'; END IF;
+  PERFORM set_config('app.team_assignment_row_id', p_row_id::text, true);
   UPDATE public.audit_instruction_rows SET team_master_id=v_team.id,team=v_team.nama_tim,auditor=v_snapshot,
     catatan_justifikasi_tim=nullif(btrim(p_justification),'') WHERE id=p_row_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Baris Instruksi Audit tidak ditemukan'; END IF;

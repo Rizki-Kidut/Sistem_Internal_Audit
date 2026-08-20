@@ -12,6 +12,8 @@
       and normalized indexes.
 - [x] Added Team selection to Instruksi rows with immutable team/auditor snapshots, existing
       competency and independence checks, mandatory conflict justification, and checklist locking.
+- [x] Hardened Team assignment so active-auditor, competency, independence, legitimate-snapshot,
+      date/section revalidation, and direct-RPC protections are enforced by both service and database.
 - [x] Added the active central Checklist Audit worklist/router and removed the full editor tab from
       Instruksi in favor of row-level `Buka Checklist` navigation.
 - [x] QA remains the primary identifier; IA schedules/scopes/teams are legacy and receive no new

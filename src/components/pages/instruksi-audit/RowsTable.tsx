@@ -104,6 +104,7 @@ export function RowsTable({
       const pemilikProses = resolvePemilikProses(form.proses_id || null, prosesList, seksiList, finalSeksiMarks);
 
       if (editingRow) {
+        const teamChanged = form.team_master_id !== (editingRow.team_master_id ?? '');
         const saved = await saveRow({
           ...editingRow,
           proses_id: form.proses_id || null, pemilik_proses: pemilikProses,
@@ -114,9 +115,10 @@ export function RowsTable({
           kualifikasi: form.kualifikasi || null, item_lain_diperiksa: form.item_lain_diperiksa || null,
           tanggal_plan_audit: form.tanggal_plan_audit || null,
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
+          catatan_justifikasi_tim: teamChanged ? editingRow.catatan_justifikasi_tim : form.catatan_justifikasi_tim || null,
           cek_selesai: form.cek_selesai,
         });
-        if (form.team_master_id !== (editingRow.team_master_id ?? '') || form.catatan_justifikasi_tim !== (editingRow.catatan_justifikasi_tim ?? ''))
+        if (teamChanged)
           await assignTeamToInstructionRow(saved.id, form.team_master_id || null, form.catatan_justifikasi_tim);
       } else {
         const kodeAudit = await generateNextKodeAudit(prefixNomorAudit);

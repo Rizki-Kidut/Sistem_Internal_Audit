@@ -53,8 +53,12 @@ export async function assignTeamToInstructionRow(rowId: string, teamMasterId: st
   if (!team || team.status !== AUDIT_TEAM_MASTER_STATUS.AKTIF) throw new Error('Tim Audit aktif tidak ditemukan');
   if (team.members.filter((m) => m.peran === AUDIT_TEAM_MEMBER_ROLE.LEAD).length !== 1) throw new Error('Tim Audit harus memiliki tepat satu Lead');
   const auditorMap = new Map(auditors.map((a) => [a.id, a]));
-  const selected = team.members.map((m) => m.auditor ?? auditorMap.get(m.auditor_id)).filter((a): a is Auditor => !!a);
-  if (selected.length !== team.members.length) throw new Error('Ada auditor Tim Audit yang tidak ditemukan atau tidak aktif');
+  const inactiveMembers = team.members.filter((member) => !auditorMap.has(member.auditor_id));
+  if (inactiveMembers.length) {
+    const names = inactiveMembers.map((member) => member.auditor?.nama ?? member.auditor_id);
+    throw new Error(`Tim Audit memiliki auditor yang sudah tidak aktif: ${names.join(', ')}`);
+  }
+  const selected = team.members.map((member) => auditorMap.get(member.auditor_id)).filter((auditor): auditor is Auditor => !!auditor);
   const ineligible = selected.filter((a) => !checkKompetensi(a, row.tanggal_pelaksanaan_audit).isEligible);
   if (ineligible.length) throw new Error(`Auditor tidak memenuhi kompetensi pada tanggal pelaksanaan: ${ineligible.map((a) => a.nama).join(', ')}`);
   const names = row.seksi_marks.map((m) => seksiList.find((s: Seksi) => s.id === m.seksi_id)?.nama).filter((name): name is string => !!name);
