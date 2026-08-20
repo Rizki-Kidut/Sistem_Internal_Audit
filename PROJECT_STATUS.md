@@ -6,6 +6,8 @@
 
 ### Implemented
 
+- [x] PR #4 review correction now renders auditors from the persisted checklist snapshot and keeps
+      persisted Plant/Shift selections visible alongside deduplicated current matrix suggestions.
 - [x] Added one additive migration for `checklist_manufaktur_shift`,
       `checklist_manufaktur_bank_items`, and `checklist_manufaktur_items`, including foreign keys,
       required indexes, updated-at triggers, current anon/authenticated RLS policies, and safe
