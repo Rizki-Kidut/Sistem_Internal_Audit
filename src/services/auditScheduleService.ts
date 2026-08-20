@@ -74,6 +74,13 @@ export async function saveAuditSchedule(schedule: Partial<AuditSchedule>): Promi
     { kode_audit: 'Kode Audit' },
   );
 
+  if (schedule.status === AUDIT_SCHEDULE_STATUS.SCHEDULED) {
+    if (!schedule.id) throw new Error('Jadwal harus disimpan sebagai Draft sebelum dijadwalkan');
+    const scopes = await getScopesBySchedule(schedule.id);
+    const validationError = validateScheduledScopes(scopes);
+    if (validationError) throw new Error(validationError);
+  }
+
   const payload = {
     kode_audit: schedule.kode_audit,
     plan_id: schedule.plan_id ?? null,

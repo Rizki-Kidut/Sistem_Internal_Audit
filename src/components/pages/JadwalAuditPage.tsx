@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarCheck, Plus, Trash2 } from 'lucide-react';
-import type { AuditSchedule, AuditScope, Proses, Seksi } from '../../lib/types';
+import type { AuditSchedule, AuditScope, Proses, Seksi, AuditInstructionRow, Auditor } from '../../lib/types';
 import { AUDIT_SCHEDULE_STATUS } from '../../lib/enums';
 import type { JenisAudit, StandarAudit } from '../../lib/enums';
 import { formatTanggal } from '../../lib/utils';
@@ -24,6 +24,9 @@ import { CreateWizardModal } from './jadwal-audit/CreateWizardModal';
 import { ScheduleHeader } from './jadwal-audit/ScheduleHeader';
 import { ScopeTab } from './jadwal-audit/ScopeTab';
 import { TimAuditTab } from './jadwal-audit/TimAuditTab';
+import { ChecklistTab } from './instruksi-audit/ChecklistTab';
+import { getRowsByKodeAudits } from '../../services/auditInstructionService';
+import { getActiveAuditors } from '../../services/auditorService';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 
@@ -40,7 +43,7 @@ type TabId = 'ruang-lingkup' | 'tim-audit' | 'checklist' | 'agenda' | 'pelaksana
 const TABS: { id: TabId; label: string; soon?: boolean }[] = [
   { id: 'ruang-lingkup', label: 'Ruang Lingkup' },
   { id: 'tim-audit', label: 'Tim Audit' },
-  { id: 'checklist', label: 'Checklist', soon: true },
+  { id: 'checklist', label: 'Checklist' },
   { id: 'agenda', label: 'Agenda', soon: true },
   { id: 'pelaksanaan', label: 'Pelaksanaan', soon: true },
   { id: 'temuan', label: 'Temuan', soon: true },
@@ -61,6 +64,8 @@ export function JadwalAuditPage() {
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<AuditSchedule | null>(null);
   const [scopes, setScopes] = useState<AuditScope[]>([]);
+  const [checklistRows, setChecklistRows] = useState<AuditInstructionRow[]>([]);
+  const [auditorList, setAuditorList] = useState<Auditor[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('ruang-lingkup');
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -96,6 +101,8 @@ export function JadwalAuditPage() {
   const loadDetail = useCallback(async (id: string) => {
     setLoadingDetail(true);
     setError(null);
+    setChecklistRows([]);
+    setAuditorList([]);
     try {
       const [sched, sc] = await Promise.all([
         getAuditScheduleById(id),
@@ -118,6 +125,22 @@ export function JadwalAuditPage() {
       setScopes([]);
     }
   }, [selectedScheduleId, loadDetail]);
+
+  useEffect(() => {
+    if (activeTab !== 'checklist') return;
+    if (scopes.length === 0) {
+      setChecklistRows([]);
+      setAuditorList([]);
+      return;
+    }
+    Promise.all([
+      getRowsByKodeAudits(scopes.map((scope) => scope.kode_audit ?? '')),
+      getActiveAuditors(),
+    ]).then(([rows, auditors]) => {
+      setChecklistRows(rows);
+      setAuditorList(auditors);
+    }).catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat checklist sesi'));
+  }, [activeTab, scopes]);
 
   // --- Handlers ---
   const isReadOnly = schedule?.status === AUDIT_SCHEDULE_STATUS.CLOSED;
@@ -263,6 +286,16 @@ export function JadwalAuditPage() {
             schedule={schedule}
             scopes={scopes}
             seksiList={seksiList}
+            readOnly={isReadOnly}
+            onError={(msg) => setError(msg)}
+          />
+        )}
+
+        {activeTab === 'checklist' && (
+          <ChecklistTab
+            rows={checklistRows}
+            seksiList={seksiList}
+            auditorList={auditorList}
             readOnly={isReadOnly}
             onError={(msg) => setError(msg)}
           />

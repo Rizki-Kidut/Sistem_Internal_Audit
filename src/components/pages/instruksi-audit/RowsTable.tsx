@@ -234,6 +234,16 @@ export function RowsTable({
     return shifts.filter((s) => s.plant_id === plantId).length;
   }
 
+  // Nama seksi diputar sebagai satu frasa; panjang nama menambah tinggi header, bukan lebar kolom.
+  const longestSeksiName = seksiList.reduce((longest, seksi) => Math.max(longest, seksi.nama.length), 0);
+  const seksiHeaderHeight = Math.min(260, Math.max(120, longestSeksiName * 6 + 32));
+  function getSeksiColumnWidth(name: string): number {
+    if (name.length <= 8) return 38;
+    if (name.length <= 18) return 46;
+    if (name.length <= 28) return 54;
+    return 60;
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -282,8 +292,28 @@ export function RowsTable({
               <tr className="border-b border-gray-200 bg-gray-50">
                 {/* Seksi sub-headers */}
                 {seksiList.map((s) => (
-                  <th key={s.id} className="px-1 py-1 text-center text-[10px] font-medium text-gray-400 whitespace-nowrap" title={s.nama}>
-                    {s.nama.slice(0, 3)}
+                  <th
+                    key={s.id}
+                    className="p-0 text-center text-[10px] font-medium text-gray-500 border-r border-gray-100"
+                    style={{
+                      width: getSeksiColumnWidth(s.nama),
+                      minWidth: getSeksiColumnWidth(s.nama),
+                      maxWidth: getSeksiColumnWidth(s.nama),
+                      height: seksiHeaderHeight,
+                    }}
+                    title={s.nama}
+                  >
+                    <div
+                      className="relative flex items-center justify-center w-full"
+                      style={{ height: seksiHeaderHeight }}
+                    >
+                      <span
+                        className="absolute whitespace-nowrap text-xs font-semibold text-gray-700 leading-none"
+                        style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+                      >
+                        {s.nama}
+                      </span>
+                    </div>
                   </th>
                 ))}
                 {/* Produk: Plant → Model sub-headers */}
@@ -342,7 +372,15 @@ export function RowsTable({
                     <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getAuditorNames(row.auditor)}</td>
                     {/* Matriks Seksi cells */}
                     {seksiList.map((s) => (
-                      <td key={s.id} className="px-1 py-2 text-center text-sm border-r border-gray-50">
+                      <td
+                        key={s.id}
+                        className="px-1 py-2 text-center text-sm border-r border-gray-50"
+                        style={{
+                          width: getSeksiColumnWidth(s.nama),
+                          minWidth: getSeksiColumnWidth(s.nama),
+                          maxWidth: getSeksiColumnWidth(s.nama),
+                        }}
+                      >
                         <span className={seksiMarkSymbol(s.id, row.seksi_marks) === '★' ? 'text-blue-600' : 'text-gray-400'}>
                           {seksiMarkSymbol(s.id, row.seksi_marks) || <span className="text-gray-200">·</span>}
                         </span>

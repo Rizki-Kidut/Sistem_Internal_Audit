@@ -1,5 +1,135 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Stabilization Pass — 19 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED` — database stabilization verified; browser smoke test pending
+
+The stabilization gate was implemented against the repository-root application only. Batch 5b was
+not started and the nested `project/` snapshot was not modified.
+
+### Completed
+
+- [x] Corrected Instruksi Audit Matriks Seksi headers to rotate each complete, non-wrapping section
+      name bottom-to-top, with bounded dynamic header height and matching compact header/body widths.
+- [x] Added additive, version-controlled schemas, indexes, RLS policies, and relationships for
+      `audit_instructions`, `audit_instruction_rows`, `plants`, `target_models`, `shifts`,
+      `checklists`, and `checklist_items`.
+- [x] Added a separate corrective migration that moves the misplaced `anon_select_proses_seksi`
+      policy to `proses_seksi` without changing the historical migration or application data.
+- [x] Centralized QA allocation in the database `qa_audit_code_seq` / `next_qa_audit_code()` path.
+      Existing values seed the sequence; QA codes are immutable; new duplicate inserts are rejected.
+      A unique index is added when existing data has no duplicates, so an existing-data upgrade does
+      not destructively rewrite duplicate historical values.
+- [x] Replaced the per-program `QA-01` loop with the transactional
+      `generate_instruction_from_program()` RPC. Header, all rows, matching scope propagation, and
+      QA allocation now commit or roll back together. When no session exists yet, completing the
+      instruction grid creates its schedule/scope/team in the same row-save transaction.
+- [x] Added the specified **Generate dari Program** entry point to Program Internal Audit while
+      retaining the existing Instruksi Audit entry point for compatibility.
+- [x] Added dynamic period-label editing (add, rename, remove) and keeps every step's
+      `periode_target` array aligned with the labels.
+- [x] Enforced Scheduled scope prerequisites inside `saveAuditSchedule()`, rather than only in UI.
+- [x] Enforced required independence justification inside `upsertTeam()` in addition to UI.
+- [x] Added required checklist header/item validation in the checklist service.
+- [x] Enabled Detail Sesi Audit → Checklist and reused the existing Checklist Sistem component and
+      `checklists`/`checklist_items` records by resolving instruction rows through propagated QA codes.
+      No parallel checklist storage was introduced.
+- [x] Added transactional synchronization from instruction-grid auditor assignments to the related
+      schedule team.
+
+### Real Supabase verification result
+
+#### Migration and data preservation
+
+- [x] A fresh Supabase project passed the initial clean chain of **11/11** migrations and then
+      successfully applied `20260819211000_harden_functions_and_index_foreign_keys.sql`.
+- [x] A separate `CertiTrack-Upgrade-Test` project first received only the nine historical migrations,
+      representative pre-stabilization records, UUID snapshots, row counts, and content hashes.
+- [x] All three stabilization migrations then applied successfully. Existing row counts, UUIDs,
+      relationships, and hashes for section, process, plan, program, schedule, scope, and team data
+      remained identical.
+
+#### Security and performance hardening
+
+- [x] The five functions reported for mutable search paths now have explicit
+      `search_path = pg_catalog, public`; Supabase Security Advisor reports **zero warnings**.
+- [x] Covering indexes exist for `audit_instruction_rows.proses_id`,
+      `audit_plan_seksi_link.seksi_id`, `audit_program_distribusi.seksi_id`, and
+      `checklist_items.bank_item_id`.
+- [x] Remaining Performance Advisor messages are unused-index INFO notices expected on a new/test
+      database and are not stabilization blockers. No existing index was removed.
+
+#### QA allocation and protection
+
+- [x] Direct sequential allocation returned `QA-01`, `QA-02`, and `QA-03`.
+- [x] Generate-from-Program continued globally across programs: Program A received `QA-04` and
+      `QA-05`; Program B received `QA-06` and `QA-07`. The sequence did not restart per program.
+- [x] A duplicate QA insert was rejected, and changing an existing
+      `audit_instruction_rows.kode_audit` was rejected. Database-level uniqueness and immutability
+      protections are working.
+
+#### Transactional generation and grid synchronization
+
+- [x] Successful generation created one header and two rows for Program A. Two scopes matching the
+      same process both received `QA-04`, and the other process scope received `QA-05`.
+- [x] A deliberate collision on the second generated row rolled back the already-processed first row:
+      no header, rows, or temporary `QA-08` persisted, and the changed scope reverted to its original
+      code. Header, rows, and scope propagation are therefore atomic.
+- [x] Re-generating an already generated program was rejected.
+- [x] Completing a generated row for a program without a schedule created the IA schedule, matching
+      QA scope, and audit team with the correct lead/member in the row-save transaction.
+
+#### Checklist routing and post-upgrade compatibility
+
+- [x] Database routing through both instruction-row and schedule/scope QA paths returned the same
+      checklist ID and instruction row ID. No parallel or copied Checklist Sistem record was created.
+- [x] After the existing-data upgrade, Generate-from-Program reused the representative schedule,
+      scope, and team; created one instruction row; shared `QA-01` with the existing scope; propagated
+      the existing lead/member; and created no duplicate schedule, scope, or team.
+
+#### Repository checks
+
+- [x] `npm run typecheck` passed.
+- [x] `npm run build` passed.
+- [ ] `npm run lint` remains blocked by 26 pre-existing unused-import/function errors, including
+      errors inside the protected nested `project/` snapshot. A detached worktree comparison against
+      the base commit produced the same 26 errors, so this stabilization diff introduces none.
+- [ ] True simultaneous multi-connection PostgreSQL concurrency remains untested. Sequence,
+      advisory-lock, duplicate-protection, serialization, and rollback behavior passed functional
+      tests, but two simultaneous database sessions were not exercised.
+- [ ] Real browser/UI smoke testing remains pending. Database Checklist routing passed, but browser
+      interaction through Program, Instruksi, and Detail Sesi Audit is not yet verified.
+
+The overall stabilization state remains `IMPLEMENTED_UNVERIFIED` until browser smoke testing is
+complete; it must not be promoted to `VERIFIED_COMPLETE` yet.
+
+### Remaining blockers / decisions
+
+- The local `auditors` table remains a temporary compatibility proxy. Tim Audit and Instruksi must
+  move behind an adapter when the real Training module source/schema is supplied; no external schema
+  was invented and the proxy was not expanded.
+- The migration preserves historical duplicate QA values if a different live database contains them;
+  the verified clean and representative upgrade projects contained no such duplicates.
+- Process-master reorder/schema divergence and the Program document-code difference remain product
+  decisions outside this smallest safe stabilization change.
+- Batch 5b and all later batches remain `NOT_STARTED`.
+
+### Files changed in this pass
+
+```text
+src/lib/codeGenerator.ts
+src/services/auditInstructionService.ts
+src/services/auditScheduleService.ts
+src/services/auditTeamService.ts
+src/services/checklistService.ts
+src/components/pages/ProgramAuditPage.tsx
+src/components/pages/JadwalAuditPage.tsx
+supabase/migrations/20260819090000_stabilize_batch4_batch5a.sql
+supabase/migrations/20260819090100_fix_proses_seksi_select_policy.sql
+supabase/migrations/20260819211000_harden_functions_and_index_foreign_keys.sql
+PROJECT_STATUS.md
+```
+
 > **Repository audit performed from uploaded GitHub export: 19 Aug 2026**
 >
 > Audited source: repository-root `src/` and root `supabase/migrations/`.
@@ -10,7 +140,8 @@
 - `NOT_STARTED` — no meaningful implementation found
 - `IN_PROGRESS` — meaningful implementation exists but one or more specified requirements are missing/incorrect
 - `BLOCKED` — completion depends on a concrete missing external dependency or unresolved prerequisite
-- `IMPLEMENTED_UNVERIFIED` — implementation appears complete by static review but runtime/build/integration verification is unavailable
+- `IMPLEMENTED_UNVERIFIED` — implementation exists and available checks may pass, but one or more
+  required runtime, integration, concurrency, or browser verifications remain pending
 - `VERIFIED_COMPLETE` — specification and available technical verification both passed
 
 ---
@@ -92,121 +223,58 @@ Treat `auditors` as a temporary stand-in until the real Training data source is 
 
 # 2. Validation / Build Audit
 
-The repository defines:
+The repository scripts `npm run typecheck` and `npm run build` pass after stabilization. The lint
+command still reports the same 26 baseline unused-symbol errors found in a detached worktree at the
+pre-stabilization commit; this diff introduced no new lint errors. No test script is defined.
 
-```text
-npm run build
-npm run lint
-npm run typecheck
-```
-
-A dependency installation was attempted in the audit environment.
-
-The environment could not reach `registry.npmjs.org` (`EAI_AGAIN`), leaving an incomplete temporary
-`node_modules` in the audit workspace. Because of that:
-
-- production build could not be reliably executed;
-- lint could not be reliably executed;
-- typecheck could not be reliably executed.
-
-This is recorded as an **audit-environment limitation**, not proof that the repository itself fails.
-
-A clean local/Codex environment with dependency access must rerun:
-
-```bash
-npm ci
-npm run typecheck
-npm run lint
-npm run build
-```
-
-No test script is currently defined in `package.json`.
+Database verification is recorded in the real Supabase verification section above. The clean chain,
+representative existing-data upgrade, successful/failed transactional generation, grid synchronization,
+QA protection, and database Checklist routing all passed. True simultaneous-session concurrency and
+browser/UI smoke testing remain pending.
 
 ---
 
 # 3. Cross-Cutting Findings
 
-## 3.1 Missing version-controlled migrations for current source
+## 3.1 Batch 4/5a version-controlled migrations
 
-Root source references:
+**Resolution:** `RESOLVED_DATABASE_VERIFIED`
 
-```text
-audit_instructions
-audit_instruction_rows
-plants
-target_models
-shifts
-checklists
-checklist_items
-```
-
-but the uploaded root `supabase/migrations/` contains migrations only through the Batch 3b auditor/team
-foundation plus earlier fixes.
-
-**Impact:** the current source tree is not fully reproducible from version-controlled migrations.
-
-**Priority:** HIGH
+The missing tables (`audit_instructions`, `audit_instruction_rows`, `plants`, `target_models`,
+`shifts`, `checklists`, and `checklist_items`) are now defined by the additive stabilization migration.
+Both clean-chain and representative existing-data upgrade tests passed without changing existing row
+counts, UUIDs, relationships, or audited content hashes.
 
 ---
 
 ## 3.2 `proses_seksi` RLS SELECT policy migration bug
 
-Migration:
+**Resolution:** `RESOLVED_DATABASE_VERIFIED`
 
-```text
-supabase/migrations/20260805020305_create_proses_master_tables.sql
-```
-
-drops `anon_select_proses_seksi` from `proses_seksi`, but then creates that policy on table `proses`.
-
-**Impact:** `proses_seksi` may not receive the intended SELECT policy after a clean migration.
-
-**Priority:** HIGH
-
-Use a new corrective migration if the original migration may already be applied.
+The historical migration remains unchanged. Corrective migration
+`20260819090100_fix_proses_seksi_select_policy.sql` places the SELECT policy on `proses_seksi`; it
+passed both clean and existing-data upgrade paths.
 
 ---
 
-## 3.3 QA identifier generation is duplicated and inconsistent
+## 3.3 Central QA identifier
 
-QA generation logic exists in multiple places:
+**Resolution:** `RESOLVED_DATABASE_VERIFIED`
 
-```text
-src/lib/codeGenerator.ts
-src/services/auditInstructionService.ts
-generateFromProgram() inline sequence
-```
-
-`generateFromProgram()` currently starts:
-
-```text
-QA-01
-```
-
-again for each generated instruction because its loop sequence begins from 1.
-
-**Impact:** duplicate central `kode_audit` values are possible across programs/instructions unless the
-database happens to reject them.
-
-**Priority:** CRITICAL before later cross-document linking.
+QA allocation is centralized in the database sequence. Direct allocation returned `QA-01` through
+`QA-03`, followed by `QA-04`/`QA-05` for Program A and `QA-06`/`QA-07` for Program B. Duplicate
+insertion and mutation of an existing QA identifier were rejected. True simultaneous multi-connection
+concurrency remains a separate pending verification item.
 
 ---
 
-## 3.4 Generate-from-Program is not fully atomic
+## 3.4 Generate-from-Program atomicity
 
-`generateFromProgram()`:
+**Resolution:** `RESOLVED_DATABASE_VERIFIED`
 
-1. creates instruction;
-2. batch-inserts rows;
-3. updates related scopes one by one;
-4. on error, deletes the instruction.
-
-If a scope update succeeds and a later scope update fails, deleting the instruction does not restore
-the already changed `audit_scopes.kode_audit`.
-
-**Impact:** partial cross-document state can remain.
-
-**Priority:** HIGH
+The database RPC creates the header/rows and propagates every matching scope in one transaction.
+Successful multi-scope propagation and deliberate second-row failure were tested. The failure left no
+header or rows and restored the previously changed scope value, verifying rollback of partial work.
 
 ---
 
@@ -279,7 +347,7 @@ This is now an established repository convention.
 - [ ] `prosesMaster` itself does not implement the requested `urutanTampil` reorder behavior
 - [ ] process master schema differs materially from the target plan (`kode_proses`, `diaudit_tahun_ini`,
       `tanggal_audit`, flags instead of the simpler planned master)
-- [ ] RLS SELECT policy for `proses_seksi` has a migration bug
+- [x] RLS SELECT policy for `proses_seksi` corrected and database-verified
 - [ ] inactive processes already synced into an existing annual plan are not clearly removed/hidden by the sync function
 - [ ] "Salin dari Tahun Lalu" copies both section involvement and processes, while the supplied plan only explicitly
       required copying `seksiTerlibat`
@@ -409,7 +477,7 @@ supabase/migrations/20260807031800_20260807030000_create_audit_schedule_scope_ta
 - [ ] auditor source is **not** the existing Training module required by the target plan
 - [ ] a duplicate/local `auditors` table was created as a stand-in
 - [ ] Training page itself is only a placeholder
-- [ ] independence justification requirement is not enforced in `auditTeamService` save/domain logic
+- [x] independence justification requirement is enforced in `auditTeamService` save/domain logic
 - [ ] actual integration adapter to Training data is unavailable
 
 ### Key files
@@ -456,15 +524,12 @@ supabase/migrations/20260811012716_20260811000000_create_auditor_and_audit_team_
 - [x] Target Model CRUD code
 - [x] Shift CRUD code
 
-### Missing / risks
+### Remaining risks
 
-- [ ] no root migration exists for `audit_instructions`
-- [ ] no root migration exists for `audit_instruction_rows`
-- [ ] no root migration exists for `plants`
-- [ ] no root migration exists for `target_models`
-- [ ] no root migration exists for `shifts`
-- [ ] immutability of generated QA code is mostly protected by UI flow, not clearly enforced at domain/database level
-- [ ] code generation is duplicated across helpers/services
+- [x] root migrations exist and passed clean/existing-data upgrade tests for `audit_instructions`,
+      `audit_instruction_rows`, `plants`, `target_models`, and `shifts`
+- [x] generated QA immutability and duplicate protection are enforced and verified at database level
+- [x] central QA allocation is shared by manual and Generate-from-Program paths
 - [ ] current local auditor source is still the temporary proxy
 
 ### Key files
@@ -501,16 +566,16 @@ src/lib/enums.ts
 - [x] instruction grid includes Product and Manufacturing/Shift matrices
 - [x] special row badges exist
 
-### Missing / incorrect
+### Stabilization verification
 
-- [ ] **critical:** generated QA sequence restarts at `QA-01` inside every `generateFromProgram()` call
-- [ ] generator is not centralized; multiple QA generation implementations exist
-- [ ] Generate button is on the Instruksi Audit flow, not the Program Internal Audit page requested in the plan
-- [ ] if schedule/team does not exist, filling the instruction grid does **not** create a corresponding
-      `auditScope` + `auditTeam`
-- [ ] atomicity is incomplete; already propagated scope updates are not reverted by deleting the instruction
-- [ ] only the first matched scope is used per process for team/propagation logic
-- [ ] missing Batch 4 database migrations prevents reproducible setup
+- [x] generated QA sequence remains global across programs
+- [x] generator is centralized and database-protected
+- [x] Generate button is available from Program Internal Audit
+- [x] completing a row without a schedule creates the required schedule, scope, and team atomically
+- [x] header, rows, and all matching scope propagation roll back atomically on failure
+- [x] multiple matching scopes receive the same row QA identifier
+- [x] Batch 4 migrations passed clean and representative existing-data upgrade tests
+- [ ] true simultaneous multi-connection generation remains untested
 
 ### Key files
 
@@ -546,16 +611,15 @@ src/components/pages/instruksi-audit/RowsTable.tsx
 - [x] sub-question result editing
 - [x] Bank items can effectively be skipped/removed from generated checklist
 
-### Missing / incorrect
+### Remaining verification
 
-- [ ] no root migration exists for `checklists`
-- [ ] no root migration exists for `checklist_items`
-- [ ] target plan says Checklist belongs in **Detail Sesi Audit → Checklist tab**; current implementation is
-      inside **Instruksi Internal Audit detail**
-- [ ] `JadwalAuditPage` still marks Checklist tab as `(segera)` / disabled
-- [ ] save-layer validation for required checklist/item fields is incomplete
+- [x] root migrations exist and passed clean/existing-data upgrade tests for `checklists` and `checklist_items`
+- [x] Checklist Sistem is available from **Detail Sesi Audit → Checklist** and reuses instruction-row data
+- [x] `JadwalAuditPage` Checklist tab is enabled
+- [x] save-layer validation exists for required checklist/item fields
+- [x] instruction and session QA paths resolve the same checklist and instruction-row IDs
 - [ ] non-Regular checklist types remain placeholders as expected until 5b/5c
-- [ ] no runtime verification
+- [ ] real browser/UI smoke verification remains pending
 
 ### Key files
 
@@ -663,133 +727,65 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The repository is **not a clean "Batch 5a complete → start 5b" state**.
-
-The practical handoff is:
+The stabilization database foundation is verified on both clean and representative existing-data
+Supabase projects. Batch 5b remains `NOT_STARTED`.
 
 ```text
 Batch 1     IN_PROGRESS
 Batch 2     IN_PROGRESS
 Batch 3a    IN_PROGRESS
 Batch 3b    BLOCKED (external Training integration)
-Batch 4a    IN_PROGRESS
-Batch 4b    IN_PROGRESS
-Batch 5a    IN_PROGRESS
+Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remains in progress)
+Batch 4b    IMPLEMENTED_UNVERIFIED (database verified; browser and simultaneous-session tests pending)
+Batch 5a    IMPLEMENTED_UNVERIFIED (database routing verified; browser smoke test pending)
 Batch 5b+   NOT_STARTED
 ```
 
-The visible feature frontier is **Batch 5a**, but foundation corrections should happen first.
+The remaining stabilization verification limitations are narrowly scoped:
+
+1. true simultaneous multi-connection PostgreSQL concurrency has not been exercised;
+2. real browser/UI smoke testing has not been completed.
+
+Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
+failed transaction behavior, multi-scope propagation, grid schedule/scope/team synchronization,
+Checklist database record sharing, clean migration, existing-data upgrade, and post-upgrade
+compatibility have all passed on real Supabase staging projects.
 
 ---
 
-# 6. Recommended Next Work — Stabilization Pass
+# 6. Remaining Work Before PR #1 Merge
 
-## Priority 0 — Preserve current work
+- [ ] Run a real browser smoke test covering Program → Generate-from-Program → Instruksi and Detail
+      Sesi Audit → Checklist, confirming error/success feedback and shared checklist rendering.
+- [ ] Run a true two-session PostgreSQL concurrency test for simultaneous QA allocation/generation.
+      This is the only database stress case not yet exercised; functional locking and serialization
+      behavior already passed.
+- [ ] Keep Batch 5b unstarted until this stabilization PR is merged.
 
-- [ ] Work only in repository-root source
-- [ ] Do not regenerate the app from scratch
-- [ ] Do not delete existing working Batch 1–5a UI
-- [ ] Do not modify nested `project/`
-
-## Priority 1 — Database reproducibility
-
-- [ ] inspect live Supabase schema if credentials/environment are available
-- [ ] add missing migrations for:
-  - `audit_instructions`
-  - `audit_instruction_rows`
-  - `plants`
-  - `target_models`
-  - `shifts`
-  - `checklists`
-  - `checklist_items`
-- [ ] add corrective migration for `proses_seksi` SELECT RLS policy
-
-## Priority 2 — Central QA identifier
-
-- [ ] choose one reusable QA generator
-- [ ] remove/retire duplicate unused generator paths safely
-- [ ] make Generate-from-Program use the same generator
-- [ ] ensure sequence does not restart per program
-- [ ] add/verify database uniqueness appropriate to the intended scope
-- [ ] preserve existing QA values
-
-## Priority 3 — Batch 4b completeness
-
-- [ ] make Generate-from-Program truly atomic
-- [ ] ensure all relevant scope propagation is handled
-- [ ] implement missing "grid creates scope/team when absent" behavior
-- [ ] move/add Generate entry point to Program Internal Audit as specified
-
-## Priority 4 — Complete earlier requirements
-
-- [ ] add period-label editor to Batch 2
-- [ ] add required service-layer Scheduled validation
-- [ ] add required service-layer independence-justification validation
-- [ ] review process-master reorder/schema divergence
-- [ ] decide whether Program document code must be `FORM-002` or current `FORM-002-REV.1`
-
-## Priority 5 — Finish Batch 5a integration
-
-- [ ] provide Checklist Sistem through Detail Sesi Audit → Checklist
-- [ ] reuse existing Checklist component/data rather than duplicate it
-- [ ] keep Instruksi entry/access only if useful, but do not create parallel checklist data
-- [ ] add save-layer validation for required checklist fields/items
-
-## Priority 6 — Training integration decision
-
-- [ ] obtain/identify actual Auditor Competency/Training source
-- [ ] introduce an adapter interface if needed
-- [ ] migrate Tim Audit and Instruksi readers from local proxy to real source
-- [ ] only then deprecate/remove duplicate `auditors` storage if appropriate
+The missing external Training integration, process-master divergence, and Program document-code
+choice remain product follow-up items, but are not regressions introduced by this stabilization pass.
 
 ---
 
-# 7. Recommended First Codex Task
+# 7. Verification Summary
 
-Use this before asking Codex to build Batch 5b:
+- [x] clean Supabase migration path, including the hardening correction
+- [x] representative existing-data upgrade with row/UUID/hash preservation
+- [x] post-upgrade reuse of existing schedule, scope, and team
+- [x] global QA sequence across separate programs
+- [x] duplicate QA rejection and QA immutability
+- [x] successful generation with multiple-scope propagation
+- [x] deliberate second-row failure with complete transactional rollback
+- [x] duplicate Generate-from-Program rejection
+- [x] grid completion creation of schedule, scope, and team
+- [x] Checklist database record sharing through instruction and session paths
+- [x] Supabase Security Advisor: zero warnings after hardening
+- [x] reported foreign-key indexes added; remaining unused-index notices are INFO only
+- [x] `npm run typecheck`
+- [x] `npm run build`
+- [x] stabilization diff introduces no lint errors relative to baseline
+- [ ] true simultaneous multi-connection database concurrency
+- [ ] real browser/UI smoke test
 
-```text
-Read AGENTS.md, PROJECT_PLAN.md, and PROJECT_STATUS.md completely.
-
-The repository has already been audited. Do not restart the project and do not reimplement completed UI.
-
-Perform the Stabilization Pass described in PROJECT_STATUS.md, starting with database reproducibility and the central QA identifier.
-
-First inspect the actual root source and root Supabase migrations and confirm the audit findings.
-
-Then:
-1. add safe corrective/missing migrations without destroying existing data;
-2. centralize QA code generation and prevent QA-01 from restarting per generated program;
-3. make Generate-from-Program atomic across instruction rows and scope propagation;
-4. implement the missing Batch 4b scope/team creation behavior when no schedule/team exists;
-5. add missing service-layer validation;
-6. wire the existing Checklist Sistem implementation into Detail Sesi Audit without duplicating checklist data;
-7. update PROJECT_STATUS.md.
-
-Do not start Batch 5b yet.
-Do not modify the nested project/ snapshot.
-Run npm typecheck, lint, and build when dependencies are available.
-Stop after reporting all changes and remaining blockers.
-```
-
----
-
-# 8. Verification Needed After Stabilization
-
-- [ ] `npm ci`
-- [ ] `npm run typecheck`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] test clean Supabase migration path
-- [ ] test existing-data upgrade path
-- [ ] test annual plan
-- [ ] test program creation
-- [ ] test schedule + scope
-- [ ] test team validation
-- [ ] test instruction manual row
-- [ ] test Generate from Program with multiple programs
-- [ ] verify no duplicate `QA-xx`
-- [ ] test Checklist Sistem from Detail Sesi Audit
-- [ ] verify no regression in existing Batch 1–5a behavior
-
-Only after this should Batch 5b be started.
+Only after the remaining merge verification is accepted should PR #1 be merged. Batch 5b must not be
+started as part of this status update.
