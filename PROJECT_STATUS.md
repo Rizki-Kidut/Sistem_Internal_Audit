@@ -2,7 +2,7 @@
 
 ## Stabilization Pass — 19 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED` — database stabilization verified; browser smoke test pending
+**Status:** `VERIFIED_COMPLETE`
 
 The stabilization gate was implemented against the repository-root application only. Batch 5b was
 not started and the nested `project/` snapshot was not modified.
@@ -91,17 +91,22 @@ not started and the nested `project/` snapshot was not modified.
 
 - [x] `npm run typecheck` passed.
 - [x] `npm run build` passed.
-- [ ] `npm run lint` remains blocked by 26 pre-existing unused-import/function errors, including
+- [x] `npm run lint` confirms the unchanged baseline of 26 pre-existing unused-symbol errors, including
       errors inside the protected nested `project/` snapshot. A detached worktree comparison against
-      the base commit produced the same 26 errors, so this stabilization diff introduces none.
-- [ ] True simultaneous multi-connection PostgreSQL concurrency remains untested. Sequence,
-      advisory-lock, duplicate-protection, serialization, and rollback behavior passed functional
-      tests, but two simultaneous database sessions were not exercised.
-- [ ] Real browser/UI smoke testing remains pending. Database Checklist routing passed, but browser
-      interaction through Program, Instruksi, and Detail Sesi Audit is not yet verified.
+      the base commit produced the same 26 errors, so stabilization introduced no new lint regression.
+      These errors remain non-blocking technical debt.
+- [x] **TRUE SIMULTANEOUS MULTI-SESSION DATABASE CONCURRENCY — VERIFIED PASS.** A real two-session
+      test ran in the isolated `CertiTrack-Upgrade-Test` Supabase project using separate `pg_cron`
+      PostgreSQL sessions. The two Generate-from-Program executions started approximately 2.7 ms
+      apart, overlapped in execution time, both succeeded, and generated distinct central QA codes
+      `QA-02` and `QA-03` with no duplicate QA code. The next scheduled executions were both rejected
+      because the instruction had already been generated, reconfirming duplicate-generation protection.
+- [x] **Browser/UI smoke test — VERIFIED PASS.** Manual real-browser smoke testing was performed
+      against the Vercel Preview deployment connected to `CertiTrack-Staging`. The implemented
+      stabilization workflow was manually exercised and no stabilization-blocking functional issue
+      was found. This was **MANUAL REAL-BROWSER SMOKE TESTING**, not automated E2E testing.
 
-The overall stabilization state remains `IMPLEMENTED_UNVERIFIED` until browser smoke testing is
-complete; it must not be promoted to `VERIFIED_COMPLETE` yet.
+The overall stabilization state is `VERIFIED_COMPLETE`.
 
 ### Remaining blockers / decisions
 
@@ -112,6 +117,8 @@ complete; it must not be promoted to `VERIFIED_COMPLETE` yet.
   the verified clean and representative upgrade projects contained no such duplicates.
 - Process-master reorder/schema divergence and the Program document-code difference remain product
   decisions outside this smallest safe stabilization change.
+- Remaining unused-index notices are informational only.
+- Manual real-browser coverage does not provide automated E2E coverage.
 - Batch 5b and all later batches remain `NOT_STARTED`.
 
 ### Files changed in this pass
@@ -229,8 +236,8 @@ pre-stabilization commit; this diff introduced no new lint errors. No test scrip
 
 Database verification is recorded in the real Supabase verification section above. The clean chain,
 representative existing-data upgrade, successful/failed transactional generation, grid synchronization,
-QA protection, and database Checklist routing all passed. True simultaneous-session concurrency and
-browser/UI smoke testing remain pending.
+QA protection, database Checklist routing, true simultaneous-session concurrency, and manual
+real-browser smoke testing all passed. The browser verification was manual, not automated E2E testing.
 
 ---
 
@@ -263,8 +270,8 @@ passed both clean and existing-data upgrade paths.
 
 QA allocation is centralized in the database sequence. Direct allocation returned `QA-01` through
 `QA-03`, followed by `QA-04`/`QA-05` for Program A and `QA-06`/`QA-07` for Program B. Duplicate
-insertion and mutation of an existing QA identifier were rejected. True simultaneous multi-connection
-concurrency remains a separate pending verification item.
+insertion and mutation of an existing QA identifier were rejected. True simultaneous multi-session
+generation also passed using separate PostgreSQL sessions.
 
 ---
 
@@ -575,7 +582,7 @@ src/lib/enums.ts
 - [x] header, rows, and all matching scope propagation roll back atomically on failure
 - [x] multiple matching scopes receive the same row QA identifier
 - [x] Batch 4 migrations passed clean and representative existing-data upgrade tests
-- [ ] true simultaneous multi-connection generation remains untested
+- [x] true simultaneous multi-session generation passed with overlapping executions and distinct QA codes
 
 ### Key files
 
@@ -619,7 +626,7 @@ src/components/pages/instruksi-audit/RowsTable.tsx
 - [x] save-layer validation exists for required checklist/item fields
 - [x] instruction and session QA paths resolve the same checklist and instruction-row IDs
 - [ ] non-Regular checklist types remain placeholders as expected until 5b/5c
-- [ ] real browser/UI smoke verification remains pending
+- [x] manual real-browser smoke verification passed (not automated E2E testing)
 
 ### Key files
 
@@ -736,31 +743,28 @@ Batch 2     IN_PROGRESS
 Batch 3a    IN_PROGRESS
 Batch 3b    BLOCKED (external Training integration)
 Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remains in progress)
-Batch 4b    IMPLEMENTED_UNVERIFIED (database verified; browser and simultaneous-session tests pending)
-Batch 5a    IMPLEMENTED_UNVERIFIED (database routing verified; browser smoke test pending)
+Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
+Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b+   NOT_STARTED
 ```
-
-The remaining stabilization verification limitations are narrowly scoped:
-
-1. true simultaneous multi-connection PostgreSQL concurrency has not been exercised;
-2. real browser/UI smoke testing has not been completed.
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
 failed transaction behavior, multi-scope propagation, grid schedule/scope/team synchronization,
 Checklist database record sharing, clean migration, existing-data upgrade, and post-upgrade
-compatibility have all passed on real Supabase staging projects.
+compatibility have all passed on real Supabase staging projects. True simultaneous multi-session
+generation passed in the isolated `CertiTrack-Upgrade-Test` project, and manual real-browser smoke
+testing passed against the Vercel Preview connected to `CertiTrack-Staging`.
 
 ---
 
-# 6. Remaining Work Before PR #1 Merge
+# 6. Non-Blocking Follow-Ups After PR #1 Merge
 
-- [ ] Run a real browser smoke test covering Program → Generate-from-Program → Instruksi and Detail
-      Sesi Audit → Checklist, confirming error/success feedback and shared checklist rendering.
-- [ ] Run a true two-session PostgreSQL concurrency test for simultaneous QA allocation/generation.
-      This is the only database stress case not yet exercised; functional locking and serialization
-      behavior already passed.
-- [ ] Keep Batch 5b unstarted until this stabilization PR is merged.
+- [ ] Replace the temporary local auditor proxy through an adapter when the real Training integration
+      source and schema become available.
+- [ ] Resolve the process-master divergence and Program document-code product decisions.
+- [ ] Review unused-index INFO notices after representative production usage exists.
+- [ ] Add automated E2E coverage; the completed browser verification was manual real-browser smoke testing.
+- [ ] Keep Batch 5b `NOT_STARTED` until it is explicitly authorized as a separate task.
 
 The missing external Training integration, process-master divergence, and Program document-code
 choice remain product follow-up items, but are not regressions introduced by this stabilization pass.
@@ -784,8 +788,8 @@ choice remain product follow-up items, but are not regressions introduced by thi
 - [x] `npm run typecheck`
 - [x] `npm run build`
 - [x] stabilization diff introduces no lint errors relative to baseline
-- [ ] true simultaneous multi-connection database concurrency
-- [ ] real browser/UI smoke test
+- [x] true simultaneous multi-session database concurrency
+- [x] manual real-browser smoke test (not automated E2E testing)
 
-Only after the remaining merge verification is accepted should PR #1 be merged. Batch 5b must not be
-started as part of this status update.
+The stabilization status is `VERIFIED_COMPLETE`. Batch 5b remains `NOT_STARTED` and is not part of
+this status update.
