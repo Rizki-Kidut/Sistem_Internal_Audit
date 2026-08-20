@@ -14,11 +14,11 @@
   for future Program print/export output and collapses equal dates to one Indonesian date.
 - Completed Product Checklists are immutable at service and database layers: checklist deletion and
   all phase/item/evidence mutations require returning the checklist to Draft first.
-- Batch 5b remains `IMPLEMENTED_UNVERIFIED`; Batch 5c and later remain `NOT_STARTED`.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and later remain `NOT_STARTED`.
 
 ## Batch 5b — Checklist Audit Produk — 20 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 ### Implemented
 
@@ -42,15 +42,31 @@
       `row_id`, so no duplicate page-specific Product Checklist data is created.
 - [x] Static checks passed: `npm run typecheck`, `npm run build`, and `git diff --check`.
 
-### Runtime verification still required
+### CertiTrack-Staging runtime verification
 
-- [ ] Apply the new migration to a real Supabase project and verify table/RLS/trigger behavior.
-- [ ] Exercise private evidence upload, signed URL viewing, deletion, and storage policies against
-      real Supabase Storage.
-- [ ] Run a real-browser workflow through both Instruksi Audit and Jadwal Audit and confirm the same
-      Product Checklist ID is shown for the same QA instruction row.
-- [ ] Verify the database rejection for zero-phase and evidence-free completion using real SQL/API
-      calls. Static/build checks alone do not qualify Batch 5b as `VERIFIED_COMPLETE`.
+- [x] Both Batch 5b migrations, `create_batch5b_product_checklist` and
+      `add_program_step_date_range`, applied successfully.
+- [x] **13/13 core database scenarios passed**, including acceptance of a same-day Schedule Dasar
+      range and rejection of an inverted range.
+- [x] Draft completion protection passed: zero phases and phases without evidence were rejected,
+      while a checklist whose phases all contained evidence could become Selesai.
+- [x] Completed-checklist immutability passed: checklist deletion, phase update/delete, and item
+      insert/update/delete were rejected until the checklist returned from Selesai to Draft.
+- [x] Returning Selesai → Draft restored allowed child editing.
+- [x] Product Checklist RLS and intended anon application access were verified.
+- [x] The `audit-evidence` bucket was verified private; its Storage policies were present and scoped
+      only to that bucket.
+- [x] All new Product Checklist functions use `search_path = pg_catalog, public`; Supabase Security
+      Advisor reported zero security lints.
+- [x] Manual real-browser smoke testing passed on the PR #3 Vercel Preview connected to
+      CertiTrack-Staging, and the user confirmed the branch functions normally. This was manual
+      real-browser smoke testing, not automated E2E testing.
+- [x] Program Internal Audit displayed Tanggal Awal / Tanggal Akhir, accepted a same-day range, and
+      `formatRentangTanggal()` collapsed equal dates to one displayed/exported date. Legacy
+      `periode_label` / `periode_target` remained compatibility-only database fields.
+- [x] Instruksi Audit Matriks Seksi vertical labels were bottom-aligned as requested.
+- [x] Temporary `2097`, `QA-995`, and `IA-2097-995` fixtures were removed from Staging, and no
+      temporary Product Checklist evidence objects remain.
 
 Batch 5c and all later batches remain `NOT_STARTED`. The stabilization status below remains
 `VERIFIED_COMPLETE`.
@@ -174,7 +190,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
   decisions outside this smallest safe stabilization change.
 - Remaining unused-index notices are informational only.
 - Manual real-browser coverage does not provide automated E2E coverage.
-- Batch 5b is `IMPLEMENTED_UNVERIFIED`; Batch 5c and all later batches remain `NOT_STARTED`.
+- Batch 5b is `VERIFIED_COMPLETE`; Batch 5c and all later batches remain `NOT_STARTED`.
 
 ### Files changed in this pass
 
@@ -696,11 +712,12 @@ src/lib/enums.ts
 
 ## Batch 5b — Checklist Audit Produk
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 The schema, private Storage evidence flow, service/domain validation, Product Checklist component,
-and shared Checklist-tab routing are implemented. Real Supabase migration/storage/trigger and
-real-browser cross-route verification remain pending.
+shared Checklist-tab routing, database integrity protections, RLS/Storage access, and real-browser
+workflow were verified on CertiTrack-Staging. Verification passed 13/13 core database scenarios and
+manual real-browser smoke testing on the PR #3 Vercel Preview.
 
 ---
 
@@ -792,7 +809,7 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation is verified on both clean and representative existing-data
-Supabase projects. Batch 5b is now `IMPLEMENTED_UNVERIFIED`.
+Supabase projects. Batch 5b is now `VERIFIED_COMPLETE`.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -802,7 +819,7 @@ Batch 3b    BLOCKED (external Training integration)
 Batch 4a    IN_PROGRESS (database foundation verified; broader UI workflow remains in progress)
 Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database verification)
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
-Batch 5b    IMPLEMENTED_UNVERIFIED
+Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
 Batch 5c+   NOT_STARTED
 ```
 
@@ -822,7 +839,6 @@ testing passed against the Vercel Preview connected to `CertiTrack-Staging`.
 - [ ] Resolve the process-master divergence and Program document-code product decisions.
 - [ ] Review unused-index INFO notices after representative production usage exists.
 - [ ] Add automated E2E coverage; the completed browser verification was manual real-browser smoke testing.
-- [ ] Complete real Supabase and browser verification for Batch 5b before marking it `VERIFIED_COMPLETE`.
 
 The missing external Training integration, process-master divergence, and Program document-code
 choice remain product follow-up items, but are not regressions introduced by this stabilization pass.
@@ -849,5 +865,5 @@ choice remain product follow-up items, but are not regressions introduced by thi
 - [x] true simultaneous multi-session database concurrency
 - [x] manual real-browser smoke test (not automated E2E testing)
 
-The stabilization status remains `VERIFIED_COMPLETE`. Batch 5b is separately tracked as
-`IMPLEMENTED_UNVERIFIED` pending runtime verification.
+The stabilization status remains `VERIFIED_COMPLETE`. Batch 5b is also `VERIFIED_COMPLETE` after
+CertiTrack-Staging database, security, Storage, cleanup, and manual real-browser verification.
