@@ -1,5 +1,23 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Annual Team Audit Refinement — 20 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+- [x] Scoped normal Team Masters to an Annual Audit Plan with per-plan codes; existing NULL-plan
+      records remain compatibility-only and are hidden from normal selection.
+- [x] Added searchable Lead and searchable Member multi-select with chips, annual plan filtering,
+      live Instruksi roster preview, and explicit Team lock/unlock lifecycle.
+- [x] Team Master members are now authoritative for new QA workflow; legacy row/checklist auditor
+      columns remain preserved but are no longer populated or used as current roster authority.
+- [x] Added plan-matched locked-Team assignment, dynamic competency/independence checks, checklist
+      prerequisites, locked-roster protection, and checklist-based assignment/unlock locks.
+- [x] Added additive migration `20260820160000_scope_team_master_by_annual_plan.sql`; it remains
+      pending CertiTrack-Staging and real-browser verification.
+
+The Workflow Architecture Refactor and Batch 5c remain `IMPLEMENTED_UNVERIFIED`. Batch 5b remains
+`VERIFIED_COMPLETE`; Batch 5d and later remain `NOT_STARTED`.
+
 ## Workflow Architecture Refactor — Instruksi / Team / Checklist — 20 Aug 2026
 
 **Status:** `IMPLEMENTED_UNVERIFIED`
@@ -10,10 +28,8 @@
       replaces Generate-from-Program without legacy schedule dependencies.
 - [x] Added reusable Team Audit master/member schema, atomic master save, one-Lead enforcement, RLS,
       and normalized indexes.
-- [x] Added Team selection to Instruksi rows with immutable team/auditor snapshots, existing
-      competency and independence checks, mandatory conflict justification, and checklist locking.
-- [x] Hardened Team assignment so active-auditor, competency, independence, legitimate-snapshot,
-      date/section revalidation, and direct-RPC protections are enforced by both service and database.
+- [x] Added Team selection, competency/independence checks, justification, and checklist locking;
+      the annual refinement above supersedes this pass's former QA snapshot authority.
 - [x] Added the active central Checklist Audit worklist/router and removed the full editor tab from
       Instruksi in favor of row-level `Buka Checklist` navigation.
 - [x] QA remains the primary identifier; IA schedules/scopes/teams are legacy and receive no new
@@ -36,8 +52,8 @@ zero-warning unused-symbol baseline. Runtime migration and browser validation we
 
 ### Implemented
 
-- [x] PR #4 review correction now renders auditors from the persisted checklist snapshot and keeps
-      persisted Plant/Shift selections visible alongside deduplicated current matrix suggestions.
+- [x] Preserves persisted Plant/Shift selections alongside current matrix suggestions; legacy auditor
+      JSON remains readable, while the annual Team master now drives the current roster display.
 - [x] Added one additive migration for `checklist_manufaktur_shift`,
       `checklist_manufaktur_bank_items`, and `checklist_manufaktur_items`, including foreign keys,
       required indexes, updated-at triggers, current anon/authenticated RLS policies, and safe

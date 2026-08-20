@@ -193,12 +193,13 @@ export function RowsTable({
     if (!id) return '-';
     return prosesList.find((p) => p.id === id)?.nama_proses ?? id;
   }
-  function getAuditorNames(assignments: AuditInstructionRow['auditor']): string {
-    if (assignments.length === 0) return '-';
-    const resolve = (id: string) => auditorList.find((auditor) => auditor.id === id)?.nama ?? id;
-    const lead = assignments.find((assignment) => assignment.is_lead);
-    const members = assignments.filter((assignment) => !assignment.is_lead).map((assignment) => resolve(assignment.auditor_id));
-    return `${lead ? `Lead: ${resolve(lead.auditor_id)}` : 'Lead: -'}${members.length ? `; Member: ${members.join(', ')}` : ''}`;
+  function getTeamAuditorNames(teamId: string | null): string {
+    const team = teamMasters.find((candidate) => candidate.id === teamId);
+    if (!team) return '-';
+    const resolve = (id: string) => team.members.find((member) => member.auditor_id === id)?.auditor?.nama ?? auditorList.find((auditor) => auditor.id === id)?.nama ?? id;
+    const lead = team.members.find((member) => member.peran === 'Lead');
+    const members = team.members.filter((member) => member.peran === 'Member').map((member) => resolve(member.auditor_id));
+    return `${lead ? `Lead Auditor: ${resolve(lead.auditor_id)}` : 'Lead Auditor: -'}${members.length ? `; Member: ${members.join(', ')}` : ''}`;
   }
 
   // Matrix display helpers
@@ -367,10 +368,10 @@ export function RowsTable({
                         <Badge variant="gray">{TIPE_BARIS_LABEL[row.tipe_baris]}</Badge>
                       )}
                     </td>
-                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{row.team ?? '-'}</td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{teamMasters.find((team) => team.id === row.team_master_id) ? `${teamMasters.find((team) => team.id === row.team_master_id)!.kode_tim} — ${teamMasters.find((team) => team.id === row.team_master_id)!.nama_tim}` : '-'}</td>
                     <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getProsesName(row.proses_id)}</td>
                     <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{row.pemilik_proses ?? '-'}</td>
-                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getAuditorNames(row.auditor)}</td>
+                    <td className="px-2 py-2 text-gray-700 text-xs border-r border-gray-100">{getTeamAuditorNames(row.team_master_id)}</td>
                     {/* Matriks Seksi cells */}
                     {seksiList.map((s) => (
                       <td
@@ -440,7 +441,7 @@ export function RowsTable({
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Team Audit"><Select value={form.team_master_id} onChange={(e) => setForm({ ...form, team_master_id: e.target.value })}><option value="">— Belum dipilih —</option>{teamMasters.map((team) => <option key={team.id} value={team.id}>{team.kode_tim} — {team.nama_tim}</option>)}</Select></Field>
+            <Field label="Team Audit"><Select value={form.team_master_id} onChange={(e) => setForm({ ...form, team_master_id: e.target.value })}><option value="">— Belum dipilih —</option>{teamMasters.map((team) => <option key={team.id} value={team.id} disabled={team.status !== 'Aktif' || !team.is_locked}>{team.kode_tim} — {team.nama_tim}{!team.is_locked ? ' (Belum dikunci)' : ''}</option>)}</Select></Field>
             <Field label="Proses">
               <Select value={form.proses_id} onChange={(e) => setForm({ ...form, proses_id: e.target.value })}>
                 <option value="">— Pilih Proses —</option>
@@ -471,7 +472,7 @@ export function RowsTable({
             </Field>
           )}
 
-          <Field label="Auditor (snapshot read-only)"><Input readOnly value={editingRow ? getAuditorNames(editingRow.auditor) : 'Disalin otomatis setelah Tim Audit dipilih'} /></Field>
+          <Field label="Auditor"><Input readOnly value={getTeamAuditorNames(form.team_master_id)} /></Field>
           <Field label="Catatan Justifikasi Tim"><Textarea value={form.catatan_justifikasi_tim} onChange={(e) => setForm({ ...form, catatan_justifikasi_tim: e.target.value })} placeholder="Wajib jika terdapat potensi konflik independensi." /></Field>
 
           {isProduk && (

@@ -335,13 +335,13 @@ export interface AuditInstructionRow {
   id: string;
   instruction_id: string;
   kode_audit: string;
-  team: string | null;
+  team: string | null; // legacy compatibility only; Team master is authoritative
   team_master_id: string | null;
   catatan_justifikasi_tim: string | null;
   proses_id: string | null;
   pemilik_proses: string | null;
   seksi_marks: SeksiMark[];
-  auditor: AuditorAssignment[];
+  auditor: AuditorAssignment[]; // legacy compatibility only
   tipe_baris: TipeBaris;
   matriks_produk_marks: MatriksProdukMark[];
   matriks_manufaktur_shift_marks: MatriksManufakturShiftMark[];
@@ -370,6 +370,9 @@ export interface AuditTeamMaster {
   id: string;
   kode_tim: string;
   nama_tim: string;
+  plan_id: string | null;
+  is_locked: boolean;
+  locked_at: string | null;
   status: AuditTeamMasterStatus;
   catatan: string | null;
   created_at: string;

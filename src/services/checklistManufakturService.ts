@@ -48,7 +48,7 @@ export async function assertManufacturingChecklistDraft(id: string): Promise<voi
 }
 
 export async function createManufacturingChecklistFromRow(row: AuditInstructionRow): Promise<ChecklistManufakturShift> {
-  if (!row.team_master_id || row.auditor.length === 0) throw new Error('Pilih Tim Audit pada Instruksi Internal Audit sebelum membuat checklist.');
+  if (!row.team_master_id) throw new Error('Pilih dan kunci Tim Audit pada Instruksi Internal Audit sebelum membuat checklist.');
   if (![TIPE_BARIS.AUDIT_MANUFAKTUR, TIPE_BARIS.AUDIT_SHIFT].includes(row.tipe_baris as typeof TIPE_BARIS.AUDIT_MANUFAKTUR)) {
     throw new Error('Checklist Manufaktur/Shift hanya dapat dibuat untuk baris Audit Manufaktur atau Audit Shift');
   }

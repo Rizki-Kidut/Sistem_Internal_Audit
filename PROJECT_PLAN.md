@@ -29,8 +29,8 @@ primary business identifier throughout that workflow. The former **Jadwal & Tim 
 `IA-{year}-{NNN}` identifier are legacy compatibility behavior and are not part of new normal usage.
 
 Scheduling dates (`tanggal_plan_audit` and `tanggal_pelaksanaan_audit`) belong to each Instruksi row.
-Team Audit is reusable Master Data. An Instruksi row selects a Team master and snapshots its name in
-`team` and its Lead/Members in `auditor`; later edits to the master never rewrite historical QA rows.
+Team Audit is Master Data. The former QA-row Team/auditor snapshot behavior is superseded by the
+annual live-roster refinement below; legacy snapshots remain readable only.
 Instruksi supplies upstream audit data, while the active **Checklist Audit** sidebar page is the one
 primary editor for System, Product, Manufacturing, and Shift checklists.
 
@@ -38,6 +38,21 @@ Legacy `audit_schedules`, `audit_scopes`, and schedule-specific `audit_teams` re
 for compatibility/history, but new Instruksi generation and editing no longer reads from or writes to
 those tables. Historical Batch 3 sections below are retained as implementation history and are
 superseded wherever they conflict with this decision.
+
+### Final Annual Team Audit refinement — 20 Aug 2026
+
+Each Team Audit belongs to exactly one Annual Audit Plan in the normal workflow. Team codes may be
+reused under different plans/years, and an Instruksi may select only an active, locked Team from its
+own plan. Lead and Members come from active Internal Auditor master data through searchable
+single/multi selectors. Team Master and its normalized members are the live source of truth; new QA
+rows do not snapshot a roster. The existing `audit_instruction_rows.team` / `auditor` and
+`checklist_manufaktur_shift.auditor` columns are retained as legacy compatibility data only.
+
+Unlocked Teams may be edited. Locking finalizes a valid roster and is required before assignment and
+checklist execution. A Team cannot be unlocked after any linked QA checklist begins, and a QA Team
+assignment cannot change after its checklist exists. Date/section changes dynamically revalidate
+current Team competency and independence. Checklist Audit remains the sole primary checklist
+workspace, while Jadwal/IA tables remain legacy-only.
 
 CertiTrack is an internal QMS application.
 

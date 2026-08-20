@@ -28,7 +28,7 @@ import { Field, Input, Select, Textarea } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { InstructionHeader } from './instruksi-audit/InstructionHeader';
 import { RowsTable } from './instruksi-audit/RowsTable';
-import { getActiveAuditTeamMasters } from '../../services/auditTeamMasterService';
+import { getAuditTeamMastersByPlan, resolveInstructionPlanId } from '../../services/auditTeamMasterService';
 
 const STATUS_BADGE: Record<string, 'gray' | 'green' | 'blue'> = {
   Draft: 'gray', Berjalan: 'blue', Selesai: 'green',
@@ -75,11 +75,12 @@ export function InstruksiAuditPage({ onNavigateToChecklist }: { onNavigateToChec
     }
   }, []);
 
-  const loadDetailDeps = useCallback(async () => {
+  const loadDetailDeps = useCallback(async (instruction: AuditInstruction) => {
     try {
+      const planId = await resolveInstructionPlanId(instruction);
       const [p, s, a, pl, tm, sh, teams] = await Promise.all([
         getAllProses(), getSeksiList(), getActiveAuditors(),
-        getPlants(), getTargetModels(), getShifts(), getActiveAuditTeamMasters(),
+        getPlants(), getTargetModels(), getShifts(), getAuditTeamMastersByPlan(planId),
       ]);
       setProsesList(p); setSeksiList(s); setAuditorList(a);
       setPlants(pl); setTargetModels(tm); setShifts(sh);
@@ -105,7 +106,7 @@ export function InstruksiAuditPage({ onNavigateToChecklist }: { onNavigateToChec
     setDetailInstruction(instr);
     setHeaderChanged(false);
     setError(null);
-    await Promise.all([loadDetailDeps(), loadRows(instr.id)]);
+    await Promise.all([loadDetailDeps(instr), loadRows(instr.id)]);
   }
 
   async function handleCreate() {

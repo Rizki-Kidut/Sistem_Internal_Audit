@@ -1,0 +1,13 @@
+import { useMemo, useState } from 'react';
+import { Input } from './Field';
+
+export interface SearchOption { value: string; label: string; searchText?: string; detail?: string }
+export function SearchableSelect({options,value,onChange,placeholder='Cari... ',disabled=false}:{options:SearchOption[];value:string;onChange:(value:string)=>void;placeholder?:string;disabled?:boolean}){
+  const [query,setQuery]=useState(''); const selected=options.find(o=>o.value===value);
+  const filtered=useMemo(()=>options.filter(o=>`${o.label} ${o.searchText??''}`.toLowerCase().includes(query.toLowerCase())).slice(0,50),[options,query]);
+  return <div className="space-y-2">{selected&&<div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800"><strong>{selected.label}</strong>{selected.detail&&<span className="block text-xs">{selected.detail}</span>}</div>}<Input disabled={disabled} value={query} onChange={e=>setQuery(e.target.value)} placeholder={placeholder}/>{!disabled&&query&&<div className="border rounded-lg max-h-48 overflow-auto">{filtered.map(o=><button type="button" key={o.value} onClick={()=>{onChange(o.value);setQuery('');}} className="block w-full text-left px-3 py-2 hover:bg-blue-50"><span className="text-sm">{o.label}</span>{o.detail&&<span className="block text-xs text-gray-500">{o.detail}</span>}</button>)}</div>}<button type="button" disabled={disabled} onClick={()=>onChange('')} className="text-xs text-gray-500 disabled:hidden">Bersihkan pilihan</button></div>;
+}
+export function SearchableMultiSelect({options,values,onChange,disabled=false}:{options:SearchOption[];values:string[];onChange:(values:string[])=>void;disabled?:boolean}){
+  const [query,setQuery]=useState(''); const chosen=new Set(values); const filtered=options.filter(o=>!chosen.has(o.value)&&`${o.label} ${o.searchText??''}`.toLowerCase().includes(query.toLowerCase())).slice(0,50);
+  return <div className="space-y-2"><div className="flex flex-wrap gap-2">{values.map(v=>{const o=options.find(x=>x.value===v);return <span key={v} className="bg-blue-50 text-blue-700 rounded-full px-2 py-1 text-xs">{o?.label??v}{!disabled&&<button type="button" className="ml-2" onClick={()=>onChange(values.filter(x=>x!==v))}>×</button>}</span>})}</div><Input disabled={disabled} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari Internal Auditor..."/>{!disabled&&query&&<div className="border rounded-lg max-h-48 overflow-auto">{filtered.map(o=><button type="button" key={o.value} onClick={()=>{onChange([...values,o.value]);setQuery('');}} className="block w-full text-left px-3 py-2 hover:bg-blue-50"><span className="text-sm">{o.label}</span>{o.detail&&<span className="block text-xs text-gray-500">{o.detail}</span>}</button>)}</div>}</div>;
+}

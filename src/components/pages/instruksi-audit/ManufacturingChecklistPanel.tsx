@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, Pencil, Plus, Settings, Trash2 } from 'lucide-react';
 import type {
-  AuditInstructionRow, Auditor, ChecklistManufakturBankItem, ChecklistManufakturItem,
+  AuditInstructionRow, Auditor, AuditTeamMaster, ChecklistManufakturBankItem, ChecklistManufakturItem,
   ChecklistManufakturShift, JenisChecklistManufakturShift, Plant, Shift,
 } from '../../../lib/types';
 import {
@@ -15,6 +15,7 @@ import {
   saveManufacturingBankItem, saveManufacturingChecklist, saveManufacturingItem,
 } from '../../../services/checklistManufakturService';
 import { getPlants, getShifts } from '../../../services/plantService';
+import { getAuditTeamMasterById } from '../../../services/auditTeamMasterService';
 import { Badge, Button, Card, EmptyState, LoadingSpinner } from '../../ui';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
@@ -46,6 +47,7 @@ export function ManufacturingChecklistPanel({ row, auditorList, readOnly, onErro
   const [bank, setBank] = useState<ChecklistManufakturBankItem[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [team, setTeam] = useState<AuditTeamMaster | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editHeader, setEditHeader] = useState(false);
@@ -70,15 +72,16 @@ export function ManufacturingChecklistPanel({ row, auditorList, readOnly, onErro
     try { setBank(await getManufacturingBankItems()); } catch (error) { fail(error, 'Gagal memuat bank checklist'); }
   }, [fail]);
 
-  useEffect(() => { loadList(); loadBank(); Promise.all([getPlants(), getShifts()]).then(([p, s]) => { setPlants(p); setShifts(s); }).catch((e) => fail(e, 'Gagal memuat Plant/Shift')); }, [loadList, loadBank, fail]);
+  useEffect(() => { loadList(); loadBank(); Promise.all([getPlants(), getShifts(), row.team_master_id ? getAuditTeamMasterById(row.team_master_id) : Promise.resolve(null)]).then(([p, s, t]) => { setPlants(p); setShifts(s); setTeam(t); }).catch((e) => fail(e, 'Gagal memuat Plant/Shift/Tim')); }, [loadList, loadBank, fail, row.team_master_id]);
   useEffect(() => { if (active) { setDraft(active); loadItems(active.id); } else setItems([]); }, [active, loadItems]);
 
   const suggestions = useMemo(() => row.matriks_manufaktur_shift_marks.map((mark) => ({
     plant_id: mark.plant_id, plant_nama: plants.find((p) => p.id === mark.plant_id)?.nama ?? 'Plant tidak ditemukan',
     shift_id: mark.shift_id, shift_nama: shifts.find((s) => s.id === mark.shift_id)?.nama ?? 'Shift tidak ditemukan',
   })), [row.matriks_manufaktur_shift_marks, plants, shifts]);
-  const activeAuditorNames = resolveAuditorNames(active?.auditor ?? [], auditorList);
-  const draftAuditorNames = resolveAuditorNames(draft?.auditor ?? [], auditorList);
+  const liveAssignments = team?.members.map((member) => ({ auditor_id: member.auditor_id, is_lead: member.peran === 'Lead' })) ?? [];
+  const activeAuditorNames = resolveAuditorNames(liveAssignments, auditorList);
+  const draftAuditorNames = activeAuditorNames;
   const editable = !readOnly && active?.status === CHECKLIST_MANUFAKTUR_STATUS.DRAFT;
 
   async function createChecklist() { setSaving(true); try { setActive(await createManufacturingChecklistFromRow(row)); await loadList(); } catch (e) { fail(e, 'Gagal membuat checklist'); } finally { setSaving(false); } }
