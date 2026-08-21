@@ -921,6 +921,11 @@ uses the label Kondisi/Peluang Peningkatan, requires suggestion instead of Refer
 keeps Reference optional and last, and generates an improvement narrative without "tidak sesuai".
 Browser smoke remains ongoing.
 
+Checklist browser-smoke correction now keeps failed System, Manufacturing/Shift, and Product item
+edits open with the original save error visible inside the modal; the selected central Checklist detail
+also renders page-level fallback errors. Successful retries clear the local error, close the modal, and
+reload items. No Finding rule, OFI behavior, PLOR helper, or database migration changed.
+
 ---
 
 ## Batch 6b — Pelaksanaan

@@ -111,6 +111,7 @@ function SystemChecklistPanel({
   const [creating, setCreating] = useState(false);
   const [confirmDeleteCl, setConfirmDeleteCl] = useState<Checklist | null>(null);
   const [itemForm, setItemForm] = useState<ChecklistItem | null>(null);
+  const [itemSaveError, setItemSaveError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [expandedSubProses, setExpandedSubProses] = useState<Set<string>>(new Set());
 
@@ -196,12 +197,16 @@ function SystemChecklistPanel({
     if (!itemForm || !activeChecklist) return;
     try {
       await saveItem({ ...itemForm, checklist_id: activeChecklist.id });
+      setItemSaveError(null);
+      onError('');
       setEditOpen(false);
       setItemForm(null);
       const data = await getItemsByChecklist(activeChecklist.id);
       setItems(data);
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Gagal menyimpan item');
+      const message = e instanceof Error ? e.message : 'Gagal menyimpan item';
+      setItemSaveError(message);
+      onError(message);
     }
   }
 
@@ -320,8 +325,8 @@ function SystemChecklistPanel({
               itemsLoading={itemsLoading}
               readOnly={readOnly}
               onSaveHeader={handleSaveChecklistHeader}
-              onAddItem={() => { setItemForm(emptyItem(activeChecklist.id)); setEditOpen(true); }}
-              onEditItem={(item) => { setItemForm(item); setEditOpen(true); }}
+              onAddItem={() => { setItemSaveError(null); setItemForm(emptyItem(activeChecklist.id)); setEditOpen(true); }}
+              onEditItem={(item) => { setItemSaveError(null); setItemForm(item); setEditOpen(true); }}
               onDeleteItem={handleDeleteItem}
               expandedSubProses={expandedSubProses}
               onToggleSubProses={toggleSubProses}
@@ -340,19 +345,18 @@ function SystemChecklistPanel({
 
       <Modal
         open={editOpen}
-        onClose={() => { setEditOpen(false); setItemForm(null); }}
+        onClose={() => { setEditOpen(false); setItemForm(null); setItemSaveError(null); }}
         title={itemForm?.id ? 'Edit Item Checklist' : 'Tambah Item Checklist'}
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setEditOpen(false); setItemForm(null); }}>Batal</Button>
+            <Button variant="secondary" onClick={() => { setEditOpen(false); setItemForm(null); setItemSaveError(null); }}>Batal</Button>
             <Button onClick={handleSaveItem}>Simpan</Button>
           </>
         }
       >
-        {itemForm && (
-          <ItemEditForm item={itemForm} onChange={setItemForm} />
-        )}
+        {itemSaveError&&<div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700"><p className="font-semibold text-sm">Gagal menyimpan Checklist</p><p className="text-sm mt-1">{itemSaveError}</p></div>}
+        {itemForm && <ItemEditForm item={itemForm} onChange={setItemForm} />}
       </Modal>
 
       <ConfirmDialog
