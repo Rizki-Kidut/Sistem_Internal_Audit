@@ -42,6 +42,45 @@ CREATE TRIGGER set_audit_agendas_updated_at BEFORE UPDATE ON public.audit_agenda
 CREATE TRIGGER set_audit_agenda_items_updated_at BEFORE UPDATE ON public.audit_agenda_items
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+CREATE FUNCTION public.validate_audit_agenda_creation_context(p_row_id uuid) RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE v_row public.audit_instruction_rows%ROWTYPE; v_team public.audit_team_masters%ROWTYPE;
+  v_plan_id uuid;
+BEGIN
+  SELECT * INTO v_row FROM public.audit_instruction_rows WHERE id=p_row_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Baris Instruksi Audit tidak ditemukan'; END IF;
+  IF nullif(btrim(v_row.kode_audit),'') IS NULL THEN RAISE EXCEPTION 'No. Audit QA pada Instruksi wajib tersedia'; END IF;
+  IF v_row.team_master_id IS NULL THEN RAISE EXCEPTION 'Pilih Tim Audit pada Instruksi Internal Audit sebelum membuat Agenda'; END IF;
+  SELECT * INTO v_team FROM public.audit_team_masters WHERE id=v_row.team_master_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Tim Audit Instruksi tidak ditemukan'; END IF;
+  IF v_team.status<>'Aktif' OR NOT v_team.is_locked THEN
+    RAISE EXCEPTION 'Tim Audit Instruksi harus aktif dan terkunci sebelum membuat Agenda';
+  END IF;
+  v_plan_id:=public.resolve_instruction_plan_id(p_row_id);
+  IF v_team.plan_id IS DISTINCT FROM v_plan_id THEN
+    RAISE EXCEPTION 'Tim Audit harus berasal dari Rencana Audit Tahunan yang sama dengan Instruksi';
+  END IF;
+  IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=v_team.id AND peran='Lead')<>1
+     OR NOT EXISTS(SELECT 1 FROM public.audit_team_master_members WHERE team_id=v_team.id) THEN
+    RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead dan minimal satu auditor';
+  END IF;
+  IF EXISTS(SELECT 1 FROM public.audit_team_master_members m LEFT JOIN public.auditors a ON a.id=m.auditor_id
+            WHERE m.team_id=v_team.id AND (a.id IS NULL OR a.status<>'Aktif')) THEN
+    RAISE EXCEPTION 'Semua anggota Tim Audit harus merupakan auditor aktif';
+  END IF;
+END;
+$$;
+
+CREATE FUNCTION public.validate_audit_agenda_insert() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  PERFORM public.validate_audit_agenda_creation_context(NEW.instruction_row_id);
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_validate_audit_agenda_insert BEFORE INSERT ON public.audit_agendas
+  FOR EACH ROW EXECUTE FUNCTION public.validate_audit_agenda_insert();
+
 CREATE FUNCTION public.validate_audit_agenda_assistants() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
@@ -67,6 +106,9 @@ LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF TG_OP = 'UPDATE' AND NEW.instruction_row_id IS DISTINCT FROM OLD.instruction_row_id THEN
     RAISE EXCEPTION 'Agenda Internal Audit tidak dapat dipindahkan ke baris Instruksi Audit lain.';
+  END IF;
+  IF NEW.status='Draft' AND NEW.finalized_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Agenda Draft tidak boleh memiliki waktu finalisasi.';
   END IF;
   IF TG_OP = 'DELETE' AND OLD.status = 'Final' THEN
     RAISE EXCEPTION 'Agenda Final tidak dapat dihapus. Kembalikan ke Draft terlebih dahulu.';
@@ -123,32 +165,12 @@ CREATE TRIGGER trg_validate_audit_agenda_item_overlap BEFORE INSERT OR UPDATE OF
 
 CREATE FUNCTION public.create_audit_agenda_from_row(p_row_id uuid) RETURNS public.audit_agendas
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
-DECLARE v_row public.audit_instruction_rows%ROWTYPE; v_team public.audit_team_masters%ROWTYPE;
-  v_plan_id uuid; v_agenda public.audit_agendas%ROWTYPE;
+DECLARE v_agenda public.audit_agendas%ROWTYPE;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext('create-audit-agenda'), hashtext(p_row_id::text));
   SELECT * INTO v_agenda FROM public.audit_agendas WHERE instruction_row_id = p_row_id;
   IF FOUND THEN RETURN v_agenda; END IF;
-  SELECT * INTO v_row FROM public.audit_instruction_rows WHERE id = p_row_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Baris Instruksi Audit tidak ditemukan'; END IF;
-  IF nullif(btrim(v_row.kode_audit), '') IS NULL THEN RAISE EXCEPTION 'No. Audit QA pada Instruksi wajib tersedia'; END IF;
-  IF v_row.team_master_id IS NULL THEN RAISE EXCEPTION 'Pilih Tim Audit pada Instruksi Internal Audit sebelum membuat Agenda'; END IF;
-  SELECT * INTO v_team FROM public.audit_team_masters WHERE id = v_row.team_master_id;
-  IF NOT FOUND OR v_team.status <> 'Aktif' OR NOT v_team.is_locked THEN
-    RAISE EXCEPTION 'Tim Audit Instruksi harus aktif dan terkunci sebelum membuat Agenda';
-  END IF;
-  v_plan_id := public.resolve_instruction_plan_id(p_row_id);
-  IF v_team.plan_id IS DISTINCT FROM v_plan_id THEN
-    RAISE EXCEPTION 'Tim Audit harus berasal dari Rencana Audit Tahunan yang sama dengan Instruksi';
-  END IF;
-  IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=v_team.id AND peran='Lead') <> 1
-     OR NOT EXISTS (SELECT 1 FROM public.audit_team_master_members WHERE team_id=v_team.id) THEN
-    RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead dan minimal satu auditor';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.audit_team_master_members m LEFT JOIN public.auditors a ON a.id=m.auditor_id
-             WHERE m.team_id=v_team.id AND (a.id IS NULL OR a.status <> 'Aktif')) THEN
-    RAISE EXCEPTION 'Semua anggota Tim Audit harus merupakan auditor aktif';
-  END IF;
+  PERFORM public.validate_audit_agenda_creation_context(p_row_id);
   INSERT INTO public.audit_agendas(instruction_row_id) VALUES(p_row_id) RETURNING * INTO v_agenda;
   RETURN v_agenda;
 END;
@@ -235,6 +257,8 @@ CREATE POLICY audit_agenda_items_app_access ON public.audit_agenda_items FOR ALL
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.audit_agendas TO anon,authenticated;
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.audit_agenda_items TO anon,authenticated;
 REVOKE ALL ON FUNCTION public.validate_audit_agenda_assistants() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validate_audit_agenda_creation_context(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validate_audit_agenda_insert() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.protect_final_audit_agenda() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.protect_final_audit_agenda_item() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.validate_audit_agenda_item_overlap() FROM PUBLIC;
@@ -246,3 +270,5 @@ GRANT EXECUTE ON FUNCTION public.create_audit_agenda_from_row(uuid) TO anon,auth
 GRANT EXECUTE ON FUNCTION public.finalize_audit_agenda(uuid) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.return_audit_agenda_to_draft(uuid) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.reorder_audit_agenda_items(uuid,uuid[]) TO anon,authenticated;
+-- Required because create_audit_agenda_from_row remains SECURITY INVOKER and calls the shared validator.
+GRANT EXECUTE ON FUNCTION public.validate_audit_agenda_creation_context(uuid) TO anon,authenticated;

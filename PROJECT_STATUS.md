@@ -857,6 +857,9 @@ exists with status `Aktif`; failures leave the Agenda in Draft without adding a 
 Relational ownership is also database-immutable after insert: an Agenda cannot be reassigned to a
 different Instruction row, and a Timeline item cannot be moved to another Agenda. Draft edits and the
 controlled reorder RPC continue to update non-ownership fields normally.
+Agenda creation context validation is centralized and enforced by both the idempotent creation RPC and
+a `BEFORE INSERT` trigger, so direct table inserts cannot bypass QA/Team/plan/roster invariants. Draft
+headers are also rejected when `finalized_at` is non-null.
 
 Remaining verification: apply the migration on CertiTrack-Staging; runtime-check RLS, RPCs, and
 triggers; verify idempotent create/duplicate protection, Draft/Final immutability, inherited location,
