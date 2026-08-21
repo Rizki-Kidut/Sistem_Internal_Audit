@@ -889,11 +889,18 @@ central types/constants/helpers/service, narrative formatter, clause suggestions
 worklist/detail editor, source-note separation, Checklist note validation, and Product NG category UI.
 No legacy Jadwal tables are written and no Batch 6b+ feature is included.
 
-Remaining verification after review: migration apply, Security Advisor, System/Manufacturing/Product
-trigger runtime, numbering and concurrency, idempotence, Finding cancellation, PLOR loss guard, source
-note requirements, source delete guard, `finding_id` tamper, RLS, clause suggestion, Temuan browser
-workflow, Checklist Finding badge, and zero legacy writes. Migration is intentionally not applied in
-this implementation task.
+Base Batch 6a migration was applied to CertiTrack-Staging as registry entry
+`20260821074725 create_batch6a_findings_plor`. Functional/integrity runtime verification passed
+**22/22**, including System, Manufacturing/Shift, and Product triggers; source-note and Product category
+validation; idempotence; category synchronization; empty cancellation; PLOR loss and source-delete
+protection; multi-row synchronization; scoped `finding_sync` restoration; clause seeds; and zero legacy
+writes. Runtime fixtures QA-986, QA-987, and QA-988 were cleaned after verification.
+
+Security Advisor after the base migration reported **10 permission lints**: Supabase default grants
+left `findings` and `clause_keyword_map` table privileges broader than intended and left private Batch
+6a helpers executable by frontend roles. The new additive permission-hardening migration explicitly
+reduces tables to their required SELECT/UPDATE or SELECT-only access and revokes private helper
+execution. It is pending application and role-level verification.
 
 Static validation on the Batch 6a branch: TypeScript typecheck and production build pass; whitespace
 diff checks pass. ESLint remains at the verified repository baseline of 26 errors and 0 warnings, with
@@ -905,7 +912,9 @@ restores the internal synchronization flag after every guarded mutation (includi
 and removes the Product AFTER-trigger recursion path. This preserves per-row database authority for
 multi-row statements. Temuan context now includes target sections only, checks every required context
 query error, and the detail workspace exposes load failures instead of retaining an infinite spinner.
-The Batch 6a migration remains unapplied; runtime scenarios remain pending after PR review.
+Remaining gates: apply the additive permission-hardening migration, confirm Security Advisor = 0,
+verify runtime role permissions and trigger invocation, run browser smoke, and decide whether to add
+the optional compact Checklist Finding indicator. Batch 6a remains `IMPLEMENTED_UNVERIFIED`.
 
 ---
 
