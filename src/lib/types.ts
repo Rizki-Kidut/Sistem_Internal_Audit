@@ -544,3 +544,29 @@ export interface ChecklistManufakturItem {
   updated_at: string;
   bank_item?: ChecklistManufakturBankItem | null;
 }
+
+// ============================================================
+// BATCH 5d: AGENDA INTERNAL AUDIT (one live Instruction row / QA context)
+// ============================================================
+import type { AuditAgendaStatus } from './enums';
+
+export interface AgendaAssistantAuditor { nama: string; seksi: string; }
+export interface AuditAgenda {
+  id: string; instruction_row_id: string; tanggal_terbit: string;
+  tujuan_lingkup_audit: string | null; item_lain_yang_dicek: string | null;
+  dokumen_dikirim_di_awal: string | null; dokumen_dipersiapkan_hari_audit: string | null;
+  asisten_auditor_pendamping: AgendaAssistantAuditor[]; catatan_khusus: string | null;
+  status: AuditAgendaStatus; kode_dokumen: string; finalized_at: string | null;
+  created_at: string; updated_at: string;
+}
+export interface AuditAgendaItem {
+  id: string; agenda_id: string; tanggal: string; jam_mulai: string; jam_selesai: string;
+  detail_audit_proses_persyaratan: string; lokasi: string | null; urutan: number;
+  created_at: string; updated_at: string;
+}
+export interface AuditAgendaContext {
+  row: AuditInstructionRow; instruction: AuditInstruction; proses: Proses | null;
+  seksi: Seksi[]; managers: string[]; team: AuditTeamMaster | null;
+  lead: Auditor | null; members: Auditor[]; agenda: AuditAgenda | null;
+}
+export interface AgendaWorklistRow extends AuditAgendaContext { status_agenda: 'Belum Dibuat' | AuditAgendaStatus; }

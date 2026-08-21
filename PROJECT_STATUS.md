@@ -840,9 +840,40 @@ bank question text remains intentionally incomplete.
 
 ## Batch 5d — Agenda Internal Audit
 
-**Status:** `NOT_STARTED`
+**Status:** `IMPLEMENTED_UNVERIFIED`
 
-Agenda remains a disabled/soon tab in Detail Sesi Audit.
+Implemented as a central, QA-row-backed workspace with one Agenda per Instruction row, live
+Instruction/section/manager/Annual Team roster context, Agenda-owned document fields, manual timeline,
+location inheritance, and database-authoritative Draft/Final transitions and immutability. Added
+`src/components/pages/AgendaAuditPage.tsx`, `src/services/auditAgendaService.ts`, centralized types and
+constants, central sidebar navigation, and base migration
+`20260821010000_create_batch5d_agenda_internal_audit.sql`. No Checklist relationship or legacy
+schedule/scope/team write is introduced.
+
+Static review hardening now allocates a new Timeline order from the current maximum `urutan` rather
+than array length, so gaps after deletion cannot collide with the unique Agenda/order key. Finalization
+also revalidates that the live Team has at least one member and that every referenced auditor still
+exists with status `Aktif`; failures leave the Agenda in Draft without adding a roster snapshot.
+Relational ownership is also database-immutable after insert: an Agenda cannot be reassigned to a
+different Instruction row, and a Timeline item cannot be moved to another Agenda. Draft edits and the
+controlled reorder RPC continue to update non-ownership fields normally.
+Agenda creation context validation is centralized and enforced by both the idempotent creation RPC and
+a `BEFORE INSERT` trigger, so direct table inserts cannot bypass QA/Team/plan/roster invariants. Draft
+headers are also rejected when `finalized_at` is non-null.
+
+Base migration is applied on CertiTrack-Staging as registry entry
+`20260821010528 create_batch5d_agenda_internal_audit`; Security Advisor reports **0 security lints**
+and the base database runtime suite passed **22/22**. Browser review found that Instruksi → Agenda
+cross-navigation could open a null Agenda as a white page and that per-row Timeline Save reset unsaved
+header fields. The superseding UX is central-workspace-only: Instruksi shortcuts are removed, Agenda
+uses local multi-row Timeline editing with one Add button, and the complete Draft header + Timeline is
+saved atomically by the new additive migration. Corrected browser smoke and additive migration runtime
+verification remain pending.
+
+Remaining verification: apply only the additive atomic-save migration on CertiTrack-Staging,
+runtime-check its RPC/rollback behavior, and repeat corrected central-workspace browser smoke. The new
+additive migration was intentionally not applied during this implementation task. Batch 6 and later
+remain `NOT_STARTED`.
 
 ---
 
@@ -930,7 +961,8 @@ Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database ver
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
 Batch 5c    VERIFIED_COMPLETE
-Batch 5d+   NOT_STARTED
+Batch 5d    IMPLEMENTED_UNVERIFIED (static implementation; staging/runtime verification pending)
+Batch 6+    NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and

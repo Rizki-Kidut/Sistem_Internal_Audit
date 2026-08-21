@@ -957,6 +957,23 @@ No placeholder should remain for supported row types.
 
 # Batch 5d — Agenda Internal Audit
 
+> **Keputusan produk pengganti — 21 Agustus 2026.** Workspace aktif Batch 5d adalah menu pusat
+> **Agenda Internal Audit** di sidebar. Satu QA / baris Instruksi memiliki maksimal satu Agenda,
+> dan Agenda hanya berelasi ke `audit_instruction_rows`: tidak ada dependensi Checklist maupun
+> Jadwal/Detail Sesi legacy. Data Instruksi dan roster Team diwarisi secara live, bukan snapshot.
+> `tujuan_lingkup_audit`, `item_lain_yang_dicek`, `dokumen_dikirim_di_awal`, dan
+> `dokumen_dipersiapkan_hari_audit` merupakan data manual milik Agenda untuk sumber Laporan masa
+> depan. Siklusnya Draft → Final (dapat dikembalikan ke Draft). Tanda tangan digital dan PDF tidak
+> diimplementasikan pada batch ini. Bagian historis di bawah dipertahankan sebagai konteks awal.
+
+> **Keputusan UX pengganti — 21 Agustus 2026.** Checklist hanya dibuat/dibuka dari workspace pusat
+> Checklist Audit dan Agenda hanya dibuat/dibuka dari workspace pusat Agenda Internal Audit; Instruksi
+> tidak lagi menampilkan shortcut keduanya dan tetap menjadi otoritas QA-xx/upstream context. Timeline
+> Agenda memakai satu sesi Draft lokal dengan satu tombol `Tambah Kegiatan`; baris tidak memiliki tombol
+> Add/Save sendiri dan pengguna dapat menyusun banyak kegiatan sebelum menyimpan. `Simpan Agenda`
+> menyimpan header beserta seluruh Timeline secara atomik, sedangkan `Finalkan Agenda` menyimpan Draft
+> terkini terlebih dahulu lalu menjalankan finalisasi.
+
 ### Data
 
 ```ts
