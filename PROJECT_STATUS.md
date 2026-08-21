@@ -854,6 +854,9 @@ Static review hardening now allocates a new Timeline order from the current maxi
 than array length, so gaps after deletion cannot collide with the unique Agenda/order key. Finalization
 also revalidates that the live Team has at least one member and that every referenced auditor still
 exists with status `Aktif`; failures leave the Agenda in Draft without adding a roster snapshot.
+Relational ownership is also database-immutable after insert: an Agenda cannot be reassigned to a
+different Instruction row, and a Timeline item cannot be moved to another Agenda. Draft edits and the
+controlled reorder RPC continue to update non-ownership fields normally.
 
 Remaining verification: apply the migration on CertiTrack-Staging; runtime-check RLS, RPCs, and
 triggers; verify idempotent create/duplicate protection, Draft/Final immutability, inherited location,

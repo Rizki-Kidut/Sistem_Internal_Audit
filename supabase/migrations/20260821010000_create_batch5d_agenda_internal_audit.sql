@@ -65,6 +65,9 @@ CREATE TRIGGER trg_validate_audit_agenda_assistants BEFORE INSERT OR UPDATE OF a
 CREATE FUNCTION public.protect_final_audit_agenda() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.instruction_row_id IS DISTINCT FROM OLD.instruction_row_id THEN
+    RAISE EXCEPTION 'Agenda Internal Audit tidak dapat dipindahkan ke baris Instruksi Audit lain.';
+  END IF;
   IF TG_OP = 'DELETE' AND OLD.status = 'Final' THEN
     RAISE EXCEPTION 'Agenda Final tidak dapat dihapus. Kembalikan ke Draft terlebih dahulu.';
   END IF;
@@ -87,6 +90,9 @@ CREATE FUNCTION public.protect_final_audit_agenda_item() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 DECLARE v_agenda_id uuid;
 BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.agenda_id IS DISTINCT FROM OLD.agenda_id THEN
+    RAISE EXCEPTION 'Item Timeline tidak dapat dipindahkan ke Agenda lain.';
+  END IF;
   v_agenda_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.agenda_id ELSE NEW.agenda_id END;
   IF EXISTS (SELECT 1 FROM public.audit_agendas WHERE id = v_agenda_id AND status = 'Final') THEN
     RAISE EXCEPTION 'Timeline Agenda Final tidak dapat diubah. Kembalikan ke Draft terlebih dahulu.';
