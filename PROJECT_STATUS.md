@@ -950,6 +950,12 @@ spesifik, serta trigger yang mencegah perubahan langsung `cek_selesai`. Instruks
 menampilkan status selesai read-only; satu-satunya aksi UI berada di Pelaksanaan. RPC dan service baru
 tidak membaca atau menulis `audit_schedules`, `audit_scopes`, maupun `audit_teams`.
 
+Static-review hardening mengunci seluruh entry point Checklist ketika QA telah selesai, baik melalui
+mode read-only di Checklist Audit maupun trigger sumber database untuk Sistem, Produk (termasuk fase
+dan metadata bukti), serta Manufaktur/Shift. Callback mutasi sukses dari editor Checklist kini memuat
+ulang counter dan `statusProgress` Pelaksanaan tanpa polling, dan guard internal completion/reopen
+selalu dikembalikan ke nilai sebelumnya pada jalur sukses maupun exception.
+
 Implementasi dan static checks lokal telah dilakukan, tetapi status tetap
 `IMPLEMENTED_UNVERIFIED` sampai migration diterapkan ke Staging, runtime suite 22 skenario,
 Security Advisor, Vercel Preview/browser smoke desktop-mobile, serta cleanup fixture selesai.

@@ -21,7 +21,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Modal } from '../../ui/Modal';
 
-interface Props { row: AuditInstructionRow; auditorList: Auditor[]; readOnly: boolean; onError: (message: string) => void }
+interface Props { row: AuditInstructionRow; auditorList: Auditor[]; readOnly: boolean; onError: (message: string) => void; onChanged?: () => void | Promise<void> }
 type DeleteTarget = { type: 'checklist' | 'item' | 'bank'; id: string; label: string } | null;
 
 const emptyManualItem = (checklistId: string): ChecklistManufakturItem => ({
@@ -40,7 +40,7 @@ function resolveAuditorNames(assignments: ChecklistManufakturShift['auditor'], a
     .join(', ');
 }
 
-export function ManufacturingChecklistPanel({ row, auditorList, readOnly, onError }: Props) {
+export function ManufacturingChecklistPanel({ row, auditorList, readOnly, onError, onChanged }: Props) {
   const [active, setActive] = useState<ChecklistManufakturShift | null>(null);
   const [draft, setDraft] = useState<ChecklistManufakturShift | null>(null);
   const [items, setItems] = useState<ChecklistManufakturItem[]>([]);
@@ -85,16 +85,17 @@ export function ManufacturingChecklistPanel({ row, auditorList, readOnly, onErro
   const draftAuditorNames = activeAuditorNames;
   const editable = !readOnly && active?.status === CHECKLIST_MANUFAKTUR_STATUS.DRAFT;
 
-  async function createChecklist() { setSaving(true); try { setActive(await createManufacturingChecklistFromRow(row)); await loadList(); } catch (e) { fail(e, 'Gagal membuat checklist'); } finally { setSaving(false); } }
-  async function saveHeader(next = draft) { if (!next) return; setSaving(true); try { const saved = await saveManufacturingChecklist(next); setActive(saved); setDraft(saved); setEditHeader(false); await loadList(); } catch (e) { fail(e, 'Gagal menyimpan header'); } finally { setSaving(false); } }
-  async function saveItem() { if (!itemForm || !active) return; try { await saveManufacturingItem({ ...itemForm, checklist_id: active.id }); setItemSaveError(null); onError(''); setItemForm(null); await loadItems(active.id); } catch (e) { const message=e instanceof Error?e.message:'Gagal menyimpan item';setItemSaveError(message);fail(e, 'Gagal menyimpan item'); } }
+  async function createChecklist() { setSaving(true); try { setActive(await createManufacturingChecklistFromRow(row)); await loadList(); await onChanged?.(); } catch (e) { fail(e, 'Gagal membuat checklist'); } finally { setSaving(false); } }
+  async function saveHeader(next = draft) { if (!next) return; setSaving(true); try { const saved = await saveManufacturingChecklist(next); setActive(saved); setDraft(saved); setEditHeader(false); await loadList(); await onChanged?.(); } catch (e) { fail(e, 'Gagal menyimpan header'); } finally { setSaving(false); } }
+  async function saveItem() { if (!itemForm || !active) return; try { await saveManufacturingItem({ ...itemForm, checklist_id: active.id }); setItemSaveError(null); onError(''); setItemForm(null); await loadItems(active.id); await onChanged?.(); } catch (e) { const message=e instanceof Error?e.message:'Gagal menyimpan item';setItemSaveError(message);fail(e, 'Gagal menyimpan item'); } }
   async function saveBank() { if (!bankForm) return; try { await saveManufacturingBankItem(bankForm); setBankForm(null); await loadBank(); } catch (e) { fail(e, 'Gagal menyimpan bank'); } }
-  async function syncBank() { if (!active) return; try { await initializeManufacturingItemsFromBank(active.id); await loadItems(active.id); } catch (e) { fail(e, 'Gagal menambahkan item bank'); } }
+  async function syncBank() { if (!active) return; try { await initializeManufacturingItemsFromBank(active.id); await loadItems(active.id); await onChanged?.(); } catch (e) { fail(e, 'Gagal menambahkan item bank'); } }
   async function confirmDelete() { if (!deleteTarget) return; try {
     if (deleteTarget.type === 'checklist') { await deleteManufacturingChecklist(deleteTarget.id); setActive(null); await loadList(); }
     if (deleteTarget.type === 'item' && active) { await deleteManufacturingItem(deleteTarget.id); await loadItems(active.id); }
     if (deleteTarget.type === 'bank') { await deactivateManufacturingBankItem(deleteTarget.id); await loadBank(); }
     setDeleteTarget(null);
+    if (deleteTarget.type !== 'bank') await onChanged?.();
   } catch (e) { fail(e, 'Gagal menghapus/menonaktifkan data'); } }
 
   if (loading) return <LoadingSpinner message="Memuat Checklist Manufaktur/Shift..." />;

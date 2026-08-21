@@ -71,27 +71,72 @@ BEGIN
 END $$;
 CREATE TRIGGER trg_protect_audit_execution_completion BEFORE UPDATE OF cek_selesai ON public.audit_instruction_rows FOR EACH ROW EXECUTE FUNCTION public.protect_audit_execution_completion();
 
+CREATE FUNCTION public.protect_completed_audit_checklist_source() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE v_record record; v_row_id uuid;
+BEGIN
+  IF TG_OP='DELETE' THEN v_record:=OLD; ELSE v_record:=NEW; END IF;
+  CASE TG_TABLE_NAME
+    WHEN 'checklists' THEN v_row_id:=v_record.row_id;
+    WHEN 'checklist_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklists c WHERE c.id=v_record.checklist_id;
+    WHEN 'checklist_produk' THEN v_row_id:=v_record.row_id;
+    WHEN 'checklist_produk_fase' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_produk c WHERE c.id=v_record.checklist_produk_id;
+    WHEN 'checklist_produk_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=v_record.fase_id;
+    WHEN 'checklist_manufaktur_shift' THEN v_row_id:=v_record.row_id;
+    WHEN 'checklist_manufaktur_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=v_record.checklist_id;
+    ELSE RAISE EXCEPTION 'Sumber Checklist tidak dikenali.';
+  END CASE;
+  IF EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id=v_row_id AND r.cek_selesai) THEN
+    RAISE EXCEPTION 'Pelaksanaan audit ini sudah selesai. Buka kembali Pelaksanaan Audit sebelum mengubah Checklist.';
+  END IF;
+  RETURN v_record;
+END $$;
+
+CREATE TRIGGER trg_lock_completed_system_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklists FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_system_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_phase BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_fase FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_manufacturing_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_shift FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_manufacturing_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+
 CREATE FUNCTION public.complete_audit_execution(p_row_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_messages text[];
+DECLARE v_messages text[]; v_previous_guard text;
 BEGIN
   PERFORM 1 FROM public.audit_instruction_rows WHERE id=p_row_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Audit belum dapat diselesaikan. Baris Instruksi Audit tidak ditemukan.'; END IF;
   v_messages:=public.audit_execution_blockers(p_row_id);
   IF cardinality(v_messages)>0 THEN RAISE EXCEPTION '%',array_to_string(v_messages,E'\n'); END IF;
-  PERFORM set_config('certitrack.execution_completion','1',true);
-  UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id=p_row_id;
+  v_previous_guard:=COALESCE(current_setting('certitrack.execution_completion',true),'');
+  BEGIN
+    PERFORM set_config('certitrack.execution_completion','1',true);
+    UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id=p_row_id;
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+    RAISE;
+  END;
 END $$;
 
 CREATE FUNCTION public.reopen_audit_execution(p_row_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE v_previous_guard text;
 BEGIN
   PERFORM 1 FROM public.audit_instruction_rows WHERE id=p_row_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Pelaksanaan Audit tidak ditemukan.'; END IF;
-  PERFORM set_config('certitrack.execution_completion','1',true);
-  UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id=p_row_id;
+  v_previous_guard:=COALESCE(current_setting('certitrack.execution_completion',true),'');
+  BEGIN
+    PERFORM set_config('certitrack.execution_completion','1',true);
+    UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id=p_row_id;
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+    RAISE;
+  END;
 END $$;
 
 REVOKE ALL ON FUNCTION public.audit_execution_blockers(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.protect_audit_execution_completion() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.protect_completed_audit_checklist_source() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.complete_audit_execution(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.reopen_audit_execution(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.complete_audit_execution(uuid) TO anon,authenticated;
