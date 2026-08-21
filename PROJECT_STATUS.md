@@ -850,6 +850,11 @@ constants, Instruksi cross-page navigation, and additive migration
 `20260821010000_create_batch5d_agenda_internal_audit.sql`. No Checklist relationship or legacy
 schedule/scope/team write is introduced.
 
+Static review hardening now allocates a new Timeline order from the current maximum `urutan` rather
+than array length, so gaps after deletion cannot collide with the unique Agenda/order key. Finalization
+also revalidates that the live Team has at least one member and that every referenced auditor still
+exists with status `Aktif`; failures leave the Agenda in Draft without adding a roster snapshot.
+
 Remaining verification: apply the migration on CertiTrack-Staging; runtime-check RLS, RPCs, and
 triggers; verify idempotent create/duplicate protection, Draft/Final immutability, inherited location,
 timeline time/overlap validation, browser worklist/detail smoke, Instruksi → Buka Agenda navigation,

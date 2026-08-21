@@ -163,8 +163,13 @@ BEGIN
   IF NOT FOUND OR v_team.status<>'Aktif' OR NOT v_team.is_locked THEN RAISE EXCEPTION 'Tim Audit harus aktif dan terkunci'; END IF;
   v_plan_id := public.resolve_instruction_plan_id(v_row.id);
   IF v_team.plan_id IS DISTINCT FROM v_plan_id THEN RAISE EXCEPTION 'Tim Audit tidak berasal dari Rencana Audit Tahunan yang sama'; END IF;
-  IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=v_team.id AND peran='Lead')<>1 THEN
-    RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead';
+  IF (SELECT count(*) FROM public.audit_team_master_members WHERE team_id=v_team.id AND peran='Lead')<>1
+     OR NOT EXISTS (SELECT 1 FROM public.audit_team_master_members WHERE team_id=v_team.id) THEN
+    RAISE EXCEPTION 'Tim Audit harus memiliki tepat satu Lead dan minimal satu auditor';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.audit_team_master_members m LEFT JOIN public.auditors a ON a.id=m.auditor_id
+             WHERE m.team_id=v_team.id AND (a.id IS NULL OR a.status<>'Aktif')) THEN
+    RAISE EXCEPTION 'Agenda tidak dapat difinalkan karena terdapat auditor Tim Audit yang sudah tidak aktif.';
   END IF;
   IF nullif(btrim(v_agenda.tujuan_lingkup_audit),'') IS NULL THEN RAISE EXCEPTION 'Tujuan dan Lingkup Audit wajib diisi'; END IF;
   IF nullif(btrim(v_agenda.item_lain_yang_dicek),'') IS NULL THEN RAISE EXCEPTION 'Item Lain yang Dicek wajib diisi'; END IF;
