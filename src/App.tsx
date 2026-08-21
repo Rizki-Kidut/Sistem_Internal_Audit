@@ -17,15 +17,11 @@ function App() {
   // State untuk navigasi cross-page: ketika "Buat Program Internal Audit" diklik
   // di RencanaAuditPage, kita navigasi ke ProgramAuditPage dengan programId ter-prefill
   const [initialProgramId, setInitialProgramId] = useState<string | null>(null);
-  const [initialChecklistRowId, setInitialChecklistRowId] = useState<string | null>(null);
-  const [initialAgendaRowId, setInitialAgendaRowId] = useState<string | null>(null);
 
   function handleNavigateToProgram(programId: string) {
     setInitialProgramId(programId);
     setCurrentPage('program-audit');
   }
-  function handleNavigateToChecklist(rowId: string) { setInitialChecklistRowId(rowId); setCurrentPage('checklist'); }
-  function handleNavigateToAgenda(rowId: string) { setInitialAgendaRowId(rowId); setCurrentPage('agenda'); }
 
   function renderPage() {
     switch (currentPage) {
@@ -45,11 +41,11 @@ function App() {
       case 'proses':
         return <ProsesPage />;
       case 'instruksi-audit':
-        return <InstruksiAuditPage onNavigateToChecklist={handleNavigateToChecklist} onNavigateToAgenda={handleNavigateToAgenda} />;
+        return <InstruksiAuditPage />;
       case 'checklist':
-        return <ChecklistAuditPage initialRowId={initialChecklistRowId} onClearInitial={() => setInitialChecklistRowId(null)} />;
+        return <ChecklistAuditPage />;
       case 'agenda':
-        return <AgendaAuditPage initialRowId={initialAgendaRowId} onClearInitial={() => setInitialAgendaRowId(null)} />;
+        return <AgendaAuditPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':

@@ -846,7 +846,7 @@ Implemented as a central, QA-row-backed workspace with one Agenda per Instructio
 Instruction/section/manager/Annual Team roster context, Agenda-owned document fields, manual timeline,
 location inheritance, and database-authoritative Draft/Final transitions and immutability. Added
 `src/components/pages/AgendaAuditPage.tsx`, `src/services/auditAgendaService.ts`, centralized types and
-constants, Instruksi cross-page navigation, and additive migration
+constants, central sidebar navigation, and base migration
 `20260821010000_create_batch5d_agenda_internal_audit.sql`. No Checklist relationship or legacy
 schedule/scope/team write is introduced.
 
@@ -861,11 +861,19 @@ Agenda creation context validation is centralized and enforced by both the idemp
 a `BEFORE INSERT` trigger, so direct table inserts cannot bypass QA/Team/plan/roster invariants. Draft
 headers are also rejected when `finalized_at` is non-null.
 
-Remaining verification: apply the migration on CertiTrack-Staging; runtime-check RLS, RPCs, and
-triggers; verify idempotent create/duplicate protection, Draft/Final immutability, inherited location,
-timeline time/overlap validation, browser worklist/detail smoke, Instruksi → Buka Agenda navigation,
-and confirm that no Checklist or legacy IA records are created. The migration was intentionally not
-applied during static implementation. Batch 6 and later remain `NOT_STARTED`.
+Base migration is applied on CertiTrack-Staging as registry entry
+`20260821010528 create_batch5d_agenda_internal_audit`; Security Advisor reports **0 security lints**
+and the base database runtime suite passed **22/22**. Browser review found that Instruksi → Agenda
+cross-navigation could open a null Agenda as a white page and that per-row Timeline Save reset unsaved
+header fields. The superseding UX is central-workspace-only: Instruksi shortcuts are removed, Agenda
+uses local multi-row Timeline editing with one Add button, and the complete Draft header + Timeline is
+saved atomically by the new additive migration. Corrected browser smoke and additive migration runtime
+verification remain pending.
+
+Remaining verification: apply only the additive atomic-save migration on CertiTrack-Staging,
+runtime-check its RPC/rollback behavior, and repeat corrected central-workspace browser smoke. The new
+additive migration was intentionally not applied during this implementation task. Batch 6 and later
+remain `NOT_STARTED`.
 
 ---
 

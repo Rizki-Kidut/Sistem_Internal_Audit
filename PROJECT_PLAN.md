@@ -966,6 +966,14 @@ No placeholder should remain for supported row types.
 > depan. Siklusnya Draft → Final (dapat dikembalikan ke Draft). Tanda tangan digital dan PDF tidak
 > diimplementasikan pada batch ini. Bagian historis di bawah dipertahankan sebagai konteks awal.
 
+> **Keputusan UX pengganti — 21 Agustus 2026.** Checklist hanya dibuat/dibuka dari workspace pusat
+> Checklist Audit dan Agenda hanya dibuat/dibuka dari workspace pusat Agenda Internal Audit; Instruksi
+> tidak lagi menampilkan shortcut keduanya dan tetap menjadi otoritas QA-xx/upstream context. Timeline
+> Agenda memakai satu sesi Draft lokal dengan satu tombol `Tambah Kegiatan`; baris tidak memiliki tombol
+> Add/Save sendiri dan pengguna dapat menyusun banyak kegiatan sebelum menyimpan. `Simpan Agenda`
+> menyimpan header beserta seluruh Timeline secara atomik, sedangkan `Finalkan Agenda` menyimpan Draft
+> terkini terlebih dahulu lalu menjalankan finalisasi.
+
 ### Data
 
 ```ts
