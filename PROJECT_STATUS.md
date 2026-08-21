@@ -916,6 +916,11 @@ Remaining gates: apply the additive permission-hardening migration, confirm Secu
 verify runtime role permissions and trigger invocation, run browser smoke, and decide whether to add
 the optional compact Checklist Finding indicator. Batch 6a remains `IMPLEMENTED_UNVERIFIED`.
 
+Formal OFI semantics are now separated from A/B nonconformities in the UI and pure helpers. Category C
+uses the label Kondisi/Peluang Peningkatan, requires suggestion instead of Reference for completeness,
+keeps Reference optional and last, and generates an improvement narrative without "tidak sesuai".
+Browser smoke remains ongoing.
+
 ---
 
 ## Batch 6b — Pelaksanaan
