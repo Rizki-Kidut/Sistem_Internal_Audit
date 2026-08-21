@@ -11,6 +11,7 @@ import { ConstructionPlaceholder } from './components/pages/ConstructionPlacehol
 import { AuditTeamMasterPage } from './components/pages/AuditTeamMasterPage';
 import { ChecklistAuditPage } from './components/pages/ChecklistAuditPage';
 import { AgendaAuditPage } from './components/pages/AgendaAuditPage';
+import { TemuanPage } from './components/pages/TemuanPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('rencana-audit');
@@ -46,6 +47,8 @@ function App() {
         return <ChecklistAuditPage />;
       case 'agenda':
         return <AgendaAuditPage />;
+      case 'temuan':
+        return <TemuanPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':

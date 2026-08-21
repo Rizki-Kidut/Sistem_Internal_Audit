@@ -146,6 +146,7 @@ export async function initializeManufacturingItemsFromBank(checklistId: string):
 export async function saveManufacturingItem(item: Partial<ChecklistManufakturItem>): Promise<ChecklistManufakturItem> {
   validateRequired({ checklist_id: item.checklist_id }, { checklist_id: 'Checklist Manufaktur/Shift' });
   if (item.hasil && !HASIL_CHECKLIST_LIST.includes(item.hasil)) throw new Error('Hasil checklist tidak valid');
+  if (item.hasil && ['A', 'B', 'C'].includes(item.hasil) && !item.hasil_pengamatan?.trim()) throw new Error('Hasil Pengamatan wajib diisi untuk hasil A, B, atau C');
   if (item.id) {
     const { data: old } = await supabase.from('checklist_manufaktur_items').select('checklist_id').eq('id', item.id).maybeSingle();
     if (!old || old.checklist_id !== item.checklist_id) throw new Error('Item tidak terkait dengan checklist yang dipilih');

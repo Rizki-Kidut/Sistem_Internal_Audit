@@ -27,7 +27,7 @@ const emptyPhase = (checklistId: string): ChecklistProdukFase => ({
 const emptyItem = (phaseId: string): ChecklistProdukItem => ({
   id: '', fase_id: phaseId, kategori: null, jumlah_sampel_minimal: null,
   item_pemeriksaan: '', alat_pemeriksaan: null, standar_kriteria: null,
-  jumlah_sampel: null, hasil_pemeriksaan: null, judgment: null,
+  jumlah_sampel: null, hasil_pemeriksaan: null, judgment: null, finding_id: null, finding_kategori: null,
   urutan_tampil: 0, created_at: '', updated_at: '',
 });
 const displaySize = (size: number) => size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`;
@@ -43,6 +43,7 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
   const [headerDraft, setHeaderDraft] = useState<ChecklistProduk | null>(null);
   const [phaseForm, setPhaseForm] = useState<ChecklistProdukFase | null>(null);
   const [itemForm, setItemForm] = useState<ChecklistProdukItem | null>(null);
+  const [itemSaveError, setItemSaveError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
   const fail = useCallback((error: unknown, fallback: string) => {
@@ -106,8 +107,8 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
 
   async function saveItem() {
     if (!itemForm || !active) return;
-    try { await saveProductItem(itemForm); setItemForm(null); await loadDetails(active); }
-    catch (error) { fail(error, 'Gagal menyimpan item'); }
+    try { await saveProductItem(itemForm); setItemSaveError(null); onError(''); setItemForm(null); await loadDetails(active); }
+    catch (error) { setItemSaveError(error instanceof Error?error.message:'Gagal menyimpan item');fail(error, 'Gagal menyimpan item'); }
   }
 
   async function confirmDelete() {
@@ -168,7 +169,7 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
         {phases.length === 0 && <p className="text-sm text-gray-400 text-center py-5">Belum ada fase. Checklist tidak dapat diselesaikan sebelum fase dan bukti tersedia.</p>}
         {phases.map((phase) => <PhaseCard key={phase.id} phase={phase} items={items[phase.id] ?? []} editable={editable}
           onEdit={() => setPhaseForm(phase)} onDelete={() => setDeleteTarget({ type: 'phase', id: phase.id, label: phase.nama_fase })}
-          onAddItem={() => setItemForm(emptyItem(phase.id))} onEditItem={setItemForm}
+          onAddItem={() => {setItemSaveError(null);setItemForm(emptyItem(phase.id));}} onEditItem={(item)=>{setItemSaveError(null);setItemForm(item);}}
           onDeleteItem={(item) => setDeleteTarget({ type: 'item', id: item.id, label: item.item_pemeriksaan })}
           onUpload={(file) => upload(phase, file)} onOpen={openEvidence} onDeleteEvidence={(evidence) => removeEvidence(phase, evidence)} />)}
       </div>
@@ -182,7 +183,8 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
     <Modal open={!!phaseForm} onClose={() => setPhaseForm(null)} title={phaseForm?.id ? 'Edit Fase' : 'Tambah Fase'} footer={<><Button variant="secondary" onClick={() => setPhaseForm(null)}>Batal</Button><Button onClick={savePhase}>Simpan</Button></>}>
       {phaseForm && <div className="space-y-3"><Field label="Nama Fase" required><Input value={phaseForm.nama_fase} onChange={(e) => setPhaseForm({ ...phaseForm, nama_fase: e.target.value })} /></Field><Field label="Nama Proses"><Input value={phaseForm.nama_proses ?? ''} onChange={(e) => setPhaseForm({ ...phaseForm, nama_proses: e.target.value || null })} /></Field><Field label="No. Inspection Standard"><Input value={phaseForm.no_inspection_standard ?? ''} onChange={(e) => setPhaseForm({ ...phaseForm, no_inspection_standard: e.target.value || null })} /></Field><label className="flex gap-2 text-sm"><input type="checkbox" checked={phaseForm.inspection_result_chart} onChange={(e) => setPhaseForm({ ...phaseForm, inspection_result_chart: e.target.checked })} /> Inspection Result Chart</label></div>}
     </Modal>
-    <Modal open={!!itemForm} onClose={() => setItemForm(null)} title={itemForm?.id ? 'Edit Item Pemeriksaan' : 'Tambah Item Pemeriksaan'} size="lg" footer={<><Button variant="secondary" onClick={() => setItemForm(null)}>Batal</Button><Button onClick={saveItem}>Simpan</Button></>}>
+    <Modal open={!!itemForm} onClose={() => {setItemForm(null);setItemSaveError(null);}} title={itemForm?.id ? 'Edit Item Pemeriksaan' : 'Tambah Item Pemeriksaan'} size="lg" footer={<><Button variant="secondary" onClick={() => {setItemForm(null);setItemSaveError(null);}}>Batal</Button><Button onClick={saveItem}>Simpan</Button></>}>
+      {itemSaveError&&<div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700"><p className="font-semibold text-sm">Gagal menyimpan Checklist</p><p className="text-sm mt-1">{itemSaveError}</p></div>}
       {itemForm && <ItemForm item={itemForm} onChange={setItemForm} />}
     </Modal>
     <ConfirmDialog open={!!deleteTarget} title="Hapus Data" message={`Yakin ingin menghapus ${deleteTarget?.label}?`} confirmLabel="Hapus" onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
@@ -203,5 +205,5 @@ function PhaseCard({ phase, items, editable, onEdit, onDelete, onAddItem, onEdit
 
 function ItemForm({ item, onChange }: { item: ChecklistProdukItem; onChange: (item: ChecklistProdukItem) => void }) {
   const numberValue = (value: string) => value === '' ? null : Number(value);
-  return <div className="grid grid-cols-2 gap-3"><Field label="Kategori"><Input value={item.kategori ?? ''} onChange={(e) => onChange({ ...item, kategori: e.target.value || null })} /></Field><Field label="Jumlah Sampel Minimal"><Input type="number" min="0" value={item.jumlah_sampel_minimal ?? ''} onChange={(e) => onChange({ ...item, jumlah_sampel_minimal: numberValue(e.target.value) })} /></Field><Field label="Item Pemeriksaan" required className="col-span-2"><Textarea value={item.item_pemeriksaan} onChange={(e) => onChange({ ...item, item_pemeriksaan: e.target.value })} /></Field><Field label="Alat Pemeriksaan"><Input value={item.alat_pemeriksaan ?? ''} onChange={(e) => onChange({ ...item, alat_pemeriksaan: e.target.value || null })} /></Field><Field label="Standar/Kriteria"><Input value={item.standar_kriteria ?? ''} onChange={(e) => onChange({ ...item, standar_kriteria: e.target.value || null })} /></Field><Field label="Jumlah Sampel"><Input type="number" min="0" value={item.jumlah_sampel ?? ''} onChange={(e) => onChange({ ...item, jumlah_sampel: numberValue(e.target.value) })} /></Field><Field label="Judgment"><Select value={item.judgment ?? ''} onChange={(e) => onChange({ ...item, judgment: (e.target.value || null) as ChecklistProdukItem['judgment'] })}><option value="">— Belum dinilai —</option>{JUDGMENT_PRODUK_LIST.map((value) => <option key={value}>{value}</option>)}</Select></Field><Field label="Hasil Pemeriksaan" className="col-span-2"><Textarea value={item.hasil_pemeriksaan ?? ''} onChange={(e) => onChange({ ...item, hasil_pemeriksaan: e.target.value || null })} /></Field></div>;
+  return <div className="grid grid-cols-2 gap-3"><Field label="Kategori"><Input value={item.kategori ?? ''} onChange={(e) => onChange({ ...item, kategori: e.target.value || null })} /></Field><Field label="Jumlah Sampel Minimal"><Input type="number" min="0" value={item.jumlah_sampel_minimal ?? ''} onChange={(e) => onChange({ ...item, jumlah_sampel_minimal: numberValue(e.target.value) })} /></Field><Field label="Item Pemeriksaan" required className="col-span-2"><Textarea value={item.item_pemeriksaan} onChange={(e) => onChange({ ...item, item_pemeriksaan: e.target.value })} /></Field><Field label="Alat Pemeriksaan"><Input value={item.alat_pemeriksaan ?? ''} onChange={(e) => onChange({ ...item, alat_pemeriksaan: e.target.value || null })} /></Field><Field label="Standar/Kriteria"><Input value={item.standar_kriteria ?? ''} onChange={(e) => onChange({ ...item, standar_kriteria: e.target.value || null })} /></Field><Field label="Jumlah Sampel"><Input type="number" min="0" value={item.jumlah_sampel ?? ''} onChange={(e) => onChange({ ...item, jumlah_sampel: numberValue(e.target.value) })} /></Field><Field label="Judgment"><Select value={item.judgment ?? ''} onChange={(e) => onChange({ ...item, judgment: (e.target.value || null) as ChecklistProdukItem['judgment'], finding_kategori: e.target.value === 'NG' ? item.finding_kategori : null })}><option value="">— Belum dinilai —</option>{JUDGMENT_PRODUK_LIST.map((value) => <option key={value}>{value}</option>)}</Select></Field>{item.judgment === 'NG' && <Field label="Kategori Temuan" required><Select value={item.finding_kategori ?? ''} onChange={e=>onChange({...item,finding_kategori:(e.target.value||null) as ChecklistProdukItem['finding_kategori']})}><option value="">— Pilih —</option><option value="A">A — Major</option><option value="B">B — Minor</option><option value="C">C — OFI</option></Select></Field>}<Field label={`Hasil Pemeriksaan${item.judgment==='NG'?' *':''}`} className="col-span-2"><Textarea value={item.hasil_pemeriksaan ?? ''} onChange={(e) => onChange({ ...item, hasil_pemeriksaan: e.target.value || null })} /><p className="text-xs text-gray-500 mt-1">Catat hasil pemeriksaan singkat. Detail formal PLOR diisi pada menu Temuan (PLOR).</p></Field></div>;
 }

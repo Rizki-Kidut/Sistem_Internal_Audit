@@ -1053,6 +1053,22 @@ Populate Agenda tab.
 
 # Batch 6a — Temuan / PLOR + Automatic Trigger
 
+> **Keputusan arsitektur pengganti — 21 Agustus 2026.** Checklist adalah working paper sumber yang
+> menyimpan pertanyaan/hasil dan observasi singkat; `findings` adalah satu-satunya otoritas Temuan
+> formal dan menyimpan PLOR secara terpisah. Catatan sumber Checklist tidak pernah disalin otomatis
+> ke Problem, Location, Objective Evidence, Reference, atau Saran Perbaikan. PLOR formal hanya diedit
+> di workspace pusat Temuan (PLOR). Temuan berelasi langsung ke `audit_instruction_rows.id` dan
+> `kode_audit` QA; rancangan historis `scheduleId`/`scopeId` adalah arsitektur Jadwal lama dan tidak
+> digunakan untuk Finding baru. Daftar Ketidaksesuaian pada batch mendatang wajib membaca informasi
+> formal dari `findings`, bukan langsung dari `checklist_items`, `checklist_manufaktur_items`, atau
+> `checklist_produk_items`. Teks historis di bawah dipertahankan hanya sebagai riwayat spesifikasi.
+
+> **Keputusan semantik OFI pengganti — 21 Agustus 2026.** A/B tetap merupakan ketidaksesuaian formal
+> dengan urutan Problem → Location → Objective Evidence → Reference. C adalah Opportunity for
+> Improvement dengan urutan Kondisi/Peluang Peningkatan (`findings.problem`) → Location → Objective
+> Evidence → Saran Perbaikan → Reference/Acuan. Saran Perbaikan wajib untuk C, sedangkan Reference
+> opsional. Narasi OFI tidak boleh memakai bahasa ketidaksesuaian seperti "tidak sesuai".
+
 Connect the previously reserved `findingId` fields.
 
 ### Data

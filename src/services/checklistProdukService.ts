@@ -7,6 +7,7 @@ import {
   CHECKLIST_PRODUK_STATUS, CHECKLIST_PRODUK_STATUS_LIST, JUDGMENT_PRODUK_LIST,
   KODE_DOKUMEN_CHECKLIST_PRODUK,
 } from '../lib/enums';
+import { KATEGORI_TEMUAN } from '../lib/enums';
 import { validateRequired } from '../lib/utils';
 
 const BUCKET = 'audit-evidence';
@@ -176,12 +177,16 @@ export async function saveProductItem(item: Partial<ChecklistProdukItem>): Promi
   await assertProductChecklistDraft(await getChecklistIdForPhase(item.fase_id!));
   if ((item.jumlah_sampel_minimal ?? 0) < 0 || (item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel tidak boleh negatif');
   if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
+  const findingKategori = item.judgment === 'NG' ? item.finding_kategori : null;
+  if (item.judgment === 'NG' && !item.hasil_pemeriksaan?.trim()) throw new Error('Hasil Pemeriksaan wajib diisi untuk judgment NG');
+  if (item.judgment === 'NG' && (!findingKategori || !Object.values(KATEGORI_TEMUAN).includes(findingKategori))) throw new Error('Kategori Temuan A, B, atau C wajib dipilih untuk judgment NG');
   const payload = {
     fase_id: item.fase_id, kategori: item.kategori ?? null,
     jumlah_sampel_minimal: item.jumlah_sampel_minimal ?? null,
     item_pemeriksaan: item.item_pemeriksaan, alat_pemeriksaan: item.alat_pemeriksaan ?? null,
     standar_kriteria: item.standar_kriteria ?? null, jumlah_sampel: item.jumlah_sampel ?? null,
     hasil_pemeriksaan: item.hasil_pemeriksaan ?? null, judgment: item.judgment ?? null,
+    finding_kategori: findingKategori,
     urutan_tampil: item.urutan_tampil ?? 0,
   };
   const query = item.id
