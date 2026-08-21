@@ -1195,6 +1195,17 @@ Provide PLOR editing.
 
 # Batch 6b — Pelaksanaan
 
+> **Keputusan arsitektur pengganti — 22 Agustus 2026.** Pelaksanaan Audit adalah worklist pusat dan
+> tampilan eksekusi mobile atas record Checklist Sistem, Produk, dan Manufaktur/Shift yang sama;
+> Checklist Audit tetap workspace checklist utama. Relasi menggunakan QA
+> (`audit_instruction_rows.kode_audit`) dan alur normal tidak menulis tabel Jadwal legacy
+> (`audit_schedules`, `audit_scopes`, `audit_teams`). Otoritas penyelesaian aktif adalah
+> `audit_instruction_rows.cek_selesai` melalui validasi database atomik yang mensyaratkan Checklist
+> tuntas dan seluruh Temuan formal memiliki PLOR lengkap. Kategori C adalah OFI, bukan NC;
+> Reference opsional khusus C, tetapi Saran Perbaikan wajib. `statusProgress` dihitung langsung dari
+> hasil Checklist saat ini, bukan disimpan sebagai duplikasi. Teks historis di bawah dipertahankan
+> sebagai riwayat spesifikasi dan penyebutan penyelesaian `auditSchedule` tidak lagi berlaku.
+
 ### Mobile audit execution
 
 Populate Pelaksanaan tab/page as a mobile-friendly presentation of existing checklist functionality.

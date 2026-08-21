@@ -937,9 +937,22 @@ is therefore `VERIFIED_COMPLETE`.
 
 ## Batch 6b — Pelaksanaan
 
-**Status:** `NOT_STARTED`
+**Status:** `IMPLEMENTED_UNVERIFIED`
 
-Pelaksanaan remains a disabled/soon tab.
+Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile yang menggunakan ulang
+`ChecklistTab` serta service Checklist Sistem, Produk, dan Manufaktur/Shift yang sama. Counter O/A/B/C
+dan status `Belum Mulai` / `Berjalan` / `Ada NC` / `Tidak Ada NC` dihitung dari record sumber saat ini;
+Product OK dipetakan ke O dan NG memakai `finding_kategori`, sementara N-A dikecualikan dari counter.
+
+Migration additive `20260822090000_create_batch6b_audit_execution.sql` menambahkan RPC penyelesaian
+dan buka-kembali yang atomik, validasi Checklist/PLOR database-authoritative dengan pesan blocker
+spesifik, serta trigger yang mencegah perubahan langsung `cek_selesai`. Instruksi kini hanya
+menampilkan status selesai read-only; satu-satunya aksi UI berada di Pelaksanaan. RPC dan service baru
+tidak membaca atau menulis `audit_schedules`, `audit_scopes`, maupun `audit_teams`.
+
+Implementasi dan static checks lokal telah dilakukan, tetapi status tetap
+`IMPLEMENTED_UNVERIFIED` sampai migration diterapkan ke Staging, runtime suite 22 skenario,
+Security Advisor, Vercel Preview/browser smoke desktop-mobile, serta cleanup fixture selesai.
 
 ---
 
@@ -1008,7 +1021,8 @@ Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser veri
 Batch 5c    VERIFIED_COMPLETE
 Batch 5d    VERIFIED_COMPLETE
 Batch 6a    VERIFIED_COMPLETE
-Batch 6b+   NOT_STARTED
+Batch 6b    IMPLEMENTED_UNVERIFIED
+Batch 7+    NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
