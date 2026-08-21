@@ -880,7 +880,7 @@ atomik telah diverifikasi. Shortcut Checklist/Agenda dari Instruksi telah dihapu
 
 ## Batch 6a — Temuan / PLOR
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 Implemented additive `findings` and `clause_keyword_map` schema, Product Finding linkage/category,
 database-authoritative source triggers for System/Product/Manufacturing-Shift, per-QA locked sequence,
@@ -889,42 +889,49 @@ central types/constants/helpers/service, narrative formatter, clause suggestions
 worklist/detail editor, source-note separation, Checklist note validation, and Product NG category UI.
 No legacy Jadwal tables are written and no Batch 6b+ feature is included.
 
-Base Batch 6a migration was applied to CertiTrack-Staging as registry entry
-`20260821074725 create_batch6a_findings_plor`. Functional/integrity runtime verification passed
-**22/22**, including System, Manufacturing/Shift, and Product triggers; source-note and Product category
-validation; idempotence; category synchronization; empty cancellation; PLOR loss and source-delete
-protection; multi-row synchronization; scoped `finding_sync` restoration; clause seeds; and zero legacy
-writes. Runtime fixtures QA-986, QA-987, and QA-988 were cleaned after verification.
+### CertiTrack-Staging verification
 
-Security Advisor after the base migration reported **10 permission lints**: Supabase default grants
-left `findings` and `clause_keyword_map` table privileges broader than intended and left private Batch
-6a helpers executable by frontend roles. The new additive permission-hardening migration explicitly
-reduces tables to their required SELECT/UPDATE or SELECT-only access and revokes private helper
-execution. It is pending application and role-level verification.
+- [x] Base migration applied as registry entry `20260821074725 create_batch6a_findings_plor`.
+- [x] Additive permission hardening applied as registry entry
+      `20260821081251 harden_batch6a_findings_permissions`.
+- [x] Functional/integrity runtime verification passed **22/22**, including System,
+      Manufacturing/Shift, and Product Finding triggers; source-note and Product category validation;
+      idempotence; A/B/C category synchronization; empty cancellation; PLOR-loss and source-delete
+      protection; multi-row synchronization; scoped `finding_sync` restoration; clause seeds; and
+      zero legacy writes.
+- [x] Permission hardening verified: frontend roles retain only `SELECT, UPDATE` on `findings`, only
+      `SELECT` on `clause_keyword_map`, and cannot directly execute the seven private Batch 6a helper
+      functions.
+- [x] Runtime-role smoke confirmed normal Checklist updates still invoke internal Finding triggers
+      after helper `EXECUTE` revocation, while authenticated PLOR updates remain allowed.
+- [x] Supabase Security Advisor after hardening reports **0 security lints**.
+- [x] Vercel Preview for the verified PR head succeeded.
+- [x] Manual real-browser smoke passed for central Temuan/PLOR, PLOR save → worklist refresh + success
+      feedback, OFI field order/completeness/narrative, valid A/B/C → A/B/C category changes, visible
+      PLOR-loss rejection when changing a formal Finding to a non-Finding, and modal draft preservation
+      plus successful retry behavior.
+- [x] Final OFI semantics verified: A/B remain nonconformities using Problem → Location → Objective
+      Evidence → Reference; C uses Kondisi/Peluang Peningkatan → Location → Objective Evidence →
+      Saran Perbaikan → Reference/Acuan, with Saran required, Reference optional, and no
+      ketidaksesuaian wording such as "tidak sesuai" in the OFI narrative.
+- [x] Runtime fixtures QA-986/987/988 were cleaned after database verification. Browser fixtures
+      QA-980/QA-981 and their Finding, Agenda, Checklist, Instruction, Program, Annual Plan, Team,
+      fixture Process, fixture Section, and fixture Auditor records were also cleaned. Final fixture
+      verification returned **0** for every checked marker.
 
-Static validation on the Batch 6a branch: TypeScript typecheck and production build pass; whitespace
-diff checks pass. ESLint remains at the verified repository baseline of 26 errors and 0 warnings, with
-no new Batch 6a lint regression. The protected Batch 5d migrations and nested `project/` snapshot are
-unchanged.
+Static validation on the Batch 6a branch passed TypeScript typecheck, production build, and diff
+checks. ESLint remains at the established repository baseline of **26 errors / 0 warnings**, with no
+Batch 6a regression. Protected Batch 5d migrations, applied Batch 6a migrations, and the nested
+`project/` snapshot remain unchanged.
 
-Pre-staging correction review now clears source Finding links before deleting an empty formal Finding,
-restores the internal synchronization flag after every guarded mutation (including exception paths),
-and removes the Product AFTER-trigger recursion path. This preserves per-row database authority for
-multi-row statements. Temuan context now includes target sections only, checks every required context
-query error, and the detail workspace exposes load failures instead of retaining an infinite spinner.
-Remaining gates: apply the additive permission-hardening migration, confirm Security Advisor = 0,
-verify runtime role permissions and trigger invocation, run browser smoke, and decide whether to add
-the optional compact Checklist Finding indicator. Batch 6a remains `IMPLEMENTED_UNVERIFIED`.
+Formal PLOR remains owned only by `findings`; Checklist stores only the short source observation and
+never auto-copies it into Problem, Location, Objective Evidence, Reference, or Saran Perbaikan.
+Checklist save protection remains database-authoritative, while the UI now exposes rejection messages
+inside System, Manufacturing/Shift, and Product edit flows. The optional compact Finding-code badge in
+Checklist was intentionally treated as non-blocking and deferred.
 
-Formal OFI semantics are now separated from A/B nonconformities in the UI and pure helpers. Category C
-uses the label Kondisi/Peluang Peningkatan, requires suggestion instead of Reference for completeness,
-keeps Reference optional and last, and generates an improvement narrative without "tidak sesuai".
-Browser smoke remains ongoing.
-
-Checklist browser-smoke correction now keeps failed System, Manufacturing/Shift, and Product item
-edits open with the original save error visible inside the modal; the selected central Checklist detail
-also renders page-level fallback errors. Successful retries clear the local error, close the modal, and
-reload items. No Finding rule, OFI behavior, PLOR helper, or database migration changed.
+Batch 6a has completed database, security, role-permission, deployment, browser, and cleanup gates and
+is therefore `VERIFIED_COMPLETE`.
 
 ---
 
@@ -986,8 +993,8 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation is verified on both clean and representative existing-data
-Supabase projects. Batch 5b is now `VERIFIED_COMPLETE`.
+The stabilization database foundation and implemented audit-execution batches through Batch 6a have
+completed their required verification gates. Batch 6a is now `VERIFIED_COMPLETE`.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -999,16 +1006,16 @@ Batch 4b    VERIFIED_COMPLETE (including simultaneous multi-session database ver
 Batch 5a    VERIFIED_COMPLETE (including manual real-browser smoke verification)
 Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser verification)
 Batch 5c    VERIFIED_COMPLETE
-Batch 5d    IMPLEMENTED_UNVERIFIED (static implementation; staging/runtime verification pending)
-Batch 6+    NOT_STARTED
+Batch 5d    VERIFIED_COMPLETE
+Batch 6a    VERIFIED_COMPLETE
+Batch 6b+   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
 failed transaction behavior, multi-scope propagation, grid schedule/scope/team synchronization,
-Checklist database record sharing, clean migration, existing-data upgrade, and post-upgrade
-compatibility have all passed on real Supabase staging projects. True simultaneous multi-session
-generation passed in the isolated `CertiTrack-Upgrade-Test` project, and manual real-browser smoke
-testing passed against the Vercel Preview connected to `CertiTrack-Staging`.
+Checklist database record sharing, clean migration, existing-data upgrade, post-upgrade compatibility,
+Agenda atomic save, formal Finding synchronization, Batch 6a permission hardening, and manual browser
+smoke have all passed on the applicable real Supabase/Vercel staging paths.
 
 ---
 
@@ -1044,6 +1051,12 @@ choice remain product follow-up items, but are not regressions introduced by thi
 - [x] stabilization diff introduces no lint errors relative to baseline
 - [x] true simultaneous multi-session database concurrency
 - [x] manual real-browser smoke test (not automated E2E testing)
+- [x] Batch 5d base + atomic Agenda runtime/browser verification
+- [x] Batch 6a functional/integrity runtime **22/22 PASS**
+- [x] Batch 6a permission hardening + role-trigger smoke PASS
+- [x] Batch 6a Security Advisor **0 lints**
+- [x] Batch 6a manual browser smoke PASS
+- [x] Batch 6a smoke-test fixture cleanup verified at **0**
 
-The stabilization status remains `VERIFIED_COMPLETE`. Batch 5b is also `VERIFIED_COMPLETE` after
-CertiTrack-Staging database, security, Storage, cleanup, and manual real-browser verification.
+The stabilization status, Batch 5b, Batch 5c, Batch 5d, and Batch 6a are `VERIFIED_COMPLETE` after the
+recorded CertiTrack-Staging database, security, runtime, cleanup, and manual browser verification.
