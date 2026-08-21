@@ -66,7 +66,7 @@ $$;
 
 CREATE FUNCTION public.sync_checklist_finding(p_type text,p_item uuid,p_category text)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_ctx record; v_row record; v_f public.findings%ROWTYPE; v_id uuid; v_seq integer; v_prefix text; v_year integer; v_lead uuid;
+DECLARE v_ctx record; v_row record; v_f public.findings%ROWTYPE; v_id uuid; v_seq integer; v_prefix text; v_lead uuid; v_previous_sync text;
 BEGIN
   SELECT * INTO v_ctx FROM public.finding_source_context(p_type,p_item);
   IF NOT FOUND THEN RAISE EXCEPTION 'Sumber Checklist Temuan tidak ditemukan'; END IF;
@@ -82,11 +82,36 @@ BEGIN
        COALESCE(btrim(v_f.reference),'')<>'' OR COALESCE(btrim(v_f.saran_perbaikan),'')<>'' THEN
       RAISE EXCEPTION 'Temuan sudah memiliki data PLOR dan tidak dapat dibatalkan otomatis. Kosongkan data PLOR terlebih dahulu jika hasil checklist memang akan dikoreksi.';
     END IF;
-    PERFORM set_config('certitrack.finding_sync','1',true); DELETE FROM public.findings WHERE id=v_f.id; RETURN NULL;
+    v_previous_sync:=current_setting('certitrack.finding_sync',true);
+    PERFORM set_config('certitrack.finding_sync','1',true);
+    BEGIN
+      IF p_type='ChecklistSistem' THEN
+        UPDATE public.checklist_items SET finding_id=NULL WHERE id=p_item AND finding_id=v_f.id;
+      ELSIF p_type='ChecklistManufakturShift' THEN
+        UPDATE public.checklist_manufaktur_items SET finding_id=NULL WHERE id=p_item AND finding_id=v_f.id;
+      ELSE
+        UPDATE public.checklist_produk_items SET finding_id=NULL,finding_kategori=NULL WHERE id=p_item AND finding_id=v_f.id;
+      END IF;
+      DELETE FROM public.findings WHERE id=v_f.id;
+    EXCEPTION WHEN OTHERS THEN
+      PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+      RAISE;
+    END;
+    PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+    RETURN NULL;
   END IF;
   IF p_category NOT IN ('A','B','C') THEN RAISE EXCEPTION 'Kategori Temuan tidak valid'; END IF;
   IF v_f.id IS NOT NULL THEN
-    PERFORM set_config('certitrack.finding_sync','1',true); UPDATE public.findings SET kategori=p_category WHERE id=v_f.id; RETURN v_f.id;
+    v_previous_sync:=current_setting('certitrack.finding_sync',true);
+    PERFORM set_config('certitrack.finding_sync','1',true);
+    BEGIN
+      UPDATE public.findings SET kategori=p_category WHERE id=v_f.id AND kategori IS DISTINCT FROM p_category;
+    EXCEPTION WHEN OTHERS THEN
+      PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+      RAISE;
+    END;
+    PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+    RETURN v_f.id;
   END IF;
   SELECT COALESCE(MAX(nomor_urut_temuan),0)+1 INTO v_seq FROM public.findings WHERE kode_audit=v_ctx.kode_audit;
   v_prefix:=CASE p_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
@@ -101,7 +126,7 @@ $$;
 CREATE FUNCTION public.protect_finding_update() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
-  IF current_setting('certitrack.finding_sync',true)='1' THEN RETURN NEW; END IF;
+  IF COALESCE(current_setting('certitrack.finding_sync',true),'')='1' THEN RETURN NEW; END IF;
   IF (NEW.instruction_row_id,NEW.kode_audit,NEW.kode_temuan,NEW.nomor_urut_temuan,NEW.source_type,NEW.source_item_id,NEW.kategori,NEW.status,NEW.car_id)
     IS DISTINCT FROM (OLD.instruction_row_id,OLD.kode_audit,OLD.kode_temuan,OLD.nomor_urut_temuan,OLD.source_type,OLD.source_item_id,OLD.kategori,OLD.status,OLD.car_id)
   THEN RAISE EXCEPTION 'Identitas, kategori, status, dan relasi Temuan dikelola sistem dan tidak dapat diubah'; END IF;
@@ -114,33 +139,51 @@ CREATE TRIGGER set_findings_updated_at BEFORE UPDATE ON public.findings FOR EACH
 CREATE TRIGGER set_clause_keyword_map_updated_at BEFORE UPDATE ON public.clause_keyword_map FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 CREATE FUNCTION public.sync_system_finding() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_id uuid;
+DECLARE v_id uuid; v_previous_sync text;
 BEGIN
- IF current_setting('certitrack.finding_sync',true)='1' THEN RETURN NEW; END IF;
+ IF COALESCE(current_setting('certitrack.finding_sync',true),'')='1' THEN RETURN NEW; END IF;
  IF (TG_OP='INSERT' AND NEW.finding_id IS NOT NULL) OR (TG_OP='UPDATE' AND NEW.finding_id IS DISTINCT FROM OLD.finding_id) THEN RAISE EXCEPTION 'finding_id dikelola otomatis oleh sistem'; END IF;
  IF NEW.hasil IN ('A','B','C') AND COALESCE(btrim(NEW.komentar_auditor),'')='' THEN RAISE EXCEPTION 'Catatan Auditor wajib diisi untuk hasil A, B, atau C'; END IF;
  v_id:=public.sync_checklist_finding('ChecklistSistem',NEW.id,CASE WHEN NEW.hasil IN ('A','B','C') THEN NEW.hasil END);
- PERFORM set_config('certitrack.finding_sync','1',true); UPDATE public.checklist_items SET finding_id=v_id WHERE id=NEW.id; RETURN NEW;
+ IF NEW.finding_id IS DISTINCT FROM v_id THEN
+   v_previous_sync:=current_setting('certitrack.finding_sync',true); PERFORM set_config('certitrack.finding_sync','1',true);
+   BEGIN UPDATE public.checklist_items SET finding_id=v_id WHERE id=NEW.id;
+   EXCEPTION WHEN OTHERS THEN PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true); RAISE; END;
+   PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+ END IF;
+ RETURN NEW;
 END $$;
 CREATE FUNCTION public.sync_manufacturing_finding() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_id uuid;
+DECLARE v_id uuid; v_previous_sync text;
 BEGIN
- IF current_setting('certitrack.finding_sync',true)='1' THEN RETURN NEW; END IF;
+ IF COALESCE(current_setting('certitrack.finding_sync',true),'')='1' THEN RETURN NEW; END IF;
  IF (TG_OP='INSERT' AND NEW.finding_id IS NOT NULL) OR (TG_OP='UPDATE' AND NEW.finding_id IS DISTINCT FROM OLD.finding_id) THEN RAISE EXCEPTION 'finding_id dikelola otomatis oleh sistem'; END IF;
  IF NEW.hasil IN ('A','B','C') AND COALESCE(btrim(NEW.hasil_pengamatan),'')='' THEN RAISE EXCEPTION 'Hasil Pengamatan wajib diisi untuk hasil A, B, atau C'; END IF;
  v_id:=public.sync_checklist_finding('ChecklistManufakturShift',NEW.id,CASE WHEN NEW.hasil IN ('A','B','C') THEN NEW.hasil END);
- PERFORM set_config('certitrack.finding_sync','1',true); UPDATE public.checklist_manufaktur_items SET finding_id=v_id WHERE id=NEW.id; RETURN NEW;
+ IF NEW.finding_id IS DISTINCT FROM v_id THEN
+   v_previous_sync:=current_setting('certitrack.finding_sync',true); PERFORM set_config('certitrack.finding_sync','1',true);
+   BEGIN UPDATE public.checklist_manufaktur_items SET finding_id=v_id WHERE id=NEW.id;
+   EXCEPTION WHEN OTHERS THEN PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true); RAISE; END;
+   PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+ END IF;
+ RETURN NEW;
 END $$;
 CREATE FUNCTION public.sync_product_finding() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_id uuid;
+DECLARE v_id uuid; v_previous_sync text; v_desired_category text;
 BEGIN
- IF current_setting('certitrack.finding_sync',true)='1' THEN RETURN NEW; END IF;
+ IF COALESCE(current_setting('certitrack.finding_sync',true),'')='1' THEN RETURN NEW; END IF;
  IF (TG_OP='INSERT' AND NEW.finding_id IS NOT NULL) OR (TG_OP='UPDATE' AND NEW.finding_id IS DISTINCT FROM OLD.finding_id) THEN RAISE EXCEPTION 'finding_id dikelola otomatis oleh sistem'; END IF;
  IF NEW.judgment='NG' AND COALESCE(btrim(NEW.hasil_pemeriksaan),'')='' THEN RAISE EXCEPTION 'Hasil Pemeriksaan wajib diisi untuk judgment NG'; END IF;
  IF NEW.judgment='NG' AND NEW.finding_kategori IS NULL THEN RAISE EXCEPTION 'Kategori Temuan wajib dipilih untuk judgment NG'; END IF;
- IF NEW.judgment IS DISTINCT FROM 'NG' THEN NEW.finding_kategori:=NULL; UPDATE public.checklist_produk_items SET finding_kategori=NULL WHERE id=NEW.id; END IF;
- v_id:=public.sync_checklist_finding('ChecklistProduk',NEW.id,CASE WHEN NEW.judgment='NG' THEN NEW.finding_kategori END);
- PERFORM set_config('certitrack.finding_sync','1',true); UPDATE public.checklist_produk_items SET finding_id=v_id,finding_kategori=CASE WHEN NEW.judgment='NG' THEN NEW.finding_kategori END WHERE id=NEW.id; RETURN NEW;
+ v_desired_category:=CASE WHEN NEW.judgment='NG' THEN NEW.finding_kategori END;
+ v_id:=public.sync_checklist_finding('ChecklistProduk',NEW.id,v_desired_category);
+ IF NEW.finding_id IS DISTINCT FROM v_id OR NEW.finding_kategori IS DISTINCT FROM v_desired_category THEN
+   v_previous_sync:=current_setting('certitrack.finding_sync',true); PERFORM set_config('certitrack.finding_sync','1',true);
+   BEGIN UPDATE public.checklist_produk_items SET finding_id=v_id,finding_kategori=v_desired_category WHERE id=NEW.id;
+   EXCEPTION WHEN OTHERS THEN PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true); RAISE; END;
+   PERFORM set_config('certitrack.finding_sync',COALESCE(v_previous_sync,''),true);
+ END IF;
+ RETURN NEW;
 END $$;
 
 CREATE TRIGGER trg_sync_system_finding AFTER INSERT OR UPDATE ON public.checklist_items FOR EACH ROW EXECUTE FUNCTION public.sync_system_finding();

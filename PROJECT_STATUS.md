@@ -900,6 +900,13 @@ diff checks pass. ESLint remains at the verified repository baseline of 26 error
 no new Batch 6a lint regression. The protected Batch 5d migrations and nested `project/` snapshot are
 unchanged.
 
+Pre-staging correction review now clears source Finding links before deleting an empty formal Finding,
+restores the internal synchronization flag after every guarded mutation (including exception paths),
+and removes the Product AFTER-trigger recursion path. This preserves per-row database authority for
+multi-row statements. Temuan context now includes target sections only, checks every required context
+query error, and the detail workspace exposes load failures instead of retaining an infinite spinner.
+The Batch 6a migration remains unapplied; runtime scenarios remain pending after PR review.
+
 ---
 
 ## Batch 6b — Pelaksanaan
