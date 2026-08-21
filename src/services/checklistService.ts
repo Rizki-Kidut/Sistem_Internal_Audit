@@ -144,6 +144,9 @@ export async function saveItem(item: Partial<ChecklistItem>): Promise<ChecklistI
       pertanyaan_utama: 'Pertanyaan Utama', metode_verifikasi: 'Metode Verifikasi',
     },
   );
+  if (item.hasil && ['A', 'B', 'C'].includes(item.hasil) && !item.komentar_auditor?.trim()) {
+    throw new Error('Catatan Auditor wajib diisi untuk hasil A, B, atau C');
+  }
   const payload = {
     checklist_id: item.checklist_id,
     bank_item_id: item.bank_item_id ?? null,
@@ -156,7 +159,6 @@ export async function saveItem(item: Partial<ChecklistItem>): Promise<ChecklistI
     metode_verifikasi: item.metode_verifikasi ?? METODE_VERIFIKASI.OBSERVISI,
     hasil: item.hasil ?? null,
     komentar_auditor: item.komentar_auditor ?? null,
-    finding_id: item.finding_id ?? null,
   };
   if (item.id) {
     const { data, error } = await supabase
@@ -245,7 +247,6 @@ export async function createChecklistFromRow(
       metode_verifikasi: b.metode_verifikasi_default,
       hasil: null,
       komentar_auditor: null,
-      finding_id: null,
     }));
     const { error: insertErr } = await supabase
       .from('checklist_items')

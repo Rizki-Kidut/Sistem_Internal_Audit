@@ -665,8 +665,9 @@ function ItemEditForm({ item, onChange }: ItemEditFormProps) {
         </Field>
       </div>
 
-      <Field label="Komentar Auditor">
+      <Field label={`Catatan Auditor / Ringkasan Temuan${form.hasil && ['A', 'B', 'C'].includes(form.hasil) ? ' *' : ''}`}>
         <Textarea value={form.komentar_auditor ?? ''} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => update('komentar_auditor', e.target.value || null)} rows={2} />
+        <p className="text-xs text-gray-500 mt-1">Tulis observasi singkat dari hasil audit. Detail formal PLOR diisi pada menu Temuan (PLOR).</p>
       </Field>
 
       <div>

@@ -840,7 +840,7 @@ bank question text remains intentionally incomplete.
 
 ## Batch 5d — Agenda Internal Audit
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 Implemented as a central, QA-row-backed workspace with one Agenda per Instruction row, live
 Instruction/section/manager/Annual Team roster context, Agenda-owned document fields, manual timeline,
@@ -870,23 +870,35 @@ uses local multi-row Timeline editing with one Add button, and the complete Draf
 saved atomically by the new additive migration. Corrected browser smoke and additive migration runtime
 verification remain pending.
 
-Remaining verification: apply only the additive atomic-save migration on CertiTrack-Staging,
-runtime-check its RPC/rollback behavior, and repeat corrected central-workspace browser smoke. The new
-additive migration was intentionally not applied during this implementation task. Batch 6 and later
-remain `NOT_STARTED`.
+Rekonsiliasi setelah PR #5 digabung: migration Agenda dasar telah diterapkan, Security Advisor
+melaporkan 0 temuan, dan runtime dasar lulus 22/22. Migration atomic-save diterapkan sebagai registry
+`20260821060833 add_atomic_agenda_draft_save` dan runtime atomic save lulus 12/12. Corrected browser
+smoke lulus; workspace Agenda pusat, Timeline fleksibel, satu aksi Tambah Kegiatan, dan Simpan Agenda
+atomik telah diverifikasi. Shortcut Checklist/Agenda dari Instruksi telah dihapus. PR #5 merged.
 
 ---
 
 ## Batch 6a — Temuan / PLOR
 
-**Status:** `NOT_STARTED`
+**Status:** `IMPLEMENTED_UNVERIFIED`
 
-Scaffolding exists only in the form of:
+Implemented additive `findings` and `clause_keyword_map` schema, Product Finding linkage/category,
+database-authoritative source triggers for System/Product/Manufacturing-Shift, per-QA locked sequence,
+idempotent category synchronization, safe empty cancellation, PLOR loss/delete/tamper guards, RLS,
+central types/constants/helpers/service, narrative formatter, clause suggestions, central Temuan
+worklist/detail editor, source-note separation, Checklist note validation, and Product NG category UI.
+No legacy Jadwal tables are written and no Batch 6b+ feature is included.
 
-- finding category constants
-- `finding_id` placeholder fields
+Remaining verification after review: migration apply, Security Advisor, System/Manufacturing/Product
+trigger runtime, numbering and concurrency, idempotence, Finding cancellation, PLOR loss guard, source
+note requirements, source delete guard, `finding_id` tamper, RLS, clause suggestion, Temuan browser
+workflow, Checklist Finding badge, and zero legacy writes. Migration is intentionally not applied in
+this implementation task.
 
-No Finding/PLOR model, service, trigger, narrative formatter, or Temuan page implementation was found.
+Static validation on the Batch 6a branch: TypeScript typecheck and production build pass; whitespace
+diff checks pass. ESLint remains at the verified repository baseline of 26 errors and 0 warnings, with
+no new Batch 6a lint regression. The protected Batch 5d migrations and nested `project/` snapshot are
+unchanged.
 
 ---
 

@@ -482,9 +482,31 @@ export interface ChecklistProdukItem {
   jumlah_sampel: number | null;
   hasil_pemeriksaan: string | null;
   judgment: JudgmentProduk | null;
+  finding_id: string | null;
+  finding_kategori: import('./enums').KategoriTemuan | null;
   urutan_tampil: number;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================================
+// BATCH 6a: TEMUAN / PLOR FORMAL
+// ============================================================
+import type { FindingSourceType, FindingStatus, KlasifikasiDIS, KategoriTemuan } from './enums';
+export interface Finding {
+  id: string; instruction_row_id: string; kode_audit: string; kode_temuan: string;
+  nomor_urut_temuan: number; source_type: FindingSourceType; source_item_id: string;
+  kategori: KategoriTemuan; klasifikasi_dis: KlasifikasiDIS | null;
+  problem: string | null; location: string | null; objective_evidence: string | null;
+  reference: string | null; saran_perbaikan: string | null; auditor_penemu_id: string | null;
+  auditee_area: string | null; tanggal_temuan: string; status: FindingStatus; car_id: string | null;
+  created_at: string; updated_at: string; auditor_penemu?: Auditor | null;
+}
+export interface ClauseKeywordMap { id: string; keyword: string; klausul: string; status: 'Aktif'|'Nonaktif'; prioritas: number; created_at: string; updated_at: string; }
+export interface FindingContext {
+  finding: Finding; row: AuditInstructionRow; instruction: AuditInstruction; proses: Proses | null;
+  sections: Seksi[]; team: AuditTeamMaster | null; source_note: string | null;
+  source_reference: string | null; source_details: Record<string, string | number | null>;
 }
 
 export type { ChecklistManufakturStatus } from './enums';
