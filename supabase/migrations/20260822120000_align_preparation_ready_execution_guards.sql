@@ -31,6 +31,7 @@ AS $$
 DECLARE
   v_old_status text;
   v_new_status text;
+  v_finding_sync boolean := COALESCE(current_setting('certitrack.finding_sync', true), '') = '1';
 BEGIN
   IF TG_OP IN ('UPDATE', 'DELETE') THEN
     SELECT c.status INTO v_old_status
@@ -45,7 +46,25 @@ BEGIN
     WHERE f.id = NEW.fase_id;
   END IF;
 
-  IF TG_OP = 'INSERT' AND v_new_status = 'Selesai' THEN
+  IF TG_OP = 'UPDATE' AND v_finding_sync THEN
+    IF (to_jsonb(NEW) - ARRAY['finding_id','finding_kategori','updated_at'])
+      IS DISTINCT FROM
+        (to_jsonb(OLD) - ARRAY['finding_id','finding_kategori','updated_at']) THEN
+      RAISE EXCEPTION 'Sinkronisasi Temuan Produk hanya boleh mengubah relasi Temuan.';
+    END IF;
+  ELSIF TG_OP = 'INSERT' AND v_new_status = 'Draft'
+    AND (NEW.jumlah_sampel IS NOT NULL
+      OR NEW.hasil_pemeriksaan IS NOT NULL
+      OR NEW.judgment IS NOT NULL
+      OR NEW.finding_kategori IS NOT NULL
+      OR NEW.finding_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Checklist Produk masih Draft. Hasil pelaksanaan hanya dapat diisi setelah Checklist Siap Pelaksanaan.';
+  ELSIF TG_OP = 'UPDATE' AND v_old_status = 'Draft' AND v_new_status = 'Draft'
+    AND (NEW.jumlah_sampel, NEW.hasil_pemeriksaan, NEW.judgment, NEW.finding_kategori)
+      IS DISTINCT FROM
+        (OLD.jumlah_sampel, OLD.hasil_pemeriksaan, OLD.judgment, OLD.finding_kategori) THEN
+    RAISE EXCEPTION 'Checklist Produk masih Draft. Hasil pelaksanaan hanya dapat diisi setelah Checklist Siap Pelaksanaan.';
+  ELSIF TG_OP = 'INSERT' AND v_new_status = 'Selesai' THEN
     RAISE EXCEPTION 'Checklist Produk sudah siap untuk pelaksanaan. Kembalikan ke Draft sebelum menambah struktur persiapan.';
   ELSIF TG_OP = 'DELETE' AND v_old_status = 'Selesai' THEN
     RAISE EXCEPTION 'Checklist Produk sudah siap untuk pelaksanaan. Kembalikan ke Draft sebelum menghapus struktur persiapan.';
@@ -69,6 +88,7 @@ AS $$
 DECLARE
   v_old_status text;
   v_new_status text;
+  v_finding_sync boolean := COALESCE(current_setting('certitrack.finding_sync', true), '') = '1';
 BEGIN
   IF TG_OP IN ('UPDATE', 'DELETE') THEN
     SELECT status INTO v_old_status FROM public.checklist_manufaktur_shift WHERE id = OLD.checklist_id;
@@ -77,7 +97,21 @@ BEGIN
     SELECT status INTO v_new_status FROM public.checklist_manufaktur_shift WHERE id = NEW.checklist_id;
   END IF;
 
-  IF TG_OP = 'INSERT' AND v_new_status = 'Selesai' THEN
+  IF TG_OP = 'UPDATE' AND v_finding_sync THEN
+    IF (to_jsonb(NEW) - ARRAY['finding_id','updated_at'])
+      IS DISTINCT FROM
+        (to_jsonb(OLD) - ARRAY['finding_id','updated_at']) THEN
+      RAISE EXCEPTION 'Sinkronisasi Temuan Manufaktur/Shift hanya boleh mengubah relasi Temuan.';
+    END IF;
+  ELSIF TG_OP = 'INSERT' AND v_new_status = 'Draft'
+    AND (NEW.hasil_pengamatan IS NOT NULL OR NEW.hasil IS NOT NULL OR NEW.finding_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Checklist Manufaktur/Shift masih Draft. Hasil pelaksanaan hanya dapat diisi setelah Checklist Siap Pelaksanaan.';
+  ELSIF TG_OP = 'UPDATE' AND v_old_status = 'Draft' AND v_new_status = 'Draft'
+    AND (NEW.hasil_pengamatan, NEW.hasil)
+      IS DISTINCT FROM
+        (OLD.hasil_pengamatan, OLD.hasil) THEN
+    RAISE EXCEPTION 'Checklist Manufaktur/Shift masih Draft. Hasil pelaksanaan hanya dapat diisi setelah Checklist Siap Pelaksanaan.';
+  ELSIF TG_OP = 'INSERT' AND v_new_status = 'Selesai' THEN
     RAISE EXCEPTION 'Checklist Manufaktur/Shift sudah siap untuk pelaksanaan. Kembalikan ke Draft sebelum menambah struktur persiapan.';
   ELSIF TG_OP = 'DELETE' AND v_old_status = 'Selesai' THEN
     RAISE EXCEPTION 'Checklist Manufaktur/Shift sudah siap untuk pelaksanaan. Kembalikan ke Draft sebelum menghapus struktur persiapan.';
