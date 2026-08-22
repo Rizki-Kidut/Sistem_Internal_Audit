@@ -1,5 +1,35 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+- [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
+      missing/inactive-profile gates, and protection against protected-content flash.
+- [x] Added one-identity-per-account profiles for Admin, Auditor, Auditee, and Section Manager; Auditor
+      identities link to the existing temporary Training proxy `auditors` master rather than duplicating it.
+- [x] Added validated Auditee/Manager section assignments, role-aware navigation, central page access,
+      and restricted authenticated landing behavior for Auditee.
+- [x] Added additive RLS hardening for anonymous rejection, Admin global access, Auditor Team ownership,
+      Manager target-section Agenda visibility, direct-record isolation, execution-only Auditor updates,
+      PLOR isolation, read-only Agenda access, and private Product evidence scoping.
+- [x] Existing Finding synchronization, final execution lock, and public completion/reopen/blocker RPC
+      architecture are retained; the three Batch 6b RPCs are explicitly kept `SECURITY INVOKER`.
+- [x] Added `AUTH_IDENTITY_SETUP.md` with trusted bootstrap, separate-persona provisioning, mappings,
+      future LTP contract, and a runtime/RLS verification plan. No credentials or Auth users are included.
+- [ ] Runtime Supabase, Staging, browser, Team-isolation, and Storage signed-URL verification remain pending.
+      No migration was applied and no Staging account/data was created in this implementation pass.
+- [x] Static validation passed for `npm run typecheck`, `npm run build`, and diff whitespace checks.
+      Repository-wide lint remains at the pre-existing unused-symbol baseline: 24 errors and zero
+      warnings; the Batch 7.0 changed files add no lint finding. A browser screenshot could not be
+      produced because this environment has neither configured Supabase frontend variables nor an
+      installed browser runtime.
+
+New migrations: `20260823010000_create_identity_access_foundation.sql` and
+`20260823020000_enforce_identity_scoped_audit_access.sql`. Batch 7 LTP/CAR, notifications, Agenda
+approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
+out of scope. The local `auditors` table remains a compatibility proxy pending the real Training adapter.
+
 ## Annual Team Audit Refinement — 20 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE`

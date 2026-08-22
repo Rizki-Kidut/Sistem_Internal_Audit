@@ -1,5 +1,7 @@
 import { type ReactNode } from 'react';
-import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow, Factory } from 'lucide-react';
+import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow, Factory, LogOut } from 'lucide-react';
+import type { UserProfile } from '../../lib/auth';
+import { allowedPages } from '../../lib/auth';
 
 export type PageId =
   | 'kalibrasi'
@@ -60,12 +62,15 @@ const navItems: NavItem[] = [
 interface SidebarProps {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
+  profile: UserProfile;
+  onLogout: () => void;
 }
 
-export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, profile, onLogout }: SidebarProps) {
   // Kelompokkan item berdasarkan group
   const groups: { group: string; items: NavItem[] }[] = [];
-  for (const item of navItems) {
+  const visiblePages = allowedPages(profile.identity_type);
+  for (const item of navItems.filter(item => visiblePages.includes(item.id))) {
     const groupName = item.group ?? 'Lainnya';
     let g = groups.find((g) => g.group === groupName);
     if (!g) {
@@ -126,8 +131,9 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-blue-700 text-xs text-blue-200">
-        <p>Internal QMS Application</p>
-        <p className="mt-1">Batch 1 — Rencana & Checklist</p>
+        <p className="font-semibold text-white truncate">{profile.display_name}</p>
+        <p className="mt-1">{profile.identity_type}</p>
+        <button onClick={onLogout} className="mt-3 flex items-center gap-2 text-blue-100 hover:text-white"><LogOut size={14}/> Logout</button>
       </div>
     </aside>
   );
