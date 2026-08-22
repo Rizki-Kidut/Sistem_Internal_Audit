@@ -1,0 +1,174 @@
+-- Batch 6b: authoritative, QA-based audit execution completion.
+-- This migration intentionally has no dependency on or write to legacy Jadwal tables.
+
+CREATE FUNCTION public.audit_execution_blockers(p_row_id uuid)
+RETURNS text[]
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE v_row public.audit_instruction_rows%ROWTYPE; v_messages text[] := ARRAY[]::text[]; v_count integer; v_item record; v_f public.findings%ROWTYPE;
+BEGIN
+  SELECT * INTO v_row FROM public.audit_instruction_rows WHERE id=p_row_id;
+  IF NOT FOUND THEN RETURN ARRAY['Audit belum dapat diselesaikan. Baris Instruksi Audit tidak ditemukan.']; END IF;
+
+  IF v_row.tipe_baris='Reguler' THEN
+    SELECT count(*) INTO v_count FROM public.checklists WHERE row_id=p_row_id;
+    IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Sistem belum dibuat.');
+    ELSE
+      SELECT count(*) INTO v_count FROM public.checklist_items i JOIN public.checklists c ON c.id=i.checklist_id WHERE c.row_id=p_row_id;
+      IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Sistem belum memiliki item.'); END IF;
+      FOR v_item IN SELECT i.id,i.pertanyaan_utama AS label,i.hasil,i.finding_id FROM public.checklist_items i JOIN public.checklists c ON c.id=i.checklist_id WHERE c.row_id=p_row_id LOOP
+        IF v_item.hasil IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Checklist %L belum dievaluasi.',v_item.label));
+        ELSIF v_item.hasil IN ('A','B','C') AND v_item.finding_id IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Checklist %L kategori %s belum memiliki Temuan terhubung.',v_item.label,v_item.hasil)); END IF;
+      END LOOP;
+    END IF;
+  ELSIF v_row.tipe_baris='AuditProduk' THEN
+    SELECT count(*) INTO v_count FROM public.checklist_produk WHERE row_id=p_row_id;
+    IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Produk belum dibuat.');
+    ELSE
+      IF EXISTS(SELECT 1 FROM public.checklist_produk WHERE row_id=p_row_id AND status<>'Selesai') THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Produk belum ditandai Selesai.'); END IF;
+      SELECT count(*) INTO v_count FROM public.checklist_produk_items i JOIN public.checklist_produk_fase f ON f.id=i.fase_id JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE c.row_id=p_row_id;
+      IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Produk belum memiliki item.'); END IF;
+      FOR v_item IN SELECT i.id,i.item_pemeriksaan AS label,i.judgment,i.finding_kategori,i.finding_id FROM public.checklist_produk_items i JOIN public.checklist_produk_fase f ON f.id=i.fase_id JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE c.row_id=p_row_id LOOP
+        IF v_item.judgment IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Produk %L belum dinilai.',v_item.label));
+        ELSIF v_item.judgment='NG' AND (v_item.finding_kategori IS NULL OR v_item.finding_id IS NULL) THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Produk %L berstatus NG tetapi kategori/Temuan belum lengkap.',v_item.label)); END IF;
+      END LOOP;
+    END IF;
+  ELSE
+    SELECT count(*) INTO v_count FROM public.checklist_manufaktur_shift WHERE row_id=p_row_id;
+    IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Manufaktur/Shift belum dibuat.');
+    ELSE
+      IF EXISTS(SELECT 1 FROM public.checklist_manufaktur_shift WHERE row_id=p_row_id AND status<>'Selesai') THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Manufaktur/Shift belum ditandai Selesai.'); END IF;
+      SELECT count(*) INTO v_count FROM public.checklist_manufaktur_items i JOIN public.checklist_manufaktur_shift c ON c.id=i.checklist_id WHERE c.row_id=p_row_id;
+      IF v_count=0 THEN v_messages:=array_append(v_messages,'Audit belum dapat diselesaikan. Checklist Manufaktur/Shift belum memiliki item.'); END IF;
+      FOR v_item IN SELECT i.id,COALESCE(b.item_pemeriksaan,i.no_proses_dicek,'Tanpa nama') AS label,i.hasil,i.finding_id FROM public.checklist_manufaktur_items i JOIN public.checklist_manufaktur_shift c ON c.id=i.checklist_id LEFT JOIN public.checklist_manufaktur_bank_items b ON b.id=i.bank_item_id WHERE c.row_id=p_row_id LOOP
+        IF v_item.hasil IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Manufaktur/Shift %L belum dievaluasi.',v_item.label));
+        ELSIF v_item.hasil IN ('A','B','C') AND v_item.finding_id IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Item Manufaktur/Shift %L kategori %s belum memiliki Temuan terhubung.',v_item.label,v_item.hasil)); END IF;
+      END LOOP;
+    END IF;
+  END IF;
+
+  FOR v_f IN SELECT * FROM public.findings WHERE instruction_row_id=p_row_id ORDER BY kode_temuan LOOP
+    IF COALESCE(btrim(v_f.problem),'')='' THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s belum memiliki Problem.',v_f.kode_temuan)); END IF;
+    IF COALESCE(btrim(v_f.location),'')='' THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s belum memiliki Location.',v_f.kode_temuan)); END IF;
+    IF COALESCE(btrim(v_f.objective_evidence),'')='' THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s belum memiliki Objective Evidence.',v_f.kode_temuan)); END IF;
+    IF v_f.auditor_penemu_id IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s belum memiliki Auditor Penemu.',v_f.kode_temuan)); END IF;
+    IF v_f.tanggal_temuan IS NULL THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s belum memiliki Tanggal Temuan.',v_f.kode_temuan)); END IF;
+    IF v_f.kategori='C' AND COALESCE(btrim(v_f.saran_perbaikan),'')='' THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s kategori C belum memiliki Saran Perbaikan.',v_f.kode_temuan));
+    ELSIF v_f.kategori IN ('A','B') AND COALESCE(btrim(v_f.reference),'')='' THEN v_messages:=array_append(v_messages,format('Audit belum dapat diselesaikan. Temuan %s kategori %s belum memiliki Reference.',v_f.kode_temuan,v_f.kategori)); END IF;
+  END LOOP;
+  RETURN v_messages;
+END $$;
+
+CREATE FUNCTION public.protect_audit_execution_completion() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF NEW.cek_selesai IS DISTINCT FROM OLD.cek_selesai AND COALESCE(current_setting('certitrack.execution_completion',true),'')<>'1' THEN
+    RAISE EXCEPTION 'Status selesai dikelola melalui Pelaksanaan Audit.';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_protect_audit_execution_completion BEFORE UPDATE OF cek_selesai ON public.audit_instruction_rows FOR EACH ROW EXECUTE FUNCTION public.protect_audit_execution_completion();
+
+CREATE FUNCTION public.protect_completed_audit_checklist_source() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE v_old_row_id uuid; v_new_row_id uuid;
+BEGIN
+  CASE TG_TABLE_NAME
+    WHEN 'checklists' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklists c WHERE c.id=OLD.checklist_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklists c WHERE c.id=NEW.checklist_id; END IF;
+    WHEN 'checklist_produk' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_produk_fase' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_produk c WHERE c.id=OLD.checklist_produk_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_produk c WHERE c.id=NEW.checklist_produk_id; END IF;
+    WHEN 'checklist_produk_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=OLD.fase_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=NEW.fase_id; END IF;
+    WHEN 'checklist_manufaktur_shift' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_manufaktur_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=OLD.checklist_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=NEW.checklist_id; END IF;
+    ELSE RAISE EXCEPTION 'Sumber Checklist tidak dikenali.';
+  END CASE;
+  IF EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id IN (v_old_row_id,v_new_row_id) AND r.cek_selesai) THEN
+    RAISE EXCEPTION 'Pelaksanaan audit ini sudah selesai. Buka kembali Pelaksanaan Audit sebelum mengubah Checklist.';
+  END IF;
+  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER trg_lock_completed_system_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklists FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_system_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_phase BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_fase FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_product_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_manufacturing_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_shift FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+CREATE TRIGGER trg_lock_completed_manufacturing_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+
+CREATE FUNCTION public.protect_completed_audit_plor() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF (NEW.problem,NEW.location,NEW.objective_evidence,NEW.reference,NEW.saran_perbaikan,
+      NEW.auditor_penemu_id,NEW.auditee_area,NEW.tanggal_temuan,NEW.klasifikasi_dis)
+     IS DISTINCT FROM
+     (OLD.problem,OLD.location,OLD.objective_evidence,OLD.reference,OLD.saran_perbaikan,
+      OLD.auditor_penemu_id,OLD.auditee_area,OLD.tanggal_temuan,OLD.klasifikasi_dis)
+     AND EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id=OLD.instruction_row_id AND r.cek_selesai)
+  THEN
+    RAISE EXCEPTION 'Pelaksanaan audit ini sudah selesai. Buka kembali Pelaksanaan Audit sebelum mengubah PLOR.';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_protect_completed_audit_plor BEFORE UPDATE ON public.findings FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_plor();
+
+CREATE FUNCTION public.complete_audit_execution(p_row_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE v_messages text[]; v_previous_guard text;
+BEGIN
+  PERFORM 1 FROM public.audit_instruction_rows WHERE id=p_row_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Audit belum dapat diselesaikan. Baris Instruksi Audit tidak ditemukan.'; END IF;
+  v_messages:=public.audit_execution_blockers(p_row_id);
+  IF cardinality(v_messages)>0 THEN RAISE EXCEPTION '%',array_to_string(v_messages,E'\n'); END IF;
+  v_previous_guard:=COALESCE(current_setting('certitrack.execution_completion',true),'');
+  BEGIN
+    PERFORM set_config('certitrack.execution_completion','1',true);
+    UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id=p_row_id;
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+    RAISE;
+  END;
+END $$;
+
+CREATE FUNCTION public.reopen_audit_execution(p_row_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE v_previous_guard text;
+BEGIN
+  PERFORM 1 FROM public.audit_instruction_rows WHERE id=p_row_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Pelaksanaan Audit tidak ditemukan.'; END IF;
+  v_previous_guard:=COALESCE(current_setting('certitrack.execution_completion',true),'');
+  BEGIN
+    PERFORM set_config('certitrack.execution_completion','1',true);
+    UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id=p_row_id;
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM set_config('certitrack.execution_completion',v_previous_guard,true);
+    RAISE;
+  END;
+END $$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION public.audit_execution_blockers(uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_audit_execution_completion() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_completed_audit_checklist_source() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_completed_audit_plor() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.complete_audit_execution(uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.reopen_audit_execution(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_audit_execution(uuid) TO anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.reopen_audit_execution(uuid) TO anon,authenticated;

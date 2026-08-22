@@ -382,9 +382,18 @@ export interface AuditTeamMaster {
 
 export type RowStatusProgress = StatusProgress;
 
-export function computeStatusProgress(row: AuditInstructionRow): RowStatusProgress {
-  void row;
-  return 'Belum Mulai';
+export interface AuditExecutionCounter { O: number; A: number; B: number; C: number; evaluated: number; total: number; }
+export interface AuditExecutionFindingSummary { id: string; source_item_id: string; kode_temuan: string; kategori: KategoriTemuan; plor_complete: boolean; }
+export interface AuditExecutionSummary {
+  row: AuditInstructionRow; proses: Proses | null; team: AuditTeamMaster | null;
+  counter: AuditExecutionCounter; checklist_exists: boolean; checklist_complete: boolean;
+  status_progress: RowStatusProgress; findings: AuditExecutionFindingSummary[];
+}
+
+export function computeStatusProgress(input: Pick<AuditExecutionSummary, 'checklist_exists'|'checklist_complete'|'counter'>): RowStatusProgress {
+  if (!input.checklist_exists || input.counter.evaluated === 0) return 'Belum Mulai';
+  if (input.counter.A > 0 || input.counter.B > 0) return 'Ada NC';
+  return input.checklist_complete ? 'Tidak Ada NC' : 'Berjalan';
 }
 
 // ============================================================

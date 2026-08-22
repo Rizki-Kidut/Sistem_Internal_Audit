@@ -275,6 +275,9 @@ export const KODE_DOKUMEN_INSTRUCTION = 'Q-120-ISE-001-FORM-003';
 
 export const STATUS_PROGRESS = {
   BELUM_MULAI: 'Belum Mulai',
+  BERJALAN: 'Berjalan',
+  ADA_NC: 'Ada NC',
+  TIDAK_ADA_NC: 'Tidak Ada NC',
 } as const;
 export type StatusProgress = (typeof STATUS_PROGRESS)[keyof typeof STATUS_PROGRESS];
 

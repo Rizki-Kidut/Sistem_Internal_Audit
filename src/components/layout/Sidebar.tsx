@@ -10,6 +10,7 @@ export type PageId =
   | 'plant-admin'
   | 'checklist'
   | 'agenda'
+  | 'pelaksanaan'
   | 'temuan'
   | 'car'
   | 'ketidaksesuaian'
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { id: 'instruksi-audit', label: 'Instruksi Internal Audit', icon: <FileCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'checklist', label: 'Checklist Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'agenda', label: 'Agenda Internal Audit', icon: <ClipboardList size={18} />, group: 'Pelaksanaan Internal Audit' },
+  { id: 'pelaksanaan', label: 'Pelaksanaan Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'temuan', label: 'Temuan (PLOR)', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'car', label: 'CAR Tracker', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },

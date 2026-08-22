@@ -16,7 +16,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Modal } from '../../ui/Modal';
 
-interface Props { row: AuditInstructionRow; readOnly: boolean; onError: (message: string) => void }
+interface Props { row: AuditInstructionRow; readOnly: boolean; onError: (message: string) => void; onChanged?: () => void | Promise<void> }
 type DeleteTarget = { type: 'checklist' | 'phase' | 'item'; id: string; label: string } | null;
 
 const emptyPhase = (checklistId: string): ChecklistProdukFase => ({
@@ -32,7 +32,7 @@ const emptyItem = (phaseId: string): ChecklistProdukItem => ({
 });
 const displaySize = (size: number) => size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`;
 
-export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
+export function ProductChecklistPanel({ row, readOnly, onError, onChanged }: Props) {
   const [checklists, setChecklists] = useState<ChecklistProduk[]>([]);
   const [active, setActive] = useState<ChecklistProduk | null>(null);
   const [phases, setPhases] = useState<ChecklistProdukFase[]>([]);
@@ -79,7 +79,7 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
 
   async function createChecklist() {
     setSaving(true);
-    try { const created = await createProductChecklistFromRow(row); await loadList(); setActive(created); }
+    try { const created = await createProductChecklistFromRow(row); await loadList(); setActive(created); await onChanged?.(); }
     catch (error) { fail(error, 'Gagal membuat Checklist Audit Produk'); }
     finally { setSaving(false); }
   }
@@ -89,7 +89,7 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
     setSaving(true);
     try {
       const saved = await saveProductChecklist(next);
-      setActive(saved); setEditingHeader(false); await loadList();
+      setActive(saved); setEditingHeader(false); await loadList(); await onChanged?.();
     } catch (error) { fail(error, 'Gagal menyimpan header'); }
     finally { setSaving(false); }
   }
@@ -101,13 +101,13 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
 
   async function savePhase() {
     if (!phaseForm || !active) return;
-    try { await saveProductPhase({ ...phaseForm, checklist_produk_id: active.id }); setPhaseForm(null); await loadDetails(active); }
+    try { await saveProductPhase({ ...phaseForm, checklist_produk_id: active.id }); setPhaseForm(null); await loadDetails(active); await onChanged?.(); }
     catch (error) { fail(error, 'Gagal menyimpan fase'); }
   }
 
   async function saveItem() {
     if (!itemForm || !active) return;
-    try { await saveProductItem(itemForm); setItemSaveError(null); onError(''); setItemForm(null); await loadDetails(active); }
+    try { await saveProductItem(itemForm); setItemSaveError(null); onError(''); setItemForm(null); await loadDetails(active); await onChanged?.(); }
     catch (error) { setItemSaveError(error instanceof Error?error.message:'Gagal menyimpan item');fail(error, 'Gagal menyimpan item'); }
   }
 
@@ -118,18 +118,19 @@ export function ProductChecklistPanel({ row, readOnly, onError }: Props) {
       if (deleteTarget.type === 'phase' && active) { await deleteProductPhase(deleteTarget.id); await loadDetails(active); }
       if (deleteTarget.type === 'item' && active) { await deleteProductItem(deleteTarget.id); await loadDetails(active); }
       setDeleteTarget(null);
+      await onChanged?.();
     } catch (error) { fail(error, 'Gagal menghapus data'); }
   }
 
   async function upload(phase: ChecklistProdukFase, file?: File) {
     if (!active || !file) return;
-    try { await uploadProductEvidence(active.id, phase.id, file); await loadDetails(active); }
+    try { await uploadProductEvidence(active.id, phase.id, file); await loadDetails(active); await onChanged?.(); }
     catch (error) { fail(error, 'Gagal mengunggah dokumen bukti'); }
   }
 
   async function removeEvidence(phase: ChecklistProdukFase, evidence: ProductChecklistEvidence) {
     if (!active) return;
-    try { await deleteProductEvidence(phase, evidence); await loadDetails(active); }
+    try { await deleteProductEvidence(phase, evidence); await loadDetails(active); await onChanged?.(); }
     catch (error) { fail(error, 'Gagal menghapus dokumen bukti'); }
   }
 

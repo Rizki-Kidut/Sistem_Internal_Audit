@@ -8,10 +8,9 @@ import type {
   Plant, TargetModel, Shift,
   SeksiMark,
 } from '../../../lib/types';
-import { computeStatusProgress } from '../../../lib/types';
 import { TIPE_BARIS_LIST, TIPE_BARIS_LABEL, TIPE_SEKSI_MARK } from '../../../lib/enums';
 import type { TipeBaris, TipeSeksiMark } from '../../../lib/enums';
-import { saveRow, saveInstructionRowWithTeam, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
+import { saveInstructionRowWithTeam, deleteRow, generateNextKodeAudit, resolvePemilikProses } from '../../../services/auditInstructionService';
 import { formatTanggal } from '../../../lib/utils';
 import { Modal } from '../../ui/Modal';
 import { Field, Input, Select, Textarea } from '../../ui/Field';
@@ -47,7 +46,6 @@ interface RowForm {
   item_lain_diperiksa: string;
   tanggal_plan_audit: string;
   tanggal_pelaksanaan_audit: string;
-  cek_selesai: boolean;
 }
 
 function emptyForm(): RowForm {
@@ -57,7 +55,6 @@ function emptyForm(): RowForm {
     matriks_produk_marks: [], matriks_manufaktur_shift_marks: [],
     tanggal_audit_produk: '', nama_auditor_produk: '', kualifikasi: '',
     item_lain_diperiksa: '', tanggal_plan_audit: '', tanggal_pelaksanaan_audit: '',
-    cek_selesai: false,
   };
 }
 
@@ -82,7 +79,6 @@ export function RowsTable({
       tanggal_audit_produk: row.tanggal_audit_produk ?? '', nama_auditor_produk: row.nama_auditor_produk ?? '',
       kualifikasi: row.kualifikasi ?? '', item_lain_diperiksa: row.item_lain_diperiksa ?? '',
       tanggal_plan_audit: row.tanggal_plan_audit ?? '', tanggal_pelaksanaan_audit: row.tanggal_pelaksanaan_audit ?? '',
-      cek_selesai: row.cek_selesai,
     });
     setEditOpen(true);
   }
@@ -114,7 +110,7 @@ export function RowsTable({
           tanggal_plan_audit: form.tanggal_plan_audit || null,
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
           catatan_justifikasi_tim: form.catatan_justifikasi_tim || null,
-          cek_selesai: form.cek_selesai,
+          cek_selesai: editingRow.cek_selesai,
         });
       } else {
         const kodeAudit = await generateNextKodeAudit(prefixNomorAudit);
@@ -128,7 +124,7 @@ export function RowsTable({
           kualifikasi: form.kualifikasi || null, item_lain_diperiksa: form.item_lain_diperiksa || null,
           tanggal_plan_audit: form.tanggal_plan_audit || null,
           tanggal_pelaksanaan_audit: form.tanggal_pelaksanaan_audit || null,
-          cek_selesai: form.cek_selesai,
+          cek_selesai: false,
         });
       }
       setEditOpen(false);
@@ -143,11 +139,6 @@ export function RowsTable({
   async function handleDelete(row: AuditInstructionRow) {
     try { await deleteRow(row.id); onReload(); }
     catch (e) { onError(e instanceof Error ? e.message : 'Gagal menghapus baris'); }
-  }
-
-  async function handleToggleCek(row: AuditInstructionRow) {
-    try { await saveRow({ ...row, cek_selesai: !row.cek_selesai }); onReload(); }
-    catch (e) { onError(e instanceof Error ? e.message : 'Gagal update cek selesai'); }
   }
 
   // Seksi mark helpers
@@ -351,8 +342,6 @@ export function RowsTable({
             <tbody className="divide-y divide-gray-100">
               {rows.map((row) => {
                 const isSpecial = row.tipe_baris !== 'Reguler';
-                const status: string = computeStatusProgress(row);
-                const statusVariant = status === 'Selesai' ? 'green' : status === 'Berjalan' ? 'blue' : 'gray';
                 return (
                   <tr key={row.id} className="hover:bg-gray-50">
                     <td className="px-2 py-2 font-mono text-xs font-medium text-gray-900 whitespace-nowrap border-r border-gray-100">{row.kode_audit}</td>
@@ -403,11 +392,11 @@ export function RowsTable({
                     <td className="px-2 py-2 text-gray-600 text-xs whitespace-nowrap border-r border-gray-100">{row.tanggal_plan_audit ? formatTanggal(row.tanggal_plan_audit) : '-'}</td>
                     <td className="px-2 py-2 text-gray-600 text-xs whitespace-nowrap border-r border-gray-100">{row.tanggal_pelaksanaan_audit ? formatTanggal(row.tanggal_pelaksanaan_audit) : '-'}</td>
                     <td className="px-2 py-2 text-center border-r border-gray-100">
-                      <button onClick={() => !readOnly && handleToggleCek(row)} disabled={readOnly} className="inline-flex" title="Cek selesai">
+                      <span className="inline-flex" title="Status ini dikelola melalui Pelaksanaan Audit">
                         {row.cek_selesai ? <CheckSquare size={16} className="text-green-600" /> : <Square size={16} className="text-gray-300" />}
-                      </button>
+                      </span>
                     </td>
-                    <td className="px-2 py-2 border-r border-gray-100"><Badge variant={statusVariant}>{status}</Badge></td>
+                    <td className="px-2 py-2 border-r border-gray-100"><Badge variant="gray">Lihat Pelaksanaan</Badge></td>
                     <td className="px-2 py-2 text-right whitespace-nowrap">
                       {!readOnly && (<>
                         <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600 mr-1" title="Edit"><Pencil size={14} /></button>
@@ -550,10 +539,7 @@ export function RowsTable({
             <Field label="Tanggal Pelaksanaan Audit"><Input type="date" value={form.tanggal_pelaksanaan_audit} onChange={(e) => setForm({ ...form, tanggal_pelaksanaan_audit: e.target.value })} /></Field>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.cek_selesai} onChange={(e) => setForm({ ...form, cek_selesai: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
-            <span className="text-sm text-gray-700">Cek Selesai</span>
-          </label>
+          {editingRow && <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">Status selesai: <strong>{editingRow.cek_selesai ? 'Selesai' : 'Belum selesai'}</strong>. Penyelesaian hanya dapat dilakukan melalui Pelaksanaan Audit.</div>}
         </div>
       </Modal>
     </div>

@@ -36,6 +36,7 @@ interface ChecklistTabProps {
   readOnly: boolean;
   onError: (msg: string) => void;
   initialSelectedRowId?: string | null;
+  onChanged?: () => void | Promise<void>;
 }
 
 const HASIL_VARIANT: Record<string, 'gray' | 'green' | 'red' | 'amber' | 'blue'> = {
@@ -91,14 +92,14 @@ export function ChecklistTab(props: ChecklistTabProps) {
     {!selectedRow && <Card className="p-12"><EmptyState icon={<ClipboardList size={40} />} title="Pilih baris audit"
       message="Pilih QA dan tipe audit untuk membuka checklist yang sesuai." /></Card>}
     {selectedRow?.tipe_baris === TIPE_BARIS.REGULER && <SystemChecklistPanel {...props} rows={[selectedRow]} hideRowSelector />}
-    {selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductChecklistPanel key={selectedRow.id} row={selectedRow} readOnly={readOnly} onError={onError} />}
+    {selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductChecklistPanel key={selectedRow.id} row={selectedRow} readOnly={readOnly} onError={onError} onChanged={props.onChanged} />}
     {(selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || selectedRow?.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) &&
-      <ManufacturingChecklistPanel key={selectedRow.id} row={selectedRow} auditorList={props.auditorList} readOnly={readOnly} onError={onError} />}
+      <ManufacturingChecklistPanel key={selectedRow.id} row={selectedRow} auditorList={props.auditorList} readOnly={readOnly} onError={onError} onChanged={props.onChanged} />}
   </div>;
 }
 
 function SystemChecklistPanel({
-  rows, seksiList, auditorList, readOnly, onError,
+  rows, seksiList, auditorList, readOnly, onError, onChanged,
   hideRowSelector = false,
 }: ChecklistTabProps & { hideRowSelector?: boolean }) {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
@@ -174,6 +175,7 @@ function SystemChecklistPanel({
       const cl = await createChecklistFromRow(row, seksiList, auditorList, bankItems);
       await loadChecklists(row.id);
       setActiveChecklist(cl);
+      await onChanged?.();
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Gagal membuat checklist');
     } finally {
@@ -188,6 +190,7 @@ function SystemChecklistPanel({
       setConfirmDeleteCl(null);
       if (activeChecklist?.id === confirmDeleteCl.id) setActiveChecklist(null);
       if (selectedRowId) await loadChecklists(selectedRowId);
+      await onChanged?.();
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Gagal menghapus checklist');
     }
@@ -203,6 +206,7 @@ function SystemChecklistPanel({
       setItemForm(null);
       const data = await getItemsByChecklist(activeChecklist.id);
       setItems(data);
+      await onChanged?.();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Gagal menyimpan item';
       setItemSaveError(message);
@@ -216,6 +220,7 @@ function SystemChecklistPanel({
       await deleteItem(itemId);
       const data = await getItemsByChecklist(activeChecklist.id);
       setItems(data);
+      await onChanged?.();
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Gagal menghapus item');
     }

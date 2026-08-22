@@ -12,6 +12,7 @@ import { AuditTeamMasterPage } from './components/pages/AuditTeamMasterPage';
 import { ChecklistAuditPage } from './components/pages/ChecklistAuditPage';
 import { AgendaAuditPage } from './components/pages/AgendaAuditPage';
 import { TemuanPage } from './components/pages/TemuanPage';
+import { PelaksanaanAuditPage } from './components/pages/PelaksanaanAuditPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageId>('rencana-audit');
@@ -47,6 +48,8 @@ function App() {
         return <ChecklistAuditPage />;
       case 'agenda':
         return <AgendaAuditPage />;
+      case 'pelaksanaan':
+        return <PelaksanaanAuditPage />;
       case 'temuan':
         return <TemuanPage />;
       case 'team-master':
