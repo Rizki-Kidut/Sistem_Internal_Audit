@@ -11,6 +11,8 @@ export const KELAMPOK_IPO = {
   INPUT: 'Input Proses',
   METHOD: 'Method Proses',
   OUTPUT: 'Output Proses',
+  RESOURCE: 'Resource',
+  RISK_ANALYSIS: 'Analisa Risiko',
 } as const;
 export type KelompokIPO = (typeof KELAMPOK_IPO)[keyof typeof KELAMPOK_IPO];
 
@@ -18,6 +20,8 @@ export const KELAMPOK_IPO_LIST: KelompokIPO[] = [
   KELAMPOK_IPO.INPUT,
   KELAMPOK_IPO.METHOD,
   KELAMPOK_IPO.OUTPUT,
+  KELAMPOK_IPO.RESOURCE,
+  KELAMPOK_IPO.RISK_ANALYSIS,
 ];
 
 export const METODE_VERIFIKASI = {

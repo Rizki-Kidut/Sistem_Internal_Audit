@@ -178,7 +178,7 @@ export async function saveProductItem(item: Partial<ChecklistProdukItem>): Promi
   if ((item.jumlah_sampel_minimal ?? 0) < 0 || (item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel tidak boleh negatif');
   if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
   const findingKategori = item.judgment === 'NG' ? item.finding_kategori : null;
-  if (item.judgment === 'NG' && !item.hasil_pemeriksaan?.trim()) throw new Error('Hasil Pemeriksaan wajib diisi untuk judgment NG');
+  if ((item.judgment && !item.hasil_pemeriksaan?.trim()) || (!item.judgment && item.hasil_pemeriksaan?.trim())) throw new Error('Hasil Pemeriksaan dan judgment Produk wajib diisi bersama');
   if (item.judgment === 'NG' && (!findingKategori || !Object.values(KATEGORI_TEMUAN).includes(findingKategori))) throw new Error('Kategori Temuan A, B, atau C wajib dipilih untuk judgment NG');
   const payload = {
     fase_id: item.fase_id, kategori: item.kategori ?? null,

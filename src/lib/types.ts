@@ -84,7 +84,7 @@ export interface ChecklistBankItem {
   klausul: string | null;
   pertanyaan_utama: string;
   sub_pertanyaan: SubPertanyaan[];
-  metode_verifikasi_default: MetodeVerifikasi;
+  metode_verifikasi_default: MetodeVerifikasi | null;
   status: ChecklistBankStatus;
   created_at: string;
   updated_at: string;
@@ -433,7 +433,7 @@ export interface ChecklistItem {
   klausul: string | null;
   pertanyaan_utama: string;
   sub_pertanyaan: ChecklistSubPertanyaan[];
-  metode_verifikasi: MetodeVerifikasi;
+  metode_verifikasi: MetodeVerifikasi | null;
   hasil: string | null;
   komentar_auditor: string | null;
   finding_id: string | null;

@@ -10,15 +10,14 @@ import type {
   AuditInstructionRow, Checklist, ChecklistItem,
   Seksi, Auditor, ChecklistBankItem,
 } from '../../../lib/types';
-import type { KelompokIPO, MetodeVerifikasi } from '../../../lib/enums';
+import type { KelompokIPO } from '../../../lib/enums';
 import {
-  KELAMPOK_IPO, KELAMPOK_IPO_LIST, METODE_VERIFIKASI, METODE_VERIFIKASI_LIST,
-  HASIL_CHECKLIST_LIST, HASIL_CHECKLIST_LABEL, KODE_DOKUMEN_CHECKLIST,
+  KELAMPOK_IPO, KELAMPOK_IPO_LIST,
   TIPE_BARIS, TIPE_BARIS_LABEL,
 } from '../../../lib/enums';
 import {
   getChecklistsByRow, getItemsByChecklist, saveChecklist, deleteChecklist,
-  saveItem, deleteItem, createChecklistFromRow, groupItemsBySubProses,
+  saveChecklistItemPreparation, deleteItem, createChecklistFromRow, groupItemsBySubProses,
 } from '../../../services/checklistService';
 import { getChecklistBankItems } from '../../../services/checklistBankService';
 import { formatTanggal } from '../../../lib/utils';
@@ -39,14 +38,6 @@ interface ChecklistTabProps {
   onChanged?: () => void | Promise<void>;
 }
 
-const HASIL_VARIANT: Record<string, 'gray' | 'green' | 'red' | 'amber' | 'blue'> = {
-  'O': 'green',
-  'A': 'red',
-  'B': 'amber',
-  'C': 'blue',
-  'N-A': 'gray',
-};
-
 function emptyItem(checklistId: string): ChecklistItem {
   return {
     id: '',
@@ -58,7 +49,7 @@ function emptyItem(checklistId: string): ChecklistItem {
     klausul: null,
     pertanyaan_utama: '',
     sub_pertanyaan: [],
-    metode_verifikasi: METODE_VERIFIKASI.OBSERVISI,
+    metode_verifikasi: null,
     hasil: null,
     komentar_auditor: null,
     finding_id: null,
@@ -199,7 +190,7 @@ function SystemChecklistPanel({
   async function handleSaveItem() {
     if (!itemForm || !activeChecklist) return;
     try {
-      await saveItem({ ...itemForm, checklist_id: activeChecklist.id });
+      await saveChecklistItemPreparation({ ...itemForm, checklist_id: activeChecklist.id });
       setItemSaveError(null);
       onError('');
       setEditOpen(false);
@@ -330,7 +321,7 @@ function SystemChecklistPanel({
               itemsLoading={itemsLoading}
               readOnly={readOnly}
               onSaveHeader={handleSaveChecklistHeader}
-              onAddItem={() => { setItemSaveError(null); setItemForm(emptyItem(activeChecklist.id)); setEditOpen(true); }}
+              onAddItem={(subProses, elemen) => { const draft = emptyItem(activeChecklist.id); if (subProses) draft.sub_proses = subProses; if (elemen) draft.kelompok_ipo = elemen; setItemSaveError(null); setItemForm(draft); setEditOpen(true); }}
               onEditItem={(item) => { setItemSaveError(null); setItemForm(item); setEditOpen(true); }}
               onDeleteItem={handleDeleteItem}
               expandedSubProses={expandedSubProses}
@@ -386,208 +377,34 @@ interface ChecklistEditorProps {
   itemsLoading: boolean;
   readOnly: boolean;
   onSaveHeader: (cl: Checklist) => void;
-  onAddItem: () => void;
+  onAddItem: (subProses?: string, elemen?: KelompokIPO) => void;
   onEditItem: (item: ChecklistItem) => void;
   onDeleteItem: (id: string) => void;
   expandedSubProses: Set<string>;
   onToggleSubProses: (sp: string) => void;
 }
 
-function ChecklistEditor({
-  checklist, items, itemsLoading, readOnly,
-  onSaveHeader, onAddItem, onEditItem, onDeleteItem,
-  expandedSubProses, onToggleSubProses,
-}: ChecklistEditorProps) {
+function ChecklistEditor({ checklist, items, itemsLoading, readOnly, onSaveHeader, onAddItem, onEditItem, onDeleteItem, expandedSubProses, onToggleSubProses }: ChecklistEditorProps) {
   const [editingHeader, setEditingHeader] = useState(false);
   const [headerDraft, setHeaderDraft] = useState<Checklist>(checklist);
-
+  const [expandedElements, setExpandedElements] = useState<Set<string>>(new Set());
   useEffect(() => { setHeaderDraft(checklist); }, [checklist]);
-
+  useEffect(() => { setExpandedElements(new Set(groupItemsBySubProses(items).flatMap(group => group.groups.map(element => `${group.subProses}::${element.kelompok}`)))); }, [items]);
   const grouped = groupItemsBySubProses(items);
+  const toggleElement = (key: string) => setExpandedElements(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; });
 
-  return (
-    <Card className="overflow-hidden">
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Badge variant="blue">{checklist.kode_audit}</Badge>
-            <span className="text-sm font-medium text-gray-700">{checklist.judul_checklist}</span>
-          </div>
-          {!readOnly && (
-            <Button size="sm" variant="ghost" onClick={() => setEditingHeader(!editingHeader)}>
-              <Pencil size={14} /> Edit Header
-            </Button>
-          )}
-        </div>
-
-        {!editingHeader ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-            <div>
-              <span className="text-gray-400 block">Kode Dokumen</span>
-              <span className="font-mono text-gray-700">{checklist.kode_dokumen}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Seksi Auditee</span>
-              <span className="text-gray-700">{checklist.seksi_auditee.join(', ') || '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Section Manager</span>
-              <span className="text-gray-700">{checklist.section_manager ?? '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Dibuat Oleh</span>
-              <span className="text-gray-700">{checklist.dibuat_oleh ?? '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Tanggal Dibuat</span>
-              <span className="text-gray-700">{formatTanggal(checklist.tanggal_dibuat)}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Penanggung Jawab QMS</span>
-              <span className="text-gray-700">{checklist.penanggung_jawab_qms ?? '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">PIC Proses</span>
-              <span className="text-gray-700">{checklist.pic_proses ?? '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block">Item Monitoring</span>
-              <span className="text-gray-700">{checklist.item_monitoring_jelas ?? '-'}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Judul Checklist">
-                <Input value={headerDraft.judul_checklist} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHeaderDraft({ ...headerDraft, judul_checklist: e.target.value })} />
-              </Field>
-              <Field label="Penanggung Jawab QMS">
-                <Input value={headerDraft.penanggung_jawab_qms ?? ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHeaderDraft({ ...headerDraft, penanggung_jawab_qms: e.target.value || null })} />
-              </Field>
-              <Field label="PIC Proses">
-                <Input value={headerDraft.pic_proses ?? ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHeaderDraft({ ...headerDraft, pic_proses: e.target.value || null })} />
-              </Field>
-              <Field label="Tanggal Dibuat">
-                <Input type="date" value={headerDraft.tanggal_dibuat} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHeaderDraft({ ...headerDraft, tanggal_dibuat: e.target.value })} />
-              </Field>
-            </div>
-            <Field label="Item Monitoring Jelas">
-              <Textarea value={headerDraft.item_monitoring_jelas ?? ''} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHeaderDraft({ ...headerDraft, item_monitoring_jelas: e.target.value || null })} rows={2} />
-            </Field>
-            <Field label="Kondisi Pencapaian Target">
-              <Textarea value={headerDraft.kondisi_pencapaian_target ?? ''} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHeaderDraft({ ...headerDraft, kondisi_pencapaian_target: e.target.value || null })} rows={2} />
-            </Field>
-            <div className="p-2 bg-gray-100 rounded text-xs text-gray-500">
-              Section Manager dan Dibuat Oleh terisi otomatis dari baris audit (read-only).
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => { onSaveHeader(headerDraft); setEditingHeader(false); }}>Simpan Header</Button>
-              <Button size="sm" variant="secondary" onClick={() => { setHeaderDraft(checklist); setEditingHeader(false); }}>Batal</Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-900">Item Checklist ({items.length})</h4>
-          {!readOnly && <Button size="sm" onClick={onAddItem}><Plus size={14} /> Tambah Item</Button>}
-        </div>
-
-        {itemsLoading && <LoadingSpinner message="Memuat item..." />}
-
-        {!itemsLoading && items.length === 0 && (
-          <p className="text-sm text-gray-400 py-6 text-center">
-            Belum ada item. Tambah manual atau buat ulang checklist untuk auto-copy dari bank.
-          </p>
-        )}
-
-        {!itemsLoading && grouped.map(({ subProses, groups }) => (
-          <div key={subProses} className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => onToggleSubProses(subProses)}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left"
-            >
-              {expandedSubProses.has(subProses) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <span className="text-sm font-medium text-gray-700">{subProses}</span>
-              <Badge variant="gray">{items.filter((i) => i.sub_proses === subProses).length}</Badge>
-            </button>
-
-            {expandedSubProses.has(subProses) && (
-              <div className="divide-y divide-gray-100">
-                {groups.map(({ kelompok, items: ipoItems }) => (
-                  <div key={kelompok} className="px-3 py-2">
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{kelompok}</div>
-                    {ipoItems.map((item) => (
-                      <ItemRow
-                        key={item.id}
-                        item={item}
-                        readOnly={readOnly}
-                        onEdit={() => onEditItem(item)}
-                        onDelete={() => onDeleteItem(item.id)}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// ============================================================
-// ITEM ROW
-// ============================================================
-
-interface ItemRowProps {
-  item: ChecklistItem;
-  readOnly: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}
-
-function ItemRow({ item, readOnly, onEdit, onDelete }: ItemRowProps) {
-  return (
-    <div className="flex items-start gap-3 py-2 group">
-      <span className="text-xs font-mono text-gray-400 w-8 shrink-0 pt-0.5">{item.nomor}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-900">{item.pertanyaan_utama}</span>
-          {item.bank_item_id && <Badge variant="blue">Bank</Badge>}
-          {item.hasil && (
-            <Badge variant={HASIL_VARIANT[item.hasil] ?? 'gray'}>
-              {HASIL_CHECKLIST_LABEL[item.hasil] ?? item.hasil}
-            </Badge>
-          )}
-        </div>
-        {item.klausul && <span className="text-xs text-gray-400 block mt-0.5">Klausul: {item.klausul}</span>}
-        {item.komentar_auditor && <span className="text-xs text-gray-500 block mt-0.5">Komentar: {item.komentar_auditor}</span>}
-        {item.sub_pertanyaan.length > 0 && (
-          <div className="mt-1 space-y-0.5">
-            {item.sub_pertanyaan.map((sp, idx) => (
-              <div key={idx} className="text-xs text-gray-500 flex items-center gap-1">
-                <span>— {sp.teks}</span>
-                {sp.sesuai !== null && (
-                  <Badge variant={sp.sesuai ? 'green' : 'amber'}>{sp.sesuai ? 'Sesuai' : 'Tidak'}</Badge>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {!readOnly && (
-          <>
-            <button onClick={onEdit} className="p-1 text-gray-400 hover:text-blue-600" title="Edit"><Pencil size={14} /></button>
-            <button onClick={onDelete} className="p-1 text-gray-400 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
-          </>
-        )}
-      </div>
+  return <Card className="overflow-hidden">
+    <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><Badge variant="blue">{checklist.kode_audit}</Badge><span className="text-sm font-medium text-gray-700">{checklist.judul_checklist}</span></div>{!readOnly && <Button size="sm" variant="ghost" onClick={() => setEditingHeader(!editingHeader)}><Pencil size={14}/> Edit Header</Button>}</div>
+      {!editingHeader ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div><span className="text-gray-400 block">Kode Dokumen</span><span className="font-mono">{checklist.kode_dokumen}</span></div><div><span className="text-gray-400 block">Seksi Auditee</span><span>{checklist.seksi_auditee.join(', ') || '-'}</span></div><div><span className="text-gray-400 block">Section Manager</span><span>{checklist.section_manager ?? '-'}</span></div><div><span className="text-gray-400 block">Dibuat Oleh</span><span>{checklist.dibuat_oleh ?? '-'}</span></div><div><span className="text-gray-400 block">Tanggal Dibuat</span><span>{formatTanggal(checklist.tanggal_dibuat)}</span></div><div><span className="text-gray-400 block">Penanggung Jawab QMS</span><span>{checklist.penanggung_jawab_qms ?? '-'}</span></div><div><span className="text-gray-400 block">PIC Proses</span><span>{checklist.pic_proses ?? '-'}</span></div><div><span className="text-gray-400 block">Item Monitoring</span><span>{checklist.item_monitoring_jelas ?? '-'}</span></div>
+      </div> : <div className="space-y-3"><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Field label="Judul Checklist"><Input value={headerDraft.judul_checklist} onChange={e => setHeaderDraft({...headerDraft,judul_checklist:e.target.value})}/></Field><Field label="Penanggung Jawab QMS"><Input value={headerDraft.penanggung_jawab_qms ?? ''} onChange={e => setHeaderDraft({...headerDraft,penanggung_jawab_qms:e.target.value||null})}/></Field><Field label="PIC Proses"><Input value={headerDraft.pic_proses ?? ''} onChange={e => setHeaderDraft({...headerDraft,pic_proses:e.target.value||null})}/></Field><Field label="Tanggal Dibuat"><Input type="date" value={headerDraft.tanggal_dibuat} onChange={e => setHeaderDraft({...headerDraft,tanggal_dibuat:e.target.value})}/></Field></div><Field label="Item Monitoring Jelas"><Textarea value={headerDraft.item_monitoring_jelas ?? ''} onChange={e => setHeaderDraft({...headerDraft,item_monitoring_jelas:e.target.value||null})}/></Field><Field label="Kondisi Pencapaian Target"><Textarea value={headerDraft.kondisi_pencapaian_target ?? ''} onChange={e => setHeaderDraft({...headerDraft,kondisi_pencapaian_target:e.target.value||null})}/></Field><div className="flex gap-2"><Button size="sm" onClick={() => {onSaveHeader(headerDraft);setEditingHeader(false);}}>Simpan Header</Button><Button size="sm" variant="secondary" onClick={() => setEditingHeader(false)}>Batal</Button></div></div>}
     </div>
-  );
+    <div className="p-4"><div className="flex items-center justify-between mb-3"><div><h4 className="text-sm font-semibold">Pertanyaan Checklist ({items.length})</h4><p className="text-xs text-gray-500">Persiapan: tentukan apa yang akan diperiksa. Hasil audit diisi di Pelaksanaan.</p></div>{!readOnly && <Button size="sm" onClick={() => onAddItem()}><Plus size={14}/> Tambah Pertanyaan</Button>}</div>
+      {itemsLoading && <LoadingSpinner message="Memuat pertanyaan..."/>}{!itemsLoading && items.length===0 && <p className="text-sm text-gray-400 py-6 text-center">Belum ada pertanyaan.</p>}
+      {!itemsLoading && grouped.map(({subProses,groups}) => <div key={subProses} className="mb-4 border rounded-lg overflow-hidden"><button onClick={() => onToggleSubProses(subProses)} className="w-full flex items-center gap-2 px-4 py-3 bg-gray-50 text-left">{expandedSubProses.has(subProses)?<ChevronDown size={16}/>:<ChevronRight size={16}/>}<span className="font-medium flex-1">{subProses}</span><Badge variant="gray">{groups.reduce((n,g)=>n+g.items.length,0)} Pertanyaan</Badge></button>{expandedSubProses.has(subProses)&&<div className="p-3 space-y-2">{KELAMPOK_IPO_LIST.map(elemen => {const group=groups.find(g=>g.kelompok===elemen);const elementItems=group?.items??[];const key=`${subProses}::${elemen}`;return <div key={elemen} className="border rounded"><button onClick={()=>toggleElement(key)} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-50/50 text-left">{expandedElements.has(key)?<ChevronDown size={15}/>:<ChevronRight size={15}/>}<span className="text-sm font-semibold flex-1">{elemen}</span><Badge variant="gray">{elementItems.length}</Badge></button>{expandedElements.has(key)&&<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm"><thead><tr className="border-b bg-gray-50 text-left"><th className="p-2 w-16">No</th><th className="p-2">Klausul / Acuan</th><th className="p-2">Pertanyaan Utama</th><th className="p-2">Sub Pertanyaan</th><th className="p-2 w-24">Aksi</th></tr></thead><tbody>{elementItems.map(item=><tr key={item.id} className="border-b"><td className="p-2 font-mono">{item.nomor}</td><td className="p-2">{item.klausul??'-'}</td><td className="p-2">{item.pertanyaan_utama}{item.bank_item_id&&<span className="ml-2"><Badge variant="blue">Bank</Badge></span>}</td><td className="p-2">{item.sub_pertanyaan.length} sub-pertanyaan</td><td className="p-2">{!readOnly&&<div className="flex gap-2"><button className="text-blue-600" onClick={()=>onEditItem(item)} title="Edit"><Pencil size={14}/></button><button className="text-red-500" onClick={()=>onDeleteItem(item.id)} title="Hapus"><Trash2 size={14}/></button></div>}</td></tr>)}</tbody></table>{!readOnly&&<div className="p-2"><Button size="sm" variant="ghost" onClick={()=>onAddItem(subProses,elemen)}><Plus size={14}/> Tambah Pertanyaan</Button></div>}</div>}</div>})}</div>}</div>)}
+    </div>
+  </Card>;
 }
 
 // ============================================================
@@ -621,11 +438,11 @@ function ItemEditForm({ item, onChange }: ItemEditFormProps) {
     }));
   }
 
-  function updateSubPertanyaan(idx: number, field: 'teks' | 'sesuai', value: string | boolean | null) {
+  function updateSubPertanyaan(idx: number, value: string) {
     setForm((prev) => ({
       ...prev,
       sub_pertanyaan: prev.sub_pertanyaan.map((sp, i) =>
-        i === idx ? { ...sp, [field]: value } : sp
+        i === idx ? { ...sp, teks: value } : sp
       ),
     }));
   }
@@ -643,7 +460,7 @@ function ItemEditForm({ item, onChange }: ItemEditFormProps) {
         <Field label="Sub-Proses" required>
           <Input value={form.sub_proses} onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('sub_proses', e.target.value)} />
         </Field>
-        <Field label="Kelompok IPO" required>
+        <Field label="Elemen Proses" required>
           <Select value={form.kelompok_ipo} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => update('kelompok_ipo', e.target.value as KelompokIPO)}>
             {KELAMPOK_IPO_LIST.map((k) => <option key={k} value={k}>{k}</option>)}
           </Select>
@@ -660,25 +477,6 @@ function ItemEditForm({ item, onChange }: ItemEditFormProps) {
         <Textarea value={form.pertanyaan_utama} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => update('pertanyaan_utama', e.target.value)} rows={2} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Metode Verifikasi">
-          <Select value={form.metode_verifikasi} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => update('metode_verifikasi', e.target.value as MetodeVerifikasi)}>
-            {METODE_VERIFIKASI_LIST.map((m) => <option key={m} value={m}>{m}</option>)}
-          </Select>
-        </Field>
-        <Field label="Hasil">
-          <Select value={form.hasil ?? ''} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => update('hasil', e.target.value || null)}>
-            <option value="">— Belum dinilai —</option>
-            {HASIL_CHECKLIST_LIST.map((h) => <option key={h} value={h}>{HASIL_CHECKLIST_LABEL[h]}</option>)}
-          </Select>
-        </Field>
-      </div>
-
-      <Field label={`Catatan Auditor / Ringkasan Temuan${form.hasil && ['A', 'B', 'C'].includes(form.hasil) ? ' *' : ''}`}>
-        <Textarea value={form.komentar_auditor ?? ''} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => update('komentar_auditor', e.target.value || null)} rows={2} />
-        <p className="text-xs text-gray-500 mt-1">Tulis observasi singkat dari hasil audit. Detail formal PLOR diisi pada menu Temuan (PLOR).</p>
-      </Field>
-
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-gray-700">Sub-Pertanyaan</label>
@@ -691,22 +489,11 @@ function ItemEditForm({ item, onChange }: ItemEditFormProps) {
           <div key={idx} className="flex items-start gap-2 mb-2">
             <Input
               value={sp.teks}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSubPertanyaan(idx, 'teks', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSubPertanyaan(idx, e.target.value)}
               placeholder="Teks sub-pertanyaan..."
               className="flex-1"
             />
-            <Select
-              value={sp.sesuai === null ? '' : sp.sesuai ? 'sesuai' : 'tidak'}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                const v = e.target.value;
-                updateSubPertanyaan(idx, 'sesuai', v === '' ? null : v === 'sesuai');
-              }}
-              className="w-32"
-            >
-              <option value="">—</option>
-              <option value="sesuai">Sesuai</option>
-              <option value="tidak">Tidak</option>
-            </Select>
+
             <button onClick={() => removeSubPertanyaan(idx)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
           </div>
         ))}

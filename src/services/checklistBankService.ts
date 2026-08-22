@@ -5,7 +5,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { ChecklistBankItem, SubPertanyaan } from '../lib/types';
 import { validateRequired } from '../lib/utils';
-import { KELAMPOK_IPO, METODE_VERIFIKASI, CHECKLIST_BANK_STATUS } from '../lib/enums';
+import { CHECKLIST_BANK_STATUS } from '../lib/enums';
 import type { KelompokIPO, MetodeVerifikasi, ChecklistBankStatus } from '../lib/enums';
 
 // Row dari Supabase (snake_case) → ChecklistBankItem (camelCase interface)
@@ -55,7 +55,7 @@ export async function saveChecklistBankItem(
     {
       proses: 'Proses',
       sub_proses: 'Sub-Proses',
-      kelompok_ipo: 'Kelompok IPO',
+      kelompok_ipo: 'Elemen Proses',
       nomor: 'Nomor',
       pertanyaan_utama: 'Pertanyaan Utama',
     },
@@ -63,13 +63,7 @@ export async function saveChecklistBankItem(
 
   // Validasi nilai enum
   if (item.kelompok_ipo && !KELAMPOK_IPO_LIST.includes(item.kelompok_ipo)) {
-    throw new Error('Kelompok IPO tidak valid');
-  }
-  if (
-    item.metode_verifikasi_default &&
-    !METODE_VERIFIKASI_LIST.includes(item.metode_verifikasi_default)
-  ) {
-    throw new Error('Metode verifikasi tidak valid');
+    throw new Error('Elemen Proses tidak valid');
   }
 
   const payload = {
@@ -81,7 +75,7 @@ export async function saveChecklistBankItem(
     klausul: item.klausul ?? null,
     pertanyaan_utama: item.pertanyaan_utama,
     sub_pertanyaan: item.sub_pertanyaan ?? [],
-    metode_verifikasi_default: item.metode_verifikasi_default ?? METODE_VERIFIKASI.OBSERVISI,
+    metode_verifikasi_default: item.metode_verifikasi_default ?? null,
     status: item.status ?? CHECKLIST_BANK_STATUS.AKTIF,
   };
 
@@ -141,6 +135,6 @@ export function getPicSubProses(
   return items.find((i) => i.proses === proses && i.sub_proses === subProses)?.pic_sub_proses ?? null;
 }
 
-// Import dari KELAMPOK_IPO_LIST dan METODE_VERIFIKASI_LIST (re-export untuk komponen)
-import { KELAMPOK_IPO_LIST, METODE_VERIFIKASI_LIST } from '../lib/enums';
-export { KELAMPOK_IPO_LIST, METODE_VERIFIKASI_LIST };
+// Elemen Proses terpusat untuk UI dan validasi.
+import { KELAMPOK_IPO_LIST } from '../lib/enums';
+export { KELAMPOK_IPO_LIST };

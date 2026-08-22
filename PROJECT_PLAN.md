@@ -39,6 +39,24 @@ for compatibility/history, but new Instruksi generation and editing no longer re
 those tables. Historical Batch 3 sections below are retained as implementation history and are
 superseded wherever they conflict with this decision.
 
+### Batch 6b Checklist/Pelaksanaan responsibility refinement — 22 Aug 2026
+
+The active workflow separates three responsibilities while retaining the same source Checklist records:
+
+- **Checklist Audit** is preparation-only: it defines what will be checked through Checklist header,
+  Sub Proses, Elemen Proses, Klausul/Acuan, Pertanyaan Utama, and unlimited Sub Pertanyaan.
+- **Pelaksanaan Audit** is execution-only: it records one Hasil Observasi and one consciously selected
+  Judgement per Pertanyaan Utama. A question is evaluated only when both values exist.
+- **Temuan (PLOR)** remains the formal-finding workspace and does not receive an automatic copy of the
+  source observation.
+
+The compatibility column `kelompok_ipo` remains unchanged, but its user-facing concept is **Elemen
+Proses** with exactly Input Proses, Method Proses, Output Proses, Resource, and Analisa Risiko. Each Sub
+Proses supports zero to unlimited questions under every Elemen Proses, and each question supports zero
+to unlimited text-only Sub Pertanyaan. Active Metode Verifikasi input and presentation are retired;
+retained database columns and historical values remain intact. New System/Product/Manufacturing-Shift
+judgements start empty, and completion requires the applicable per-item observation plus judgement.
+
 ### Final Annual Team Audit refinement — 20 Aug 2026
 
 Each Team Audit belongs to exactly one Annual Audit Plan in the normal workflow. Team codes may be

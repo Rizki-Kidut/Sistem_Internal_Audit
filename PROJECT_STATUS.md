@@ -939,6 +939,31 @@ is therefore `VERIFIED_COMPLETE`.
 
 **Status:** `IMPLEMENTED_UNVERIFIED`
 
+
+### Checklist/Pelaksanaan separation refinement (PR #8 working state)
+
+Checklist Audit is now preparation-only for System questions and uses the existing `checklist_items`
+rows: editable fields are limited to header and question structure. Its two-level Sub Proses → Elemen
+Proses accordion exposes a table per element and supports unlimited Pertanyaan Utama and unlimited
+text-only Sub Pertanyaan. The database compatibility name `kelompok_ipo` remains, while the UI and
+validation use five Elemen Proses: Input Proses, Method Proses, Output Proses, Resource, and Analisa
+Risiko. Active Metode Verifikasi UI and validation have been removed from System Checklist and Bank
+Checklist without deleting compatibility columns or historical values.
+
+Pelaksanaan System uses a dedicated execution panel over those same records. Preparation context is
+read-only and each question independently saves only `hasil` and `komentar_auditor` (displayed as
+Hasil Observasi). Judgement defaults empty. Both observation and judgement are required for evaluation,
+including O and N-A; N-A contributes to evaluated progress but not O/A/B/C counters. Product and
+Manufacturing/Shift counters and save validation likewise require their existing observation and
+judgement pairs, without changing their result models or Finding synchronization.
+
+Additive migration `20260822110000_refine_batch6b_checklist_execution_separation.sql` expands the
+Elemen Proses constraints, makes retained method columns optional, and replaces the database completion
+blocker with per-item observation/judgement messages for System, Product, and Manufacturing/Shift. It
+explicitly preserves `SECURITY INVOKER` for the blocker and complete/reopen RPCs. The migration has not
+been applied to Staging. Runtime, security, and browser verification remain required; therefore Batch
+6b remains `IMPLEMENTED_UNVERIFIED`.
+
 Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile yang menggunakan ulang
 `ChecklistTab` serta service Checklist Sistem, Produk, dan Manufaktur/Shift yang sama. Counter O/A/B/C
 dan status `Belum Mulai` / `Berjalan` / `Ada NC` / `Tidak Ada NC` dihitung dari record sumber saat ini;
