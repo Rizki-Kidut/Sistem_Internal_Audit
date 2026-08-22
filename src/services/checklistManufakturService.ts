@@ -7,6 +7,7 @@ import {
   CHECKLIST_BANK_STATUS, CHECKLIST_MANUFAKTUR_STATUS, CHECKLIST_MANUFAKTUR_STATUS_LIST,
   HASIL_CHECKLIST_LIST, KODE_DOKUMEN_CHECKLIST_MANUFAKTUR, TIPE_BARIS,
 } from '../lib/enums';
+import type { HasilChecklist } from '../lib/enums';
 import { validateRequired } from '../lib/utils';
 
 const COMPLETED_ERROR = 'Checklist Manufaktur/Shift sudah Selesai. Kembalikan ke Draft sebelum mengubah data.';
@@ -143,22 +144,53 @@ export async function initializeManufacturingItemsFromBank(checklistId: string):
   }
 }
 
-export async function saveManufacturingItem(item: Partial<ChecklistManufakturItem>): Promise<ChecklistManufakturItem> {
+export interface ManufacturingItemPreparationPayload {
+  id?: string;
+  checklist_id: string;
+  bank_item_id?: string | null;
+  no_proses_dicek?: string | null;
+  urutan_tampil?: number;
+}
+
+/** Saves FORM-007 item structure without touching execution or Finding fields. */
+export async function saveManufacturingItemPreparation(item: ManufacturingItemPreparationPayload): Promise<ChecklistManufakturItem> {
   validateRequired({ checklist_id: item.checklist_id }, { checklist_id: 'Checklist Manufaktur/Shift' });
-  if (item.hasil && !HASIL_CHECKLIST_LIST.includes(item.hasil)) throw new Error('Hasil checklist tidak valid');
-  if ((item.hasil && !item.hasil_pengamatan?.trim()) || (!item.hasil && item.hasil_pengamatan?.trim())) throw new Error('Hasil Pengamatan dan Judgement wajib diisi bersama');
   if (item.id) {
     const { data: old } = await supabase.from('checklist_manufaktur_items').select('checklist_id').eq('id', item.id).maybeSingle();
     if (!old || old.checklist_id !== item.checklist_id) throw new Error('Item tidak terkait dengan checklist yang dipilih');
   }
-  await assertManufacturingChecklistDraft(item.checklist_id!);
-  const payload = { checklist_id: item.checklist_id, bank_item_id: item.bank_item_id ?? null,
-    no_proses_dicek: item.no_proses_dicek ?? null, hasil_pengamatan: item.hasil_pengamatan ?? null,
-    hasil: item.hasil ?? null, urutan_tampil: item.urutan_tampil ?? 0 };
-  const query = item.id ? supabase.from('checklist_manufaktur_items').update(payload).eq('id', item.id)
-    : supabase.from('checklist_manufaktur_items').insert(payload);
+  await assertManufacturingChecklistDraft(item.checklist_id);
+  const payload = {
+    checklist_id: item.checklist_id,
+    bank_item_id: item.bank_item_id ?? null,
+    no_proses_dicek: item.no_proses_dicek?.trim() || null,
+    urutan_tampil: item.urutan_tampil ?? 0,
+  };
+  const query = item.id
+    ? supabase.from('checklist_manufaktur_items').update(payload).eq('id', item.id)
+    : supabase.from('checklist_manufaktur_items').insert({ ...payload, hasil_pengamatan: null, hasil: null });
   const { data, error } = await query.select('*,bank_item:checklist_manufaktur_bank_items(*)').single();
-  if (error) throw new Error(`Gagal menyimpan item Checklist Manufaktur: ${error.message}`);
+  if (error) throw new Error(`Gagal menyimpan persiapan item Manufaktur/Shift: ${error.message}`);
+  return mapItem(data as Record<string, unknown>);
+}
+
+export interface ManufacturingItemExecutionPayload {
+  id: string;
+  hasil_pengamatan: string | null;
+  hasil: HasilChecklist | null;
+}
+
+/** Saves only Genba observation and judgement; structural and Finding fields are untouched. */
+export async function saveManufacturingItemExecution(item: ManufacturingItemExecutionPayload): Promise<ChecklistManufakturItem> {
+  if (item.hasil && !HASIL_CHECKLIST_LIST.includes(item.hasil)) throw new Error('Judgement checklist tidak valid');
+  if ((item.hasil && !item.hasil_pengamatan?.trim()) || (!item.hasil && item.hasil_pengamatan?.trim())) {
+    throw new Error('Hasil Pengamatan dan Judgement wajib diisi bersama');
+  }
+  const { data, error } = await supabase.from('checklist_manufaktur_items').update({
+    hasil_pengamatan: item.hasil_pengamatan?.trim() || null,
+    hasil: item.hasil,
+  }).eq('id', item.id).select('*,bank_item:checklist_manufaktur_bank_items(*)').single();
+  if (error) throw new Error(`Gagal menyimpan pelaksanaan Manufaktur/Shift: ${error.message}`);
   return mapItem(data as Record<string, unknown>);
 }
 

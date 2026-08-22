@@ -950,12 +950,19 @@ validation use five Elemen Proses: Input Proses, Method Proses, Output Proses, R
 Risiko. Active Metode Verifikasi UI and validation have been removed from System Checklist and Bank
 Checklist without deleting compatibility columns or historical values.
 
-Pelaksanaan System uses a dedicated execution panel over those same records. Preparation context is
-read-only and each question independently saves only `hasil` and `komentar_auditor` (displayed as
-Hasil Observasi). Judgement defaults empty. Both observation and judgement are required for evaluation,
-including O and N-A; N-A contributes to evaluated progress but not O/A/B/C counters. Product and
-Manufacturing/Shift counters and save validation likewise require their existing observation and
-judgement pairs, without changing their result models or Finding synchronization.
+Pelaksanaan uses dedicated execution panels for every active checklist type over the same source
+records. System saves only `hasil` and `komentar_auditor`; Product saves only actual sample,
+`hasil_pemeriksaan`, `judgment`, and `finding_kategori`; Manufacturing/Shift saves only
+`hasil_pengamatan` and `hasil`. All preparation context is read-only during execution, judgements start
+empty, and completed QA rows make every execution panel read-only until the existing reopen RPC succeeds.
+
+Product Checklist preparation now excludes actual sample, inspection result, OK/NG, and Finding
+category controls and uses a preparation-only payload that cannot overwrite historical execution or
+Finding linkage. Manufacturing/Shift Checklist preparation similarly excludes observation and
+judgement and uses a structural-only payload. Product and Manufacturing/Shift Pelaksanaan no longer
+render `ChecklistTab`; their dedicated panels expose no header, phase, item, Bank, sync, or delete
+controls. Product and Manufacturing/Shift counters and save validation require their existing
+observation/judgement pairs without changing result models or Finding synchronization.
 
 Additive migration `20260822110000_refine_batch6b_checklist_execution_separation.sql` expands the
 Elemen Proses constraints, makes retained method columns optional, and replaces the database completion
@@ -964,8 +971,8 @@ explicitly preserves `SECURITY INVOKER` for the blocker and complete/reopen RPCs
 been applied to Staging. Runtime, security, and browser verification remain required; therefore Batch
 6b remains `IMPLEMENTED_UNVERIFIED`.
 
-Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile yang menggunakan ulang
-`ChecklistTab` serta service Checklist Sistem, Produk, dan Manufaktur/Shift yang sama. Counter O/A/B/C
+Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile dengan panel eksekusi khusus
+untuk Checklist Sistem, Produk, dan Manufaktur/Shift atas record sumber yang sama. Counter O/A/B/C
 dan status `Belum Mulai` / `Berjalan` / `Ada NC` / `Tidak Ada NC` dihitung dari record sumber saat ini;
 Product OK dipetakan ke O dan NG memakai `finding_kategori`, sementara N-A dikecualikan dari counter.
 

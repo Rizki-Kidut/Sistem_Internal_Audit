@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ClipboardCheck, RefreshCw } from 'lucide-react';
-import type { AuditExecutionSummary, Auditor, Seksi } from '../../lib/types';
+import type { AuditExecutionSummary } from '../../lib/types';
 import { STATUS_PROGRESS, TIPE_BARIS, TIPE_BARIS_LABEL } from '../../lib/enums';
 import { completeAuditExecution, listAuditExecutions, reopenAuditExecution } from '../../services/auditExecutionService';
-import { getSeksiList } from '../../services/seksiService';
-import { getActiveAuditors } from '../../services/auditorService';
 import { Badge, Button, Card, EmptyState, LoadingSpinner } from '../ui';
 import { Input, Select } from '../ui/Field';
-import { ChecklistTab } from './instruksi-audit/ChecklistTab';
+import { ManufacturingAuditExecutionPanel } from './pelaksanaan/ManufacturingAuditExecutionPanel';
+import { ProductAuditExecutionPanel } from './pelaksanaan/ProductAuditExecutionPanel';
 import { SystemAuditExecutionPanel } from './pelaksanaan/SystemAuditExecutionPanel';
 
 const statusVariant = (status: string) => status === STATUS_PROGRESS.ADA_NC ? 'red' : status === STATUS_PROGRESS.TIDAK_ADA_NC ? 'green' : status === STATUS_PROGRESS.BERJALAN ? 'blue' : 'gray';
@@ -15,12 +14,11 @@ const date = (value: string | null) => value ? new Date(`${value}T00:00:00`).toL
 
 export function PelaksanaanAuditPage() {
   const [items, setItems] = useState<AuditExecutionSummary[]>([]);
-  const [sections, setSections] = useState<Seksi[]>([]); const [auditors, setAuditors] = useState<Auditor[]>([]);
   const [selected, setSelected] = useState<string | null>(null); const [search, setSearch] = useState('');
   const [type, setType] = useState(''); const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
-  const load = useCallback(async () => { setLoading(true); try { const [executions, seksi, activeAuditors] = await Promise.all([listAuditExecutions(), getSeksiList(), getActiveAuditors()]); setItems(executions); setSections(seksi); setAuditors(activeAuditors); } catch (e) { setError(e instanceof Error ? e.message : 'Gagal memuat Pelaksanaan Audit'); } finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setItems(await listAuditExecutions()); } catch (e) { setError(e instanceof Error ? e.message : 'Gagal memuat Pelaksanaan Audit'); } finally { setLoading(false); } }, []);
   useEffect(() => { load(); }, [load]);
   const filtered = useMemo(() => items.filter(item => (!search || `${item.row.kode_audit} ${item.proses?.nama_proses ?? ''}`.toLowerCase().includes(search.toLowerCase())) && (!type || item.row.tipe_baris === type) && (!status || item.status_progress === status)), [items, search, type, status]);
   const active = items.find(item => item.row.id === selected);
@@ -34,7 +32,11 @@ export function PelaksanaanAuditPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 text-sm"><div><span className="text-gray-500">Auditee</span><p className="font-medium">{active.row.pemilik_proses ?? '-'}</p></div><div><span className="text-gray-500">Tanggal</span><p className="font-medium">{date(active.row.tanggal_pelaksanaan_audit)}</p></div><div><span className="text-gray-500">Tim / Lead</span><p className="font-medium">{active.team ? `${active.team.kode_tim} — ${active.team.nama_tim}` : '-'}</p></div><div><span className="text-gray-500">Auditor</span><p className="font-medium">{auditorNames(active)}</p></div></div>
       <div className="grid grid-cols-4 gap-2 mt-5">{(['O','A','B','C'] as const).map(key => <div key={key} className="rounded-lg bg-gray-50 p-3 text-center"><p className="text-xs text-gray-500">{key}</p><p className="text-xl font-bold">{active.counter[key]}</p></div>)}</div>
     </Card>
-    <div className="rounded-xl bg-white overflow-hidden">{active.row.tipe_baris === TIPE_BARIS.REGULER ? <SystemAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/> : <ChecklistTab rows={[active.row]} seksiList={sections} auditorList={auditors} readOnly={active.row.cek_selesai} onError={setError} initialSelectedRowId={active.row.id} onChanged={load}/>}</div>
+    <div className="rounded-xl bg-white overflow-hidden">
+      {active.row.tipe_baris === TIPE_BARIS.REGULER && <SystemAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
+      {active.row.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
+      {(active.row.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || active.row.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) && <ManufacturingAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
+    </div>
     {active.findings.length > 0 && <Card className="p-4"><h2 className="font-semibold mb-3">Status Temuan / PLOR</h2><div className="grid sm:grid-cols-2 gap-2">{active.findings.map(finding => <div key={finding.id} className="flex justify-between rounded-lg border p-3 text-sm"><span className="font-mono">{finding.kode_temuan} · {finding.kategori}</span><Badge variant={finding.plor_complete ? 'green' : 'amber'}>{finding.plor_complete ? 'PLOR Lengkap' : 'PLOR Belum Lengkap'}</Badge></div>)}</div></Card>}
     <div className="sticky bottom-3 flex justify-end"><Button disabled={busy} variant={active.row.cek_selesai ? 'secondary' : 'primary'} onClick={() => setCompletion(active.row.cek_selesai)}>{busy ? 'Memproses...' : active.row.cek_selesai ? 'Buka Kembali Pelaksanaan' : 'Selesaikan Pelaksanaan'}</Button></div>
   </div>;
