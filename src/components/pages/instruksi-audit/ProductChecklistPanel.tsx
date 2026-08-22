@@ -153,10 +153,10 @@ export function ProductChecklistPanel({ row, readOnly, onError, onChanged }: Pro
     <Card className="overflow-hidden">
       <div className="p-4 bg-gray-50 border-b border-gray-200">
         <div className="flex justify-between gap-3 items-center mb-4">
-          <div className="flex gap-2 items-center"><Badge variant="blue">{active.kode_audit}</Badge><Badge variant={active.status === 'Selesai' ? 'green' : 'amber'}>{active.status}</Badge></div>
+          <div className="flex gap-2 items-center"><Badge variant="blue">{active.kode_audit}</Badge><Badge variant={active.status === 'Selesai' ? 'green' : 'amber'}>{active.status === 'Selesai' ? 'Siap Pelaksanaan' : 'Draft'}</Badge></div>
           <div className="flex gap-2">
             {!readOnly && active.status === 'Selesai' && <Button size="sm" variant="secondary" onClick={() => changeStatus(CHECKLIST_PRODUK_STATUS.DRAFT)}>Kembalikan ke Draft</Button>}
-            {editable && <><Button size="sm" variant="ghost" onClick={() => setEditingHeader(true)}><Pencil size={14} /> Edit Header</Button><Button size="sm" onClick={() => changeStatus(CHECKLIST_PRODUK_STATUS.SELESAI)}>Tandai Selesai</Button></>}
+            {editable && <><Button size="sm" variant="ghost" onClick={() => setEditingHeader(true)}><Pencil size={14} /> Edit Header</Button><Button size="sm" onClick={() => changeStatus(CHECKLIST_PRODUK_STATUS.SELESAI)}>Siap Pelaksanaan</Button></>}
           </div>
         </div>
         {!active.nama_inspector && <div className="mb-3 p-3 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">Nama Inspector belum tersedia. Lengkapi Nama Auditor Produk pada baris Instruksi Audit.</div>}

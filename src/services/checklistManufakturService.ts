@@ -182,6 +182,16 @@ export interface ManufacturingItemExecutionPayload {
 
 /** Saves only Genba observation and judgement; structural and Finding fields are untouched. */
 export async function saveManufacturingItemExecution(item: ManufacturingItemExecutionPayload): Promise<ChecklistManufakturItem> {
+  const { data: readiness, error: readinessError } = await supabase
+    .from('checklist_manufaktur_items')
+    .select('checklist:checklist_manufaktur_shift(status)')
+    .eq('id', item.id)
+    .maybeSingle();
+  if (readinessError) throw new Error(`Gagal memeriksa kesiapan Checklist Manufaktur/Shift: ${readinessError.message}`);
+  const checklist = Array.isArray(readiness?.checklist) ? readiness.checklist[0] : readiness?.checklist;
+  if (checklist?.status !== CHECKLIST_MANUFAKTUR_STATUS.SELESAI) {
+    throw new Error('Checklist Manufaktur/Shift belum Siap Pelaksanaan. Selesaikan persiapan Checklist Audit terlebih dahulu.');
+  }
   if (item.hasil && !HASIL_CHECKLIST_LIST.includes(item.hasil)) throw new Error('Judgement checklist tidak valid');
   if ((item.hasil && !item.hasil_pengamatan?.trim()) || (!item.hasil && item.hasil_pengamatan?.trim())) {
     throw new Error('Hasil Pengamatan dan Judgement wajib diisi bersama');

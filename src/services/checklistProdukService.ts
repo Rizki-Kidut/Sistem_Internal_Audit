@@ -219,6 +219,17 @@ export interface ProductItemExecutionPayload {
 
 /** Saves only actual inspection values; Finding linkage remains trigger-authoritative. */
 export async function saveProductItemExecution(item: ProductItemExecutionPayload): Promise<ChecklistProdukItem> {
+  const { data: readiness, error: readinessError } = await supabase
+    .from('checklist_produk_items')
+    .select('fase:checklist_produk_fase(checklist:checklist_produk(status))')
+    .eq('id', item.id)
+    .maybeSingle();
+  if (readinessError) throw new Error(`Gagal memeriksa kesiapan Checklist Produk: ${readinessError.message}`);
+  const phase = Array.isArray(readiness?.fase) ? readiness.fase[0] : readiness?.fase;
+  const checklist = Array.isArray(phase?.checklist) ? phase.checklist[0] : phase?.checklist;
+  if (checklist?.status !== CHECKLIST_PRODUK_STATUS.SELESAI) {
+    throw new Error('Checklist Produk belum Siap Pelaksanaan. Selesaikan persiapan Checklist Audit terlebih dahulu.');
+  }
   if ((item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel aktual tidak boleh negatif');
   if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
   if ((item.judgment && !item.hasil_pemeriksaan?.trim()) || (!item.judgment && item.hasil_pemeriksaan?.trim())) {
