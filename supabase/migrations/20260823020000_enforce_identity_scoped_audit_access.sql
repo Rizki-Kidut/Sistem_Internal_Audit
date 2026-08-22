@@ -6,7 +6,11 @@ DO $$ DECLARE t text; p record; BEGIN
    FOR p IN SELECT policyname FROM pg_policies WHERE schemaname='public' AND tablename=t LOOP EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I',p.policyname,t); END LOOP;
    EXECUTE format('REVOKE ALL ON public.%I FROM anon',t);
    EXECUTE format('REVOKE ALL ON public.%I FROM authenticated',t);
-   EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO authenticated',t);
+   IF t='findings' THEN
+    EXECUTE 'GRANT SELECT,UPDATE ON public.findings TO authenticated';
+   ELSE
+    EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO authenticated',t);
+   END IF;
   END IF;
  END LOOP;
 END $$;
@@ -64,7 +68,8 @@ CREATE POLICY agendas_admin_all ON public.audit_agendas FOR ALL TO authenticated
 CREATE POLICY agendas_scoped_read ON public.audit_agendas FOR SELECT TO authenticated USING(public.auditor_can_access_instruction_row(instruction_row_id) OR public.manager_can_access_instruction_row(instruction_row_id));
 CREATE POLICY agenda_items_admin_all ON public.audit_agenda_items FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY agenda_items_scoped_read ON public.audit_agenda_items FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM public.audit_agendas a WHERE a.id=agenda_id AND (public.auditor_can_access_instruction_row(a.instruction_row_id) OR public.manager_can_access_instruction_row(a.instruction_row_id))));
-CREATE POLICY findings_admin_all ON public.findings FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
+CREATE POLICY findings_admin_read ON public.findings FOR SELECT TO authenticated USING(public.is_admin_identity());
+CREATE POLICY findings_admin_update ON public.findings FOR UPDATE TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY findings_auditor_read ON public.findings FOR SELECT TO authenticated USING(public.auditor_can_access_instruction_row(instruction_row_id));
 CREATE POLICY findings_auditor_update ON public.findings FOR UPDATE TO authenticated USING(public.current_identity_type()='AUDITOR' AND public.auditor_can_access_instruction_row(instruction_row_id)) WITH CHECK(public.auditor_can_access_instruction_row(instruction_row_id));
 CREATE POLICY clause_keyword_auditor_read ON public.clause_keyword_map FOR SELECT TO authenticated USING(public.current_identity_type()='AUDITOR');

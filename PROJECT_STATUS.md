@@ -31,6 +31,9 @@
       session without unmounting the current page, malformed evidence paths are rejected safely, and
       authenticated table privileges are normalized to SELECT/INSERT/UPDATE/DELETE (RLS remains the
       per-identity authority; TRUNCATE/REFERENCES/TRIGGER are not granted).
+- [x] Findings are the deliberate privilege exception: authenticated identities, including Admin,
+      receive only SELECT/UPDATE with matching RLS. Direct INSERT/DELETE remains unavailable and the
+      existing Batch 6a SECURITY DEFINER source triggers remain the sole Finding lifecycle authority.
 
 New migrations: `20260823010000_create_identity_access_foundation.sql` and
 `20260823020000_enforce_identity_scoped_audit_access.sql`. Batch 7 LTP/CAR, notifications, Agenda
