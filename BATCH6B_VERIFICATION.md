@@ -4,7 +4,7 @@ Date: 22 Aug 2026
 
 ## Status
 
-`VERIFIED_COMPLETE_PENDING_MERGE`
+`VERIFIED_COMPLETE`
 
 This record is the authoritative Batch 6b closeout note for PR #8 and supersedes the older `IMPLEMENTED_UNVERIFIED` wording still present in the legacy consolidated `PROJECT_STATUS.md` section. The consolidated file can be reconciled during the next project-status maintenance pass without changing Batch 6b implementation.
 
@@ -111,11 +111,16 @@ The following Staging fixtures are intentionally retained for subsequent Batch 7
 
 These fixtures must not be cleaned during the Batch 6b closeout. They are intended to provide ready-made Findings for direct Temuan → CAR smoke testing after Batch 7 is implemented.
 
-## PR #8
+## PR #8 merge
 
 PR: `https://github.com/Rizki-Kidut/Sistem_Internal_Audit/pull/8`
 
 Verified implementation head before final documentation commits:
 `6599fc4f07e762172c4081cd6446202792aab715`
 
-All Batch 6b implementation, database, security, runtime, Vercel Preview, and manual browser-smoke gates have passed. The remaining closeout action is merging PR #8 and recording the resulting merge commit.
+PR #8 was merged successfully into `main` on 22 Aug 2026.
+
+Merge commit:
+`540c79dc151af87e89f55b7f6b04e4021367cb67`
+
+Batch 6b implementation, database, security, runtime, Vercel Preview, manual browser-smoke, and merge gates have passed. Batch 6b is therefore `VERIFIED_COMPLETE`.
