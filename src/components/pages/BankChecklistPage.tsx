@@ -1,4 +1,4 @@
-// Halaman "Bank Checklist" — master data 3-level: Proses → Sub-Proses → Kelompok IPO → Pertanyaan.
+// Halaman Bank Checklist — master data Proses → Sub-Proses → Elemen Proses → Pertanyaan.
 // CRUD penuh, soft-delete (status → Nonaktif). Navigasi accordion bertingkat.
 // Tombol Import/Export Excel sebagai placeholder (fokus ke CRUD manual dulu).
 
@@ -8,8 +8,8 @@ import {
   ListChecks, FileSpreadsheet, Eye, EyeOff,
 } from 'lucide-react';
 import type { ChecklistBankItem, SubPertanyaan } from '../../lib/types';
-import { KELAMPOK_IPO, KELAMPOK_IPO_LIST, METODE_VERIFIKASI_LIST, CHECKLIST_BANK_STATUS } from '../../lib/enums';
-import type { KelompokIPO, MetodeVerifikasi } from '../../lib/enums';
+import { KELAMPOK_IPO, KELAMPOK_IPO_LIST, CHECKLIST_BANK_STATUS } from '../../lib/enums';
+import type { KelompokIPO } from '../../lib/enums';
 import {
   getChecklistBankItems,
   saveChecklistBankItem,
@@ -79,7 +79,6 @@ export function BankChecklistPage() {
       klausul: '',
       pertanyaan_utama: '',
       sub_pertanyaan: [],
-      metode_verifikasi_default: 'Observasi',
     };
   }
 
@@ -109,7 +108,6 @@ export function BankChecklistPage() {
       klausul: item.klausul ?? '',
       pertanyaan_utama: item.pertanyaan_utama,
       sub_pertanyaan: item.sub_pertanyaan.map((s) => ({ teks: s.teks })),
-      metode_verifikasi_default: item.metode_verifikasi_default,
     });
     setFormError(null);
     setEditModalOpen(true);
@@ -129,7 +127,6 @@ export function BankChecklistPage() {
         klausul: form.klausul.trim() || null,
         pertanyaan_utama: form.pertanyaan_utama.trim(),
         sub_pertanyaan: form.sub_pertanyaan.filter((s) => s.teks.trim()),
-        metode_verifikasi_default: form.metode_verifikasi_default,
         status: editingItem?.status ?? CHECKLIST_BANK_STATUS.AKTIF,
       });
       setEditModalOpen(false);
@@ -284,7 +281,7 @@ export function BankChecklistPage() {
 
                           {isSubOpen && (
                             <div className="bg-white">
-                              {/* Level 3: Kelompok IPO */}
+                              {/* Level 3: Elemen Proses */}
                               {KELAMPOK_IPO_LIST.map((kelompok) => {
                                 const kelompokItems = subItems.filter((i) => i.kelompok_ipo === kelompok);
                                 if (kelompokItems.length === 0) return null;
@@ -302,7 +299,7 @@ export function BankChecklistPage() {
                                           <th className="px-6 py-2 text-left text-xs font-medium text-gray-400 w-12">No</th>
                                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-400">Pertanyaan</th>
                                           <th className="px-2 py-2 text-left text-xs font-medium text-gray-400 w-24">Klausul</th>
-                                          <th className="px-2 py-2 text-left text-xs font-medium text-gray-400 w-28">Metode</th>
+
                                           <th className="px-2 py-2 text-center text-xs font-medium text-gray-400 w-20">Status</th>
                                           <th className="px-2 py-2 text-right text-xs font-medium text-gray-400 w-20">Aksi</th>
                                         </tr>
@@ -322,9 +319,6 @@ export function BankChecklistPage() {
                                               )}
                                             </td>
                                             <td className="px-2 py-2 text-xs text-gray-500">{item.klausul ?? '-'}</td>
-                                            <td className="px-2 py-2">
-                                              <Badge variant="gray">{item.metode_verifikasi_default}</Badge>
-                                            </td>
                                             <td className="px-2 py-2 text-center">
                                               <Badge variant={item.status === CHECKLIST_BANK_STATUS.AKTIF ? 'green' : 'gray'}>
                                                 {item.status}
@@ -458,7 +452,7 @@ export function BankChecklistPage() {
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Kelompok IPO" required>
+            <Field label="Elemen Proses" required>
               <Select
                 value={form.kelompok_ipo}
                 onChange={(e) => setForm({ ...form, kelompok_ipo: e.target.value as KelompokIPO })}
@@ -529,16 +523,7 @@ export function BankChecklistPage() {
             )}
           </div>
 
-          <Field label="Metode Verifikasi Default">
-            <Select
-              value={form.metode_verifikasi_default}
-              onChange={(e) => setForm({ ...form, metode_verifikasi_default: e.target.value as MetodeVerifikasi })}
-            >
-              {METODE_VERIFIKASI_LIST.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </Select>
-          </Field>
+
         </div>
       </Modal>
 
@@ -564,5 +549,4 @@ interface ChecklistFormState {
   klausul: string;
   pertanyaan_utama: string;
   sub_pertanyaan: SubPertanyaan[];
-  metode_verifikasi_default: MetodeVerifikasi;
 }

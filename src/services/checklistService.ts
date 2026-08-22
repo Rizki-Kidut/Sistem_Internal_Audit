@@ -9,8 +9,8 @@ import type {
   AuditInstructionRow, Seksi, Auditor,
   ChecklistBankItem,
 } from '../lib/types';
-import type { KelompokIPO, MetodeVerifikasi } from '../lib/enums';
-import { KODE_DOKUMEN_CHECKLIST, KELAMPOK_IPO, METODE_VERIFIKASI } from '../lib/enums';
+import type { KelompokIPO, MetodeVerifikasi, HasilChecklist } from '../lib/enums';
+import { KODE_DOKUMEN_CHECKLIST, KELAMPOK_IPO, KELAMPOK_IPO_LIST, HASIL_CHECKLIST_LIST } from '../lib/enums';
 import { toDateInput, validateRequired } from '../lib/utils';
 
 // ============================================================
@@ -48,7 +48,7 @@ function mapChecklistItem(row: Record<string, unknown>): ChecklistItem {
     klausul: (row.klausul as string) ?? null,
     pertanyaan_utama: row.pertanyaan_utama as string,
     sub_pertanyaan: (row.sub_pertanyaan as ChecklistSubPertanyaan[]) ?? [],
-    metode_verifikasi: row.metode_verifikasi as MetodeVerifikasi,
+    metode_verifikasi: (row.metode_verifikasi as MetodeVerifikasi) ?? null,
     hasil: (row.hasil as string) ?? null,
     komentar_auditor: (row.komentar_auditor as string) ?? null,
     finding_id: (row.finding_id as string) ?? null,
@@ -133,44 +133,58 @@ export async function getItemsByChecklist(checklistId: string): Promise<Checklis
   return (data ?? []).map((r) => mapChecklistItem(r as Record<string, unknown>));
 }
 
-export async function saveItem(item: Partial<ChecklistItem>): Promise<ChecklistItem> {
+export interface ChecklistItemPreparationPayload {
+  id?: string;
+  checklist_id: string;
+  bank_item_id?: string | null;
+  sub_proses: string;
+  kelompok_ipo: KelompokIPO;
+  nomor: string;
+  klausul?: string | null;
+  pertanyaan_utama: string;
+  sub_pertanyaan?: ChecklistSubPertanyaan[];
+}
+
+/** Saves preparation fields only. Historical execution and Finding fields are never overwritten. */
+export async function saveChecklistItemPreparation(item: ChecklistItemPreparationPayload): Promise<ChecklistItem> {
   validateRequired(
-    {
-      checklist_id: item.checklist_id, sub_proses: item.sub_proses, nomor: item.nomor,
-      pertanyaan_utama: item.pertanyaan_utama, metode_verifikasi: item.metode_verifikasi,
-    },
-    {
-      checklist_id: 'Checklist', sub_proses: 'Sub-Proses', nomor: 'Nomor',
-      pertanyaan_utama: 'Pertanyaan Utama', metode_verifikasi: 'Metode Verifikasi',
-    },
+    { checklist_id: item.checklist_id, sub_proses: item.sub_proses, kelompok_ipo: item.kelompok_ipo, nomor: item.nomor, pertanyaan_utama: item.pertanyaan_utama },
+    { checklist_id: 'Checklist', sub_proses: 'Sub-Proses', kelompok_ipo: 'Elemen Proses', nomor: 'Nomor', pertanyaan_utama: 'Pertanyaan Utama' },
   );
-  if (item.hasil && ['A', 'B', 'C'].includes(item.hasil) && !item.komentar_auditor?.trim()) {
-    throw new Error('Catatan Auditor wajib diisi untuk hasil A, B, atau C');
-  }
+  if (!KELAMPOK_IPO_LIST.includes(item.kelompok_ipo)) throw new Error('Elemen Proses tidak valid');
   const payload = {
     checklist_id: item.checklist_id,
     bank_item_id: item.bank_item_id ?? null,
-    sub_proses: item.sub_proses ?? '',
-    kelompok_ipo: item.kelompok_ipo ?? KELAMPOK_IPO.INPUT,
-    nomor: item.nomor ?? '',
-    klausul: item.klausul ?? null,
-    pertanyaan_utama: item.pertanyaan_utama ?? '',
-    sub_pertanyaan: item.sub_pertanyaan ?? [],
-    metode_verifikasi: item.metode_verifikasi ?? METODE_VERIFIKASI.OBSERVISI,
-    hasil: item.hasil ?? null,
-    komentar_auditor: item.komentar_auditor ?? null,
+    sub_proses: item.sub_proses.trim(),
+    kelompok_ipo: item.kelompok_ipo,
+    nomor: item.nomor.trim(),
+    klausul: item.klausul?.trim() || null,
+    pertanyaan_utama: item.pertanyaan_utama.trim(),
+    sub_pertanyaan: (item.sub_pertanyaan ?? []).filter(sp => sp.teks.trim()).map(sp => ({ teks: sp.teks.trim(), sesuai: sp.sesuai ?? null })),
   };
   if (item.id) {
-    const { data, error } = await supabase
-      .from('checklist_items').update(payload).eq('id', item.id).select().single();
-    if (error) throw new Error(`Gagal mengupdate item: ${error.message}`);
+    const { data, error } = await supabase.from('checklist_items').update(payload).eq('id', item.id).select().single();
+    if (error) throw new Error(`Gagal mengupdate pertanyaan: ${error.message}`);
     return mapChecklistItem(data as Record<string, unknown>);
   }
-  const { data, error } = await supabase
-    .from('checklist_items').insert(payload).select().single();
-  if (error) throw new Error(`Gagal menambah item: ${error.message}`);
+  const { data, error } = await supabase.from('checklist_items').insert({ ...payload, metode_verifikasi: null, hasil: null, komentar_auditor: null }).select().single();
+  if (error) throw new Error(`Gagal menambah pertanyaan: ${error.message}`);
   return mapChecklistItem(data as Record<string, unknown>);
 }
+
+/** Saves execution fields only; source preparation and finding_id remain database-authoritative. */
+export async function saveSystemQuestionExecution(id: string, hasil: HasilChecklist | null, komentarAuditor: string | null): Promise<ChecklistItem> {
+  if (hasil && !HASIL_CHECKLIST_LIST.includes(hasil)) throw new Error('Judgement tidak valid');
+  if ((hasil && !komentarAuditor?.trim()) || (!hasil && komentarAuditor?.trim())) {
+    throw new Error('Hasil Observasi dan Judgement wajib diisi bersama untuk setiap pertanyaan.');
+  }
+  const { data, error } = await supabase.from('checklist_items').update({ hasil, komentar_auditor: komentarAuditor?.trim() || null }).eq('id', id).select().single();
+  if (error) throw new Error(`Gagal menyimpan hasil pelaksanaan: ${error.message}`);
+  return mapChecklistItem(data as Record<string, unknown>);
+}
+
+// Compatibility alias for callers outside the active preparation editor.
+export const saveItem = saveChecklistItemPreparation;
 
 export async function deleteItem(id: string): Promise<void> {
   const { error } = await supabase.from('checklist_items').delete().eq('id', id);
@@ -244,7 +258,7 @@ export async function createChecklistFromRow(
       klausul: b.klausul,
       pertanyaan_utama: b.pertanyaan_utama,
       sub_pertanyaan: b.sub_pertanyaan.map((sp) => ({ teks: sp.teks, sesuai: null })),
-      metode_verifikasi: b.metode_verifikasi_default,
+      metode_verifikasi: null,
       hasil: null,
       komentar_auditor: null,
     }));
@@ -281,6 +295,8 @@ export function groupItemsBySubProses(items: ChecklistItem[]): {
     [KELAMPOK_IPO.INPUT]: 0,
     [KELAMPOK_IPO.METHOD]: 1,
     [KELAMPOK_IPO.OUTPUT]: 2,
+    [KELAMPOK_IPO.RESOURCE]: 3,
+    [KELAMPOK_IPO.RISK_ANALYSIS]: 4,
   };
 
   return Array.from(subProsesMap.entries())

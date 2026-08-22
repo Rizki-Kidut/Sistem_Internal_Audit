@@ -5,8 +5,9 @@ import type {
 } from '../lib/types';
 import {
   CHECKLIST_PRODUK_STATUS, CHECKLIST_PRODUK_STATUS_LIST, JUDGMENT_PRODUK_LIST,
-  KODE_DOKUMEN_CHECKLIST_PRODUK,
+  JUDGMENT_PRODUK, KODE_DOKUMEN_CHECKLIST_PRODUK,
 } from '../lib/enums';
+import type { JudgmentProduk, KategoriTemuan } from '../lib/enums';
 import { KATEGORI_TEMUAN } from '../lib/enums';
 import { validateRequired } from '../lib/utils';
 
@@ -165,35 +166,86 @@ export async function getProductItemsByPhase(faseId: string): Promise<ChecklistP
   return (data ?? []).map((row) => mapItem(row as Record<string, unknown>));
 }
 
-export async function saveProductItem(item: Partial<ChecklistProdukItem>): Promise<ChecklistProdukItem> {
+export interface ProductItemPreparationPayload {
+  id?: string;
+  fase_id: string;
+  kategori?: string | null;
+  jumlah_sampel_minimal?: number | null;
+  item_pemeriksaan: string;
+  alat_pemeriksaan?: string | null;
+  standar_kriteria?: string | null;
+  urutan_tampil?: number;
+}
+
+/** Saves only inspection-plan fields and preserves every historical execution value. */
+export async function saveProductItemPreparation(item: ProductItemPreparationPayload): Promise<ChecklistProdukItem> {
   validateRequired(
     { fase_id: item.fase_id, item_pemeriksaan: item.item_pemeriksaan },
     { fase_id: 'Fase', item_pemeriksaan: 'Item Pemeriksaan' },
   );
+  if ((item.jumlah_sampel_minimal ?? 0) < 0) throw new Error('Jumlah sampel minimal tidak boleh negatif');
   if (item.id) {
     const oldPhaseId = await getPhaseIdForItem(item.id);
     await assertProductChecklistDraft(await getChecklistIdForPhase(oldPhaseId));
   }
-  await assertProductChecklistDraft(await getChecklistIdForPhase(item.fase_id!));
-  if ((item.jumlah_sampel_minimal ?? 0) < 0 || (item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel tidak boleh negatif');
-  if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
-  const findingKategori = item.judgment === 'NG' ? item.finding_kategori : null;
-  if (item.judgment === 'NG' && !item.hasil_pemeriksaan?.trim()) throw new Error('Hasil Pemeriksaan wajib diisi untuk judgment NG');
-  if (item.judgment === 'NG' && (!findingKategori || !Object.values(KATEGORI_TEMUAN).includes(findingKategori))) throw new Error('Kategori Temuan A, B, atau C wajib dipilih untuk judgment NG');
+  await assertProductChecklistDraft(await getChecklistIdForPhase(item.fase_id));
   const payload = {
-    fase_id: item.fase_id, kategori: item.kategori ?? null,
+    fase_id: item.fase_id,
+    kategori: item.kategori?.trim() || null,
     jumlah_sampel_minimal: item.jumlah_sampel_minimal ?? null,
-    item_pemeriksaan: item.item_pemeriksaan, alat_pemeriksaan: item.alat_pemeriksaan ?? null,
-    standar_kriteria: item.standar_kriteria ?? null, jumlah_sampel: item.jumlah_sampel ?? null,
-    hasil_pemeriksaan: item.hasil_pemeriksaan ?? null, judgment: item.judgment ?? null,
-    finding_kategori: findingKategori,
+    item_pemeriksaan: item.item_pemeriksaan.trim(),
+    alat_pemeriksaan: item.alat_pemeriksaan?.trim() || null,
+    standar_kriteria: item.standar_kriteria?.trim() || null,
     urutan_tampil: item.urutan_tampil ?? 0,
   };
   const query = item.id
     ? supabase.from('checklist_produk_items').update(payload).eq('id', item.id)
-    : supabase.from('checklist_produk_items').insert(payload);
+    : supabase.from('checklist_produk_items').insert({
+        ...payload, jumlah_sampel: null, hasil_pemeriksaan: null,
+        judgment: null, finding_kategori: null,
+      });
   const { data, error } = await query.select().single();
-  if (error) throw new Error(`Gagal menyimpan item produk: ${error.message}`);
+  if (error) throw new Error(`Gagal menyimpan persiapan item Produk: ${error.message}`);
+  return mapItem(data as Record<string, unknown>);
+}
+
+export interface ProductItemExecutionPayload {
+  id: string;
+  jumlah_sampel: number | null;
+  hasil_pemeriksaan: string | null;
+  judgment: JudgmentProduk | null;
+  finding_kategori: KategoriTemuan | null;
+}
+
+/** Saves only actual inspection values; Finding linkage remains trigger-authoritative. */
+export async function saveProductItemExecution(item: ProductItemExecutionPayload): Promise<ChecklistProdukItem> {
+  const { data: readiness, error: readinessError } = await supabase
+    .from('checklist_produk_items')
+    .select('fase:checklist_produk_fase(checklist:checklist_produk(status))')
+    .eq('id', item.id)
+    .maybeSingle();
+  if (readinessError) throw new Error(`Gagal memeriksa kesiapan Checklist Produk: ${readinessError.message}`);
+  const phase = Array.isArray(readiness?.fase) ? readiness.fase[0] : readiness?.fase;
+  const checklist = Array.isArray(phase?.checklist) ? phase.checklist[0] : phase?.checklist;
+  if (checklist?.status !== CHECKLIST_PRODUK_STATUS.SELESAI) {
+    throw new Error('Checklist Produk belum Siap Pelaksanaan. Selesaikan persiapan Checklist Audit terlebih dahulu.');
+  }
+  if ((item.jumlah_sampel ?? 0) < 0) throw new Error('Jumlah sampel aktual tidak boleh negatif');
+  if (item.judgment && !JUDGMENT_PRODUK_LIST.includes(item.judgment)) throw new Error('Judgment produk harus OK atau NG');
+  if ((item.judgment && !item.hasil_pemeriksaan?.trim()) || (!item.judgment && item.hasil_pemeriksaan?.trim())) {
+    throw new Error('Hasil Pemeriksaan dan Judgment wajib diisi bersama');
+  }
+  const findingKategori = item.judgment === JUDGMENT_PRODUK.NG ? item.finding_kategori : null;
+  if (item.judgment === JUDGMENT_PRODUK.NG && (!findingKategori || !Object.values(KATEGORI_TEMUAN).includes(findingKategori))) {
+    throw new Error('Kategori Temuan A, B, atau C wajib dipilih untuk judgment NG');
+  }
+  const { data, error } = await supabase.from('checklist_produk_items').update({
+    jumlah_sampel: item.jumlah_sampel,
+    hasil_pemeriksaan: item.hasil_pemeriksaan?.trim() || null,
+    judgment: item.judgment,
+    finding_kategori: findingKategori,
+  }).eq('id', item.id).select().single();
+  if (error) throw new Error(`Gagal menyimpan pelaksanaan Produk: ${error.message}`);
   return mapItem(data as Record<string, unknown>);
 }
 

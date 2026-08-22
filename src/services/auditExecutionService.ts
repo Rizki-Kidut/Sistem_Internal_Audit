@@ -16,22 +16,22 @@ async function sourceState(row: AuditExecutionSummary['row']) {
     const lists = await getChecklistsByRow(row.id);
     const items = (await Promise.all(lists.map(list => getItemsByChecklist(list.id)))).flat();
     counter.total = items.length;
-    items.forEach(item => { if (item.hasil && item.hasil !== 'N-A') { counter.evaluated++; if (item.hasil in counter) counter[item.hasil as 'O'|'A'|'B'|'C']++; } else if (item.hasil === 'N-A') counter.evaluated++; });
-    return { counter, exists: lists.length > 0, complete: items.length > 0 && items.every(item => Boolean(item.hasil)) };
+    items.forEach(item => { if (!item.hasil || !item.komentar_auditor?.trim()) return; counter.evaluated++; if (item.hasil !== 'N-A' && item.hasil in counter) counter[item.hasil as 'O'|'A'|'B'|'C']++; });
+    return { counter, exists: lists.length > 0, complete: items.length > 0 && items.every(item => Boolean(item.hasil && item.komentar_auditor?.trim())) };
   }
   if (row.tipe_baris === 'AuditProduk') {
     const lists = await getProductChecklistsByRow(row.id);
     const phases = (await Promise.all(lists.map(list => getProductPhases(list.id)))).flat();
     const items = (await Promise.all(phases.map(phase => getProductItemsByPhase(phase.id)))).flat();
     counter.total = items.length;
-    items.forEach(item => { if (!item.judgment) return; counter.evaluated++; if (item.judgment === 'OK') counter.O++; else if (item.finding_kategori) counter[item.finding_kategori]++; });
-    return { counter, exists: lists.length > 0, complete: lists.length > 0 && lists.every(list => list.status === 'Selesai') && items.length > 0 && items.every(item => Boolean(item.judgment)) };
+    items.forEach(item => { if (!item.judgment || !item.hasil_pemeriksaan?.trim()) return; counter.evaluated++; if (item.judgment === 'OK') counter.O++; else if (item.finding_kategori) counter[item.finding_kategori]++; });
+    return { counter, exists: lists.length > 0, complete: lists.length > 0 && lists.every(list => list.status === 'Selesai') && items.length > 0 && items.every(item => Boolean(item.judgment && item.hasil_pemeriksaan?.trim())) };
   }
   const lists = await getManufacturingChecklistsByRow(row.id);
   const items = (await Promise.all(lists.map(list => getManufacturingItems(list.id)))).flat();
   counter.total = items.length;
-  items.forEach(item => { if (item.hasil) { counter.evaluated++; if (item.hasil !== 'N-A') counter[item.hasil]++; } });
-  return { counter, exists: lists.length > 0, complete: lists.length > 0 && lists.every(list => list.status === 'Selesai') && items.length > 0 && items.every(item => Boolean(item.hasil)) };
+  items.forEach(item => { if (item.hasil && item.hasil_pengamatan?.trim()) { counter.evaluated++; if (item.hasil !== 'N-A') counter[item.hasil]++; } });
+  return { counter, exists: lists.length > 0, complete: lists.length > 0 && lists.every(list => list.status === 'Selesai') && items.length > 0 && items.every(item => Boolean(item.hasil && item.hasil_pengamatan?.trim())) };
 }
 
 export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {

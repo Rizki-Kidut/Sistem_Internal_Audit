@@ -939,8 +939,52 @@ is therefore `VERIFIED_COMPLETE`.
 
 **Status:** `IMPLEMENTED_UNVERIFIED`
 
-Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile yang menggunakan ulang
-`ChecklistTab` serta service Checklist Sistem, Produk, dan Manufaktur/Shift yang sama. Counter O/A/B/C
+
+### Checklist/Pelaksanaan separation refinement (PR #8 working state)
+
+Checklist Audit is now preparation-only for System questions and uses the existing `checklist_items`
+rows: editable fields are limited to header and question structure. Its two-level Sub Proses → Elemen
+Proses accordion exposes a table per element and supports unlimited Pertanyaan Utama and unlimited
+text-only Sub Pertanyaan. The database compatibility name `kelompok_ipo` remains, while the UI and
+validation use five Elemen Proses: Input Proses, Method Proses, Output Proses, Resource, and Analisa
+Risiko. Active Metode Verifikasi UI and validation have been removed from System Checklist and Bank
+Checklist without deleting compatibility columns or historical values.
+
+Pelaksanaan uses dedicated execution panels for every active checklist type over the same source
+records. System saves only `hasil` and `komentar_auditor`; Product saves only actual sample,
+`hasil_pemeriksaan`, `judgment`, and `finding_kategori`; Manufacturing/Shift saves only
+`hasil_pengamatan` and `hasil`. All preparation context is read-only during execution, judgements start
+empty, and completed QA rows make every execution panel read-only until the existing reopen RPC succeeds.
+
+Product Checklist preparation now excludes actual sample, inspection result, OK/NG, and Finding
+category controls and uses a preparation-only payload that cannot overwrite historical execution or
+Finding linkage. Manufacturing/Shift Checklist preparation similarly excludes observation and
+judgement and uses a structural-only payload. Product and Manufacturing/Shift Pelaksanaan no longer
+render `ChecklistTab`; their dedicated panels expose no header, phase, item, Bank, sync, or delete
+controls. Product and Manufacturing/Shift counters and save validation require their existing
+observation/judgement pairs without changing result models or Finding synchronization.
+
+Checklist Product and Manufacturing/Shift now have an explicit two-stage lifecycle. Database status
+`Draft` means preparation is editable. Database status `Selesai` is presented as **Siap Pelaksanaan**:
+header, phase/evidence, Bank synchronization, and structural item changes are locked, while the dedicated
+Pelaksanaan panels may still update only their execution fields. Final completion remains exclusively
+`audit_instruction_rows.cek_selesai=true`; the existing Batch 6b source guard then locks preparation,
+execution, and PLOR until reopen succeeds.
+
+Additive migration `20260822120000_align_preparation_ready_execution_guards.sql` replaces only the
+Product and Manufacturing/Shift checklist-status item guards. In ready state it permits the documented
+execution fields, `finding_id`, and `updated_at`, but blocks structural updates plus insert/delete. It
+does not replace the SECURITY INVOKER completion RPCs or blocker and has not been applied to Staging.
+
+Additive migration `20260822110000_refine_batch6b_checklist_execution_separation.sql` expands the
+Elemen Proses constraints, makes retained method columns optional, and replaces the database completion
+blocker with per-item observation/judgement messages for System, Product, and Manufacturing/Shift. It
+explicitly preserves `SECURITY INVOKER` for the blocker and complete/reopen RPCs. This migration is
+applied on Staging and is now immutable. The new 12:00 guard correction still requires Staging runtime,
+security, and browser verification; therefore Batch 6b remains `IMPLEMENTED_UNVERIFIED`.
+
+Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile dengan panel eksekusi khusus
+untuk Checklist Sistem, Produk, dan Manufaktur/Shift atas record sumber yang sama. Counter O/A/B/C
 dan status `Belum Mulai` / `Berjalan` / `Ada NC` / `Tidak Ada NC` dihitung dari record sumber saat ini;
 Product OK dipetakan ke O dan NG memakai `finding_kategori`, sementara N-A dikecualikan dari counter.
 
