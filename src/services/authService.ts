@@ -11,8 +11,8 @@ export async function signOut(): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function getOwnProfile(): Promise<UserProfile | null> {
-  const { data, error } = await supabase.from('user_profiles').select('*').maybeSingle();
+export async function getOwnProfile(userId: string): Promise<UserProfile | null> {
+  const { data, error } = await supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle();
   if (error) throw new Error(error.message);
   return data as UserProfile | null;
 }

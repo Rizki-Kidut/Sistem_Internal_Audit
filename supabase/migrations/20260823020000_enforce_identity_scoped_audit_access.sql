@@ -5,6 +5,8 @@ DO $$ DECLARE t text; p record; BEGIN
    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
    FOR p IN SELECT policyname FROM pg_policies WHERE schemaname='public' AND tablename=t LOOP EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I',p.policyname,t); END LOOP;
    EXECUTE format('REVOKE ALL ON public.%I FROM anon',t);
+   EXECUTE format('REVOKE ALL ON public.%I FROM authenticated',t);
+   EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO authenticated',t);
   END IF;
  END LOOP;
 END $$;
@@ -17,12 +19,12 @@ END $$;
 DO $$ DECLARE t text; BEGIN FOREACH t IN ARRAY ARRAY['audit_plans','audit_plan_process','audit_plan_seksi_link','audit_plan_schedule','checklist_bank_items','proses_seksi','audit_teams','audit_schedules','audit_scopes','audit_programs','audit_program_distribusi','audit_program_risiko','audit_program_steps','audit_program_step_template','plants','target_models','shifts','clause_keyword_map','checklist_manufaktur_bank_items'] LOOP
  EXECUTE format('CREATE POLICY admin_all ON public.%I FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity())',t);
 END LOOP; END $$;
-CREATE POLICY seksi_authenticated_read ON public.seksi FOR SELECT TO authenticated USING(public.current_identity_type() IS NOT NULL);
+CREATE POLICY seksi_scoped_read ON public.seksi FOR SELECT TO authenticated USING(public.identity_can_access_seksi(id));
 CREATE POLICY seksi_admin_write ON public.seksi FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
-CREATE POLICY proses_authenticated_read ON public.proses FOR SELECT TO authenticated USING(public.current_identity_type() IS NOT NULL);
+CREATE POLICY proses_scoped_read ON public.proses FOR SELECT TO authenticated USING(public.identity_can_access_proses(id));
 CREATE POLICY proses_admin_write ON public.proses FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY auditors_admin_all ON public.auditors FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
-CREATE POLICY auditors_assigned_read ON public.auditors FOR SELECT TO authenticated USING(id=public.current_auditor_id() OR public.current_auditor_is_peer(id));
+CREATE POLICY auditors_scoped_read ON public.auditors FOR SELECT TO authenticated USING(id=public.current_auditor_id() OR public.current_auditor_is_peer(id) OR public.manager_can_access_auditor(id));
 
 CREATE POLICY instruction_rows_admin_all ON public.audit_instruction_rows FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY instruction_rows_auditor_read ON public.audit_instruction_rows FOR SELECT TO authenticated USING(public.auditor_can_access_instruction_row(id));
@@ -33,8 +35,10 @@ CREATE POLICY instructions_context_read ON public.audit_instructions FOR SELECT 
 
 CREATE POLICY team_masters_admin_all ON public.audit_team_masters FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY team_masters_member_read ON public.audit_team_masters FOR SELECT TO authenticated USING(public.current_auditor_belongs_to_team(id));
+CREATE POLICY team_masters_manager_read ON public.audit_team_masters FOR SELECT TO authenticated USING(public.manager_can_access_team(id));
 CREATE POLICY team_members_admin_all ON public.audit_team_master_members FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY team_members_team_read ON public.audit_team_master_members FOR SELECT TO authenticated USING(public.current_auditor_belongs_to_team(team_id));
+CREATE POLICY team_members_manager_read ON public.audit_team_master_members FOR SELECT TO authenticated USING(public.manager_can_access_team(team_id));
 
 CREATE POLICY checklists_admin_all ON public.checklists FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY checklists_auditor_read ON public.checklists FOR SELECT TO authenticated USING(public.auditor_can_access_instruction_row(row_id));
@@ -63,8 +67,8 @@ CREATE POLICY agenda_items_scoped_read ON public.audit_agenda_items FOR SELECT T
 CREATE POLICY findings_admin_all ON public.findings FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
 CREATE POLICY findings_auditor_read ON public.findings FOR SELECT TO authenticated USING(public.auditor_can_access_instruction_row(instruction_row_id));
 CREATE POLICY findings_auditor_update ON public.findings FOR UPDATE TO authenticated USING(public.current_identity_type()='AUDITOR' AND public.auditor_can_access_instruction_row(instruction_row_id)) WITH CHECK(public.auditor_can_access_instruction_row(instruction_row_id));
-CREATE POLICY clause_keyword_active_identity_read ON public.clause_keyword_map FOR SELECT TO authenticated USING(public.current_identity_type() IS NOT NULL);
-CREATE POLICY manufacturing_bank_active_identity_read ON public.checklist_manufaktur_bank_items FOR SELECT TO authenticated USING(public.current_identity_type() IS NOT NULL);
+CREATE POLICY clause_keyword_auditor_read ON public.clause_keyword_map FOR SELECT TO authenticated USING(public.current_identity_type()='AUDITOR');
+CREATE POLICY manufacturing_bank_auditor_read ON public.checklist_manufaktur_bank_items FOR SELECT TO authenticated USING(public.current_identity_type()='AUDITOR' AND EXISTS(SELECT 1 FROM public.checklist_manufaktur_items i JOIN public.checklist_manufaktur_shift c ON c.id=i.checklist_id WHERE i.bank_item_id=checklist_manufaktur_bank_items.id AND public.auditor_can_access_instruction_row(c.row_id)));
 
 -- Column-level execution separation for direct REST updates; existing lifecycle/finding triggers still run.
 CREATE FUNCTION public.guard_identity_execution_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
@@ -93,10 +97,13 @@ REVOKE ALL ON FUNCTION public.guard_identity_execution_mutation() FROM PUBLIC;
 
 -- Evidence path is product-checklists/{checklist_id}/{fase_id}/{object}; objects are private and team scoped.
 DROP POLICY IF EXISTS audit_evidence_select ON storage.objects; DROP POLICY IF EXISTS audit_evidence_insert ON storage.objects; DROP POLICY IF EXISTS audit_evidence_update ON storage.objects; DROP POLICY IF EXISTS audit_evidence_delete ON storage.objects;
-CREATE POLICY audit_evidence_scoped_select ON storage.objects FOR SELECT TO authenticated USING(bucket_id='audit-evidence' AND (public.is_admin_identity() OR EXISTS(SELECT 1 FROM public.checklist_produk c WHERE c.id=(storage.foldername(name))[2]::uuid AND public.auditor_can_access_instruction_row(c.row_id))));
-CREATE POLICY audit_evidence_admin_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK(bucket_id='audit-evidence' AND public.is_admin_identity());
-CREATE POLICY audit_evidence_admin_update ON storage.objects FOR UPDATE TO authenticated USING(bucket_id='audit-evidence' AND public.is_admin_identity()) WITH CHECK(bucket_id='audit-evidence' AND public.is_admin_identity());
-CREATE POLICY audit_evidence_admin_delete ON storage.objects FOR DELETE TO authenticated USING(bucket_id='audit-evidence' AND public.is_admin_identity());
+CREATE FUNCTION public.product_evidence_checklist_id(p_name text) RETURNS uuid LANGUAGE sql STABLE SECURITY INVOKER SET search_path=pg_catalog,public AS $$ SELECT CASE WHEN cardinality(storage.foldername(p_name))=3 AND (storage.foldername(p_name))[1]='product-checklists' AND (storage.foldername(p_name))[2]~*'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' AND (storage.foldername(p_name))[3]~*'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN (storage.foldername(p_name))[2]::uuid END $$;
+REVOKE ALL ON FUNCTION public.product_evidence_checklist_id(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.product_evidence_checklist_id(text) TO authenticated;
+CREATE POLICY audit_evidence_scoped_select ON storage.objects FOR SELECT TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_checklist_id(name) IS NOT NULL AND (public.is_admin_identity() OR EXISTS(SELECT 1 FROM public.checklist_produk c WHERE c.id=public.product_evidence_checklist_id(name) AND public.auditor_can_access_instruction_row(c.row_id))));
+CREATE POLICY audit_evidence_admin_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK(bucket_id='audit-evidence' AND public.product_evidence_checklist_id(name) IS NOT NULL AND public.is_admin_identity());
+CREATE POLICY audit_evidence_admin_update ON storage.objects FOR UPDATE TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_checklist_id(name) IS NOT NULL AND public.is_admin_identity()) WITH CHECK(bucket_id='audit-evidence' AND public.product_evidence_checklist_id(name) IS NOT NULL AND public.is_admin_identity());
+CREATE POLICY audit_evidence_admin_delete ON storage.objects FOR DELETE TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_checklist_id(name) IS NOT NULL AND public.is_admin_identity());
 
 REVOKE EXECUTE ON FUNCTION public.complete_audit_execution(uuid),public.reopen_audit_execution(uuid),public.audit_execution_blockers(uuid),public.create_audit_agenda_from_row(uuid),public.finalize_audit_agenda(uuid),public.return_audit_agenda_to_draft(uuid),public.reorder_audit_agenda_items(uuid,uuid[]) FROM anon;
 ALTER FUNCTION public.complete_audit_execution(uuid) SECURITY INVOKER; ALTER FUNCTION public.reopen_audit_execution(uuid) SECURITY INVOKER; ALTER FUNCTION public.audit_execution_blockers(uuid) SECURITY INVOKER;

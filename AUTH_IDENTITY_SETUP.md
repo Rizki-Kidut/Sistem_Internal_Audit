@@ -63,7 +63,9 @@ values ('<manager-auth-user-uuid>', '<seksi-id>', 'SECTION_MANAGER');
 
 The assignment type must match the profile identity. The initial model permits one active Audit PIC
 and one active Section Manager per section. Users can read their own assignment but cannot assign or
-remap themselves.
+remap themselves. An identity type cannot be changed while an incompatible Auditor link or active
+section assignment remains; administrators must remove the Auditor link or explicitly deactivate the
+section assignment first, so mapping history is never deleted silently.
 
 ## Current and future access contract
 
@@ -71,6 +73,13 @@ remap themselves.
 - **Auditor:** Team-owned Checklist (read-only preparation), Agenda (read-only), Pelaksanaan, and PLOR.
 - **Auditee:** restricted authenticated state until LTP exists.
 - **Section Manager:** section-scoped Agenda read-only; no Checklist, Pelaksanaan, or PLOR.
+
+Reference visibility follows the same least-visibility boundary: Auditors receive only process and
+section labels referenced by Team-owned Instruction rows, while Managers receive only managed-section
+Agenda context. Auditees receive no general process/section masters in Batch 7.0. Clause suggestions are
+Auditor/Admin-only, Manufacturing bank labels are limited to Team-owned execution items, and Manager
+Team/Lead/member names are limited to Teams used by Manager-accessible Agenda rows. Agenda may be
+printed by Admin, assigned Auditors, and scoped Managers without changing database state.
 
 Agenda approval/rejection is intentionally a follow-up. Batch 7a LTP must reuse these ownership
 helpers: Auditee by active `AUDIT_PIC`, Manager by active `SECTION_MANAGER`, Auditor by assigned Team,

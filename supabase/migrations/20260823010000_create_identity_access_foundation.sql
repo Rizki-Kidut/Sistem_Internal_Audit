@@ -39,7 +39,15 @@ SET search_path=pg_catalog,public AS $$ SELECT EXISTS(SELECT 1 FROM public.audit
 CREATE FUNCTION public.auditor_can_access_instruction_row(p_row_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,public AS $$ SELECT EXISTS(SELECT 1 FROM public.audit_instruction_rows r JOIN public.audit_team_master_members m ON m.team_id=r.team_master_id WHERE r.id=p_row_id AND m.auditor_id=public.current_auditor_id()) $$;
 CREATE FUNCTION public.manager_can_access_instruction_row(p_row_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path=pg_catalog,public AS $$ SELECT EXISTS(SELECT 1 FROM public.audit_instruction_rows r JOIN LATERAL jsonb_array_elements(r.seksi_marks) mark ON mark->>'tipe'='target' JOIN public.section_identity_assignments a ON a.seksi_id=(mark->>'seksi_id')::uuid WHERE r.id=p_row_id AND a.user_id=auth.uid() AND a.assignment_type='SECTION_MANAGER' AND a.status='Aktif') $$;
+SET search_path=pg_catalog,public AS $$ SELECT public.current_identity_type()='SECTION_MANAGER' AND EXISTS(SELECT 1 FROM public.audit_instruction_rows r JOIN LATERAL jsonb_array_elements(r.seksi_marks) mark ON mark->>'tipe'='target' JOIN public.section_identity_assignments a ON a.seksi_id=(mark->>'seksi_id')::uuid WHERE r.id=p_row_id AND a.user_id=auth.uid() AND a.assignment_type='SECTION_MANAGER' AND a.status='Aktif') $$;
+CREATE FUNCTION public.identity_can_access_proses(p_proses_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,public AS $$ SELECT public.is_admin_identity() OR EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.proses_id=p_proses_id AND (public.auditor_can_access_instruction_row(r.id) OR public.manager_can_access_instruction_row(r.id))) $$;
+CREATE FUNCTION public.identity_can_access_seksi(p_seksi_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,public AS $$ SELECT public.is_admin_identity() OR (public.current_identity_type()='AUDITOR' AND EXISTS(SELECT 1 FROM public.audit_instruction_rows r JOIN LATERAL jsonb_array_elements(r.seksi_marks) mark ON true WHERE (mark->>'seksi_id')::uuid=p_seksi_id AND public.auditor_can_access_instruction_row(r.id))) OR (public.current_identity_type()='SECTION_MANAGER' AND EXISTS(SELECT 1 FROM public.section_identity_assignments a WHERE a.user_id=auth.uid() AND a.seksi_id=p_seksi_id AND a.assignment_type='SECTION_MANAGER' AND a.status='Aktif')) $$;
+CREATE FUNCTION public.manager_can_access_team(p_team_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,public AS $$ SELECT public.current_identity_type()='SECTION_MANAGER' AND EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.team_master_id=p_team_id AND public.manager_can_access_instruction_row(r.id)) $$;
+CREATE FUNCTION public.manager_can_access_auditor(p_auditor_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,public AS $$ SELECT public.current_identity_type()='SECTION_MANAGER' AND EXISTS(SELECT 1 FROM public.audit_team_master_members m WHERE m.auditor_id=p_auditor_id AND public.manager_can_access_team(m.team_id)) $$;
 
 CREATE FUNCTION public.validate_identity_mapping() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
 DECLARE v_type text;
@@ -51,6 +59,15 @@ END $$;
 CREATE TRIGGER trg_validate_user_auditor_link BEFORE INSERT OR UPDATE ON public.user_auditor_links FOR EACH ROW EXECUTE FUNCTION public.validate_identity_mapping();
 CREATE TRIGGER trg_validate_section_identity BEFORE INSERT OR UPDATE ON public.section_identity_assignments FOR EACH ROW EXECUTE FUNCTION public.validate_identity_mapping();
 
+CREATE FUNCTION public.protect_profile_identity_mapping() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
+BEGIN
+ IF NEW.identity_type IS NOT DISTINCT FROM OLD.identity_type THEN RETURN NEW; END IF;
+ IF EXISTS(SELECT 1 FROM public.user_auditor_links l WHERE l.user_id=OLD.id) AND NEW.identity_type<>'AUDITOR' THEN RAISE EXCEPTION 'Hapus link Auditor sebelum mengubah tipe identitas AUDITOR'; END IF;
+ IF EXISTS(SELECT 1 FROM public.section_identity_assignments a WHERE a.user_id=OLD.id AND a.status='Aktif' AND ((a.assignment_type='AUDIT_PIC' AND NEW.identity_type<>'AUDITEE') OR (a.assignment_type='SECTION_MANAGER' AND NEW.identity_type<>'SECTION_MANAGER'))) THEN RAISE EXCEPTION 'Nonaktifkan penugasan seksi yang tidak kompatibel sebelum mengubah tipe identitas'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER trg_protect_profile_identity_mapping BEFORE UPDATE OF identity_type ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION public.protect_profile_identity_mapping();
+
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY; ALTER TABLE public.user_auditor_links ENABLE ROW LEVEL SECURITY; ALTER TABLE public.section_identity_assignments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY profiles_own_select ON public.user_profiles FOR SELECT TO authenticated USING(id=auth.uid());
 CREATE POLICY profiles_admin_all ON public.user_profiles FOR ALL TO authenticated USING(public.is_admin_identity()) WITH CHECK(public.is_admin_identity());
@@ -61,6 +78,6 @@ CREATE POLICY section_assignments_admin_all ON public.section_identity_assignmen
 
 REVOKE ALL ON public.user_profiles,public.user_auditor_links,public.section_identity_assignments FROM anon;
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.user_profiles,public.user_auditor_links,public.section_identity_assignments TO authenticated;
-REVOKE ALL ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid) TO authenticated;
-REVOKE ALL ON FUNCTION public.validate_identity_mapping() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid),public.identity_can_access_proses(uuid),public.identity_can_access_seksi(uuid),public.manager_can_access_team(uuid),public.manager_can_access_auditor(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid),public.identity_can_access_proses(uuid),public.identity_can_access_seksi(uuid),public.manager_can_access_team(uuid),public.manager_can_access_auditor(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.validate_identity_mapping(),public.protect_profile_identity_mapping() FROM PUBLIC;

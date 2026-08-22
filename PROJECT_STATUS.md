@@ -24,6 +24,13 @@
       warnings; the Batch 7.0 changed files add no lint finding. A browser screenshot could not be
       produced because this environment has neither configured Supabase frontend variables nor an
       installed browser runtime.
+- [x] PR #9 static-review corrections now scope own-profile loading by `auth.uid`, require a current
+      active Manager identity, reject incompatible profile identity changes, scope process/section/
+      Manufacturing-bank/Team reference reads, and preserve Manager Agenda Team context.
+- [x] Agenda read-only identities now receive Print only (no reopen control), token refresh updates the
+      session without unmounting the current page, malformed evidence paths are rejected safely, and
+      authenticated table privileges are normalized to SELECT/INSERT/UPDATE/DELETE (RLS remains the
+      per-identity authority; TRUNCATE/REFERENCES/TRIGGER are not granted).
 
 New migrations: `20260823010000_create_identity_access_foundation.sql` and
 `20260823020000_enforce_identity_scoped_audit_access.sql`. Batch 7 LTP/CAR, notifications, Agenda
