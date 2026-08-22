@@ -6,7 +6,7 @@ Date: 22 Aug 2026
 
 `VERIFIED_COMPLETE_PENDING_MERGE`
 
-This record documents the final verification state of Batch 6b before PR #8 is merged to `main`.
+This record is the authoritative Batch 6b closeout note for PR #8 and supersedes the older `IMPLEMENTED_UNVERIFIED` wording still present in the legacy consolidated `PROJECT_STATUS.md` section. The consolidated file can be reconciled during the next project-status maintenance pass without changing Batch 6b implementation.
 
 ## Verified architecture
 
@@ -115,7 +115,7 @@ These fixtures must not be cleaned during the Batch 6b closeout. They are intend
 
 PR: `https://github.com/Rizki-Kidut/Sistem_Internal_Audit/pull/8`
 
-Verified pre-merge head before this documentation commit:
+Verified implementation head before final documentation commits:
 `6599fc4f07e762172c4081cd6446202792aab715`
 
 All Batch 6b implementation, database, security, runtime, Vercel Preview, and manual browser-smoke gates have passed. The remaining closeout action is merging PR #8 and recording the resulting merge commit.
