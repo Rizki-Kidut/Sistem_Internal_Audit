@@ -73,23 +73,37 @@ CREATE TRIGGER trg_protect_audit_execution_completion BEFORE UPDATE OF cek_seles
 
 CREATE FUNCTION public.protect_completed_audit_checklist_source() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
-DECLARE v_record record; v_row_id uuid;
+DECLARE v_old_row_id uuid; v_new_row_id uuid;
 BEGIN
-  IF TG_OP='DELETE' THEN v_record:=OLD; ELSE v_record:=NEW; END IF;
   CASE TG_TABLE_NAME
-    WHEN 'checklists' THEN v_row_id:=v_record.row_id;
-    WHEN 'checklist_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklists c WHERE c.id=v_record.checklist_id;
-    WHEN 'checklist_produk' THEN v_row_id:=v_record.row_id;
-    WHEN 'checklist_produk_fase' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_produk c WHERE c.id=v_record.checklist_produk_id;
-    WHEN 'checklist_produk_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=v_record.fase_id;
-    WHEN 'checklist_manufaktur_shift' THEN v_row_id:=v_record.row_id;
-    WHEN 'checklist_manufaktur_items' THEN SELECT c.row_id INTO v_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=v_record.checklist_id;
+    WHEN 'checklists' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklists c WHERE c.id=OLD.checklist_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklists c WHERE c.id=NEW.checklist_id; END IF;
+    WHEN 'checklist_produk' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_produk_fase' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_produk c WHERE c.id=OLD.checklist_produk_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_produk c WHERE c.id=NEW.checklist_produk_id; END IF;
+    WHEN 'checklist_produk_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=OLD.fase_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_produk_fase f JOIN public.checklist_produk c ON c.id=f.checklist_produk_id WHERE f.id=NEW.fase_id; END IF;
+    WHEN 'checklist_manufaktur_shift' THEN
+      IF TG_OP<>'INSERT' THEN v_old_row_id:=OLD.row_id; END IF;
+      IF TG_OP<>'DELETE' THEN v_new_row_id:=NEW.row_id; END IF;
+    WHEN 'checklist_manufaktur_items' THEN
+      IF TG_OP<>'INSERT' THEN SELECT c.row_id INTO v_old_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=OLD.checklist_id; END IF;
+      IF TG_OP<>'DELETE' THEN SELECT c.row_id INTO v_new_row_id FROM public.checklist_manufaktur_shift c WHERE c.id=NEW.checklist_id; END IF;
     ELSE RAISE EXCEPTION 'Sumber Checklist tidak dikenali.';
   END CASE;
-  IF EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id=v_row_id AND r.cek_selesai) THEN
+  IF EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id IN (v_old_row_id,v_new_row_id) AND r.cek_selesai) THEN
     RAISE EXCEPTION 'Pelaksanaan audit ini sudah selesai. Buka kembali Pelaksanaan Audit sebelum mengubah Checklist.';
   END IF;
-  RETURN v_record;
+  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
 END $$;
 
 CREATE TRIGGER trg_lock_completed_system_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklists FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
@@ -99,6 +113,22 @@ CREATE TRIGGER trg_lock_completed_product_phase BEFORE INSERT OR UPDATE OR DELET
 CREATE TRIGGER trg_lock_completed_product_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_produk_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
 CREATE TRIGGER trg_lock_completed_manufacturing_checklist BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_shift FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
 CREATE TRIGGER trg_lock_completed_manufacturing_item BEFORE INSERT OR UPDATE OR DELETE ON public.checklist_manufaktur_items FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_checklist_source();
+
+CREATE FUNCTION public.protect_completed_audit_plor() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF (NEW.problem,NEW.location,NEW.objective_evidence,NEW.reference,NEW.saran_perbaikan,
+      NEW.auditor_penemu_id,NEW.auditee_area,NEW.tanggal_temuan,NEW.klasifikasi_dis)
+     IS DISTINCT FROM
+     (OLD.problem,OLD.location,OLD.objective_evidence,OLD.reference,OLD.saran_perbaikan,
+      OLD.auditor_penemu_id,OLD.auditee_area,OLD.tanggal_temuan,OLD.klasifikasi_dis)
+     AND EXISTS(SELECT 1 FROM public.audit_instruction_rows r WHERE r.id=OLD.instruction_row_id AND r.cek_selesai)
+  THEN
+    RAISE EXCEPTION 'Pelaksanaan audit ini sudah selesai. Buka kembali Pelaksanaan Audit sebelum mengubah PLOR.';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER trg_protect_completed_audit_plor BEFORE UPDATE ON public.findings FOR EACH ROW EXECUTE FUNCTION public.protect_completed_audit_plor();
 
 CREATE FUNCTION public.complete_audit_execution(p_row_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 DECLARE v_messages text[]; v_previous_guard text;
@@ -134,10 +164,11 @@ BEGIN
   END;
 END $$;
 
-REVOKE ALL ON FUNCTION public.audit_execution_blockers(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.protect_audit_execution_completion() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.protect_completed_audit_checklist_source() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.complete_audit_execution(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.reopen_audit_execution(uuid) FROM PUBLIC;
+REVOKE ALL PRIVILEGES ON FUNCTION public.audit_execution_blockers(uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_audit_execution_completion() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_completed_audit_checklist_source() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.protect_completed_audit_plor() FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.complete_audit_execution(uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL PRIVILEGES ON FUNCTION public.reopen_audit_execution(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.complete_audit_execution(uuid) TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.reopen_audit_execution(uuid) TO anon,authenticated;

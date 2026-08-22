@@ -955,6 +955,9 @@ mode read-only di Checklist Audit maupun trigger sumber database untuk Sistem, P
 dan metadata bukti), serta Manufaktur/Shift. Callback mutasi sukses dari editor Checklist kini memuat
 ulang counter dan `statusProgress` Pelaksanaan tanpa polling, dan guard internal completion/reopen
 selalu dikembalikan ke nilai sebelumnya pada jalur sukses maupun exception.
+Final pre-Staging hardening juga memeriksa kepemilikan QA lama dan baru pada setiap UPDATE sumber,
+mengunci field formal PLOR pada database dan UI selama pelaksanaan selesai, serta mencabut hak
+eksekusi helper Batch 6b secara eksplisit dari `PUBLIC`, `anon`, dan `authenticated`.
 
 Implementasi dan static checks lokal telah dilakukan, tetapi status tetap
 `IMPLEMENTED_UNVERIFIED` sampai migration diterapkan ke Staging, runtime suite 22 skenario,
