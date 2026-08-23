@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ClipboardCheck } from 'lucide-react';
 import type { AuditInstructionRow, Auditor, AuditTeamMaster, Proses, Seksi } from '../../lib/types';
 import { TIPE_BARIS_LABEL } from '../../lib/enums';
-import { supabase } from '../../lib/supabaseClient';
 import { getAllInstructionRows } from '../../services/auditInstructionService';
 import { getAllProses } from '../../services/prosesService';
 import { getSeksiList } from '../../services/seksiService';
@@ -10,21 +9,11 @@ import { getActiveAuditors } from '../../services/auditorService';
 import { getChecklistsByRow } from '../../services/checklistService';
 import { getProductChecklistsByRow } from '../../services/checklistProdukService';
 import { getManufacturingChecklistsByRow } from '../../services/checklistManufakturService';
+import { listChecklistAnnulmentHistory, type ChecklistFindingReviewHistory } from '../../services/findingService';
 import { Badge, Button, Card, EmptyState, LoadingSpinner } from '../ui';
 import { Input, Select } from '../ui/Field';
 import { ChecklistTab } from './instruksi-audit/ChecklistTab';
 import { getAuditTeamMasters } from '../../services/auditTeamMasterService';
-
-type ChecklistReviewHistory = {
-  finding_id: string;
-  finding_ref: string;
-  source_type: string;
-  initial_judgement: string;
-  effective_judgement: string;
-  reason: string;
-  actor_display_name: string;
-  created_at: string;
-};
 
 const reviewSourceLabel: Record<string,string> = {
   ChecklistSistem: 'Sistem',
@@ -35,36 +24,17 @@ const reviewSourceLabel: Record<string,string> = {
 export function ChecklistAuditPage({readOnly=false}:{readOnly?:boolean}){
   const [rows,setRows]=useState<AuditInstructionRow[]>([]); const [proses,setProses]=useState<Proses[]>([]); const [seksi,setSeksi]=useState<Seksi[]>([]); const [auditors,setAuditors]=useState<Auditor[]>([]);const [teams,setTeams]=useState<AuditTeamMaster[]>([]);
   const [statuses,setStatuses]=useState<Record<string,string>>({}); const [selected,setSelected]=useState<string|null>(null); const [search,setSearch]=useState(''); const [type,setType]=useState(''); const [status,setStatus]=useState(''); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
-  const [reviewHistory,setReviewHistory]=useState<ChecklistReviewHistory[]>([]); const [reviewLoading,setReviewLoading]=useState(false);
+  const [reviewHistory,setReviewHistory]=useState<ChecklistFindingReviewHistory[]>([]); const [reviewLoading,setReviewLoading]=useState(false);
   const load=useCallback(async()=>{setLoading(true);try{const [r,p,s,a,t]=await Promise.all([getAllInstructionRows(),getAllProses(),getSeksiList(),getActiveAuditors(),getAuditTeamMasters()]);setRows(r);setProses(p);setSeksi(s);setAuditors(a);setTeams(t);const entries=await Promise.all(r.map(async row=>{if(row.tipe_baris==='Reguler'){const x=await getChecklistsByRow(row.id);return [row.id,x.length?'Tersedia':'Belum Dibuat'];}if(row.tipe_baris==='AuditProduk'){const x=await getProductChecklistsByRow(row.id);return [row.id,x[0]?.status??'Belum Dibuat'];}const x=await getManufacturingChecklistsByRow(row.id);return [row.id,x[0]?.status??'Belum Dibuat'];}));setStatuses(Object.fromEntries(entries));}catch(e){setError(e instanceof Error?e.message:'Gagal memuat Checklist Audit');}finally{setLoading(false);}},[]);
   useEffect(()=>{load();},[load]);
   useEffect(()=>{
     let cancelled=false;
     if(!selected){setReviewHistory([]);setReviewLoading(false);return;}
     setReviewLoading(true);
-    (async()=>{
-      try{
-        const {data:findingRows,error:findingError}=await supabase.from('findings').select('id,kode_temuan,draft_reference,source_type').eq('instruction_row_id',selected).eq('review_status','ANNULLED');
-        if(findingError)throw new Error(findingError.message);
-        const findingIds=(findingRows??[]).map(item=>item.id as string);
-        if(!findingIds.length){if(!cancelled)setReviewHistory([]);return;}
-        const {data:dispositions,error:dispositionError}=await supabase.from('finding_source_dispositions').select('finding_id,initial_judgement,effective_judgement,reason,actor_display_name,created_at').in('finding_id',findingIds).order('created_at',{ascending:false});
-        if(dispositionError)throw new Error(dispositionError.message);
-        const findingById=new Map((findingRows??[]).map(item=>[item.id as string,item]));
-        const history=(dispositions??[]).map(item=>{const finding=findingById.get(item.finding_id as string);return{
-          finding_id:item.finding_id as string,
-          finding_ref:String(finding?.kode_temuan??finding?.draft_reference??'Finding'),
-          source_type:String(finding?.source_type??''),
-          initial_judgement:String(item.initial_judgement??'-'),
-          effective_judgement:String(item.effective_judgement??'-'),
-          reason:String(item.reason??'-'),
-          actor_display_name:String(item.actor_display_name??'-'),
-          created_at:String(item.created_at??''),
-        };});
-        if(!cancelled)setReviewHistory(history);
-      }catch(e){if(!cancelled)setError(e instanceof Error?`Gagal memuat riwayat review Checklist: ${e.message}`:'Gagal memuat riwayat review Checklist');}
-      finally{if(!cancelled)setReviewLoading(false);}
-    })();
+    listChecklistAnnulmentHistory(selected)
+      .then(history=>{if(!cancelled)setReviewHistory(history);})
+      .catch(e=>{if(!cancelled)setError(e instanceof Error?e.message:'Gagal memuat riwayat review Checklist');})
+      .finally(()=>{if(!cancelled)setReviewLoading(false);});
     return()=>{cancelled=true;};
   },[selected]);
   const filtered=useMemo(()=>rows.filter(r=>{const process=proses.find(p=>p.id===r.proses_id)?.nama_proses??'';return(!search||`${r.kode_audit} ${process}`.toLowerCase().includes(search.toLowerCase()))&&(!type||r.tipe_baris===type)&&(!status||statuses[r.id]===status);}),[rows,proses,search,type,status,statuses]);
