@@ -2,7 +2,9 @@
 
 > Finding compatibility: identity authorization does not replace the operational Finding/CAR
 > lifecycle. `findings.status` remains operational; Team/Lead/Admin publication uses the separate
-> `findings.review_status`. Existing numbered Findings remain preserved as `LEGACY_ESTABLISHED`.
+> `findings.review_status`. Existing numbered Findings are preserved. Completed/progressed legacy
+> records become `LEGACY_ESTABLISHED`, while numbered Findings on unfinished audits remain
+> `DRAFT`-compatible so their PLOR can be completed and reviewed without replacing the old number.
 
 ## Identity is not a person
 
@@ -73,7 +75,7 @@ section assignment first, so mapping history is never deleted silently.
 
 ## Current and future access contract
 
-- **Admin:** all existing preparation, master, execution, Agenda, and PLOR modules.
+- **Admin:** all existing preparation, master, execution, Agenda, and PLOR modules; execution content is visible globally but Auditor execution actions remain read-only/blocked.
 - **Auditor:** Team-owned Checklist (read-only preparation), Agenda (read-only), Pelaksanaan, and PLOR.
 - **Auditee:** restricted authenticated state until LTP exists.
 - **Section Manager:** section-scoped Agenda read-only; no Checklist, Pelaksanaan, or PLOR.
@@ -98,11 +100,17 @@ remain independent and may be assigned to the same or different Auditor members.
 `Auditor Member prepares/revises PLOR → Team Leader submits/resubmits → Lead Auditor requests revision,
 approves, or annuls → System assigns the official number on approval → Admin/QMS releases`.
 
-Drafts use a stable `Draft Finding #NN` reference. Official `{QA}/{SYS|PRD|MFG}/{year}/{NNN}` numbers
-are transactionally allocated only at Lead approval. Review events, Admin/Team PLOR edits, annulled-source
-dispositions, and release actions are append-only. Revision notifications are generated for every active
-mapped Team Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves
-use `revision_version` optimistic concurrency to reject stale edits.
+New Drafts use a stable draft reference and receive official `{QA}/{SYS|PRD|MFG}/{year}/{NNN}` numbers
+only at Lead approval. A numbered legacy Draft keeps its pre-workflow number through review instead of
+receiving a replacement number. Review events, Admin/Team PLOR edits, annulled-source dispositions,
+and release actions are append-only. Revision notifications are generated for every active mapped Team
+Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves use
+`revision_version` optimistic concurrency to reject stale edits.
+
+Lead annulment changes the authoritative source result to effective conforming (`O` for System/
+Manufacturing, `OK` for Product) while preserving the initial judgement, reason, reviewer, timestamp,
+Finding link, and review event. The Checklist workspace exposes that history so external reviewers can
+see why an originally nonconforming judgement now has a conforming effective result.
 
 ## Runtime/RLS verification plan (not executed in this PR)
 
@@ -111,6 +119,7 @@ global access; inverse Team A/Team B worklists and direct UUID denial; scoped co
 values; System/Product/Manufacturing allowed execution columns and rejected structural columns;
 Finding and Agenda Team isolation; Manager target-section Agenda visibility; profile escalation,
 Auditor remapping, and section self-assignment rejection; completion/reopen ownership; continued
-DB-trigger Finding creation/removal; evidence signed URL isolation; and final `cek_selesai` locks.
+DB-trigger Finding creation/removal; legacy numbered Draft preservation; governed annulment and source
+history; evidence signed URL isolation; and final `cek_selesai` locks.
 Also confirm `complete_audit_execution`, `reopen_audit_execution`, and `audit_execution_blockers`
 remain `SECURITY INVOKER`.
