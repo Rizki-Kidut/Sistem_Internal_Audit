@@ -35,12 +35,15 @@ async function sourceState(row: AuditExecutionSummary['row']) {
 }
 
 export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
-  const [rows, proses, teams, findingResult] = await Promise.all([
+  const [rows, proses, teams, findingResult, dispositionResult] = await Promise.all([
     getAllInstructionRows(), getAllProses(), getAuditTeamMasters(),
     supabase.from('findings').select('*'),
+    supabase.from('finding_source_dispositions').select('*'),
   ]);
   if (findingResult.error) throw new Error(`Gagal memuat status PLOR: ${findingResult.error.message}`);
+  if (dispositionResult.error) throw new Error(`Gagal memuat disposisi review: ${dispositionResult.error.message}`);
   const findings = (findingResult.data ?? []) as Finding[];
+  const dispositions = dispositionResult.data ?? [];
   return Promise.all(rows.map(async row => {
     const state = await sourceState(row);
     const rowFindings = findings.filter(finding => finding.instruction_row_id === row.id);
@@ -51,6 +54,7 @@ export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
       status_progress: 'Belum Mulai', findings: rowFindings.map(finding => ({
         id: finding.id, source_item_id: finding.source_item_id, kode_temuan: finding.kode_temuan, draft_reference: finding.draft_reference,
         kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
+        disposition: dispositions.find(item => item.finding_id === finding.id) ?? null,
       })),
     };
     summary.status_progress = computeStatusProgress(summary);

@@ -48,6 +48,14 @@ New migrations: `20260823010000_create_identity_access_foundation.sql` and
 - [x] Admin may auditably edit Draft/Revision Required PLOR and release approved Findings, but cannot
       submit/resubmit, approve/annul, mutate execution results, complete/reopen execution, or hard-delete.
 - [x] Product evidence authorization additionally verifies that the path phase belongs to its checklist.
+- [x] Preserved every legacy Finding number, operational status, CAR relationship, PLOR, source link,
+      and timestamp. Publication now uses separate `review_status`; existing numbered rows receive the
+      non-historical `LEGACY_ESTABLISHED` compatibility marker without fake approval events.
+- [x] Lead annulment now atomically captures the actual initial judgement, applies the conforming result
+      to the authoritative source, retains its Finding link, appends immutable disposition/review history,
+      and changes only `review_status`. Normal source sync is locked after submission.
+- [x] Pelaksanaan shows effective/original annulment results with reason, reviewer, and time. Admin can
+      view all Pelaksanaan data but receives no execution editor or Complete/Reopen control.
 - [ ] Migration-chain execution, RLS/RPC role matrix, notification delivery, concurrency, browser workflow,
       Storage, Security Advisor, and Staging verification remain pending.
 

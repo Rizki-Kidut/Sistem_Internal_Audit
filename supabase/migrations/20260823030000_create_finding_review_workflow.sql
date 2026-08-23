@@ -27,15 +27,22 @@ CREATE FUNCTION public.current_auditor_is_lead_auditor(p_finding_id uuid) RETURN
 $$;
 
 ALTER TABLE public.findings ALTER COLUMN kode_temuan DROP NOT NULL;
-ALTER TABLE public.findings DROP CONSTRAINT IF EXISTS findings_status_check;
-ALTER TABLE public.findings ALTER COLUMN status SET DEFAULT 'DRAFT';
 ALTER TABLE public.findings ADD COLUMN draft_reference text,
+  ADD COLUMN review_status text,
   ADD COLUMN revision_version integer NOT NULL DEFAULT 1,
   ADD COLUMN approved_at timestamptz, ADD COLUMN approved_by uuid REFERENCES auth.users(id),
   ADD COLUMN released_at timestamptz, ADD COLUMN released_by uuid REFERENCES auth.users(id),
   ADD COLUMN annulled_at timestamptz, ADD COLUMN annulled_by uuid REFERENCES auth.users(id), ADD COLUMN annul_reason text;
-UPDATE public.findings SET draft_reference='Draft Finding #'||lpad(nomor_urut_temuan::text,2,'0'),kode_temuan=NULL,status='DRAFT';
-ALTER TABLE public.findings ADD CONSTRAINT findings_review_status_check CHECK(status IN('DRAFT','LEAD_REVIEW','REVISION_REQUIRED','READY_FOR_RELEASE','PUBLISHED','ANNULLED'));
+-- Existing numbered Findings predate this review workflow. Keep their official number,
+-- operational status, CAR relationship, PLOR, and timestamps. LEGACY_ESTABLISHED is a
+-- compatibility marker only; it does not manufacture a historical approval event.
+UPDATE public.findings
+SET review_status = CASE WHEN kode_temuan IS NOT NULL THEN 'LEGACY_ESTABLISHED' ELSE 'DRAFT' END,
+    draft_reference = CASE WHEN kode_temuan IS NULL
+      THEN 'Draft Finding #'||lpad(nomor_urut_temuan::text,2,'0') ELSE NULL END;
+ALTER TABLE public.findings ALTER COLUMN review_status SET DEFAULT 'DRAFT';
+ALTER TABLE public.findings ALTER COLUMN review_status SET NOT NULL;
+ALTER TABLE public.findings ADD CONSTRAINT findings_review_status_check CHECK(review_status IN('DRAFT','LEAD_REVIEW','REVISION_REQUIRED','READY_FOR_RELEASE','PUBLISHED','ANNULLED','LEGACY_ESTABLISHED'));
 ALTER TABLE public.findings ADD CONSTRAINT findings_revision_version_check CHECK(revision_version>0);
 
 CREATE TABLE public.finding_review_events(
@@ -48,7 +55,8 @@ CREATE INDEX idx_finding_review_events_finding ON public.finding_review_events(f
 CREATE TABLE public.finding_source_dispositions(
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), finding_id uuid NOT NULL UNIQUE REFERENCES public.findings(id) ON DELETE RESTRICT,
  source_type text NOT NULL, source_item_id uuid NOT NULL, initial_judgement text NOT NULL, effective_judgement text NOT NULL,
- reason text NOT NULL, actor_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT, created_at timestamptz NOT NULL DEFAULT now()
+ reason text NOT NULL, actor_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+ actor_display_name text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.notifications(
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), recipient_user_id uuid NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
@@ -75,7 +83,7 @@ CREATE TRIGGER trg_immutable_finding_dispositions BEFORE UPDATE OR DELETE ON pub
 
 -- Source synchronization creates a stable draft, never an official publication number.
 CREATE FUNCTION public.prepare_draft_finding_insert() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
-BEGIN NEW.kode_temuan:=NULL;NEW.draft_reference:=COALESCE(NEW.draft_reference,'Draft Finding #'||lpad(NEW.nomor_urut_temuan::text,2,'0'));NEW.status:='DRAFT';RETURN NEW;END $$;
+BEGIN NEW.kode_temuan:=NULL;NEW.draft_reference:=COALESCE(NEW.draft_reference,'Draft Finding #'||lpad(NEW.nomor_urut_temuan::text,2,'0'));NEW.review_status:='DRAFT';RETURN NEW;END $$;
 CREATE TRIGGER trg_prepare_draft_finding_insert BEFORE INSERT ON public.findings FOR EACH ROW EXECUTE FUNCTION public.prepare_draft_finding_insert();
 
 CREATE FUNCTION public.assert_complete_plor(p_f public.findings) RETURNS void LANGUAGE plpgsql STABLE SET search_path=pg_catalog,public AS $$
@@ -90,21 +98,22 @@ DECLARE v_identity text:=public.current_identity_type();v_changed jsonb;
 BEGIN
  IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN RAISE EXCEPTION 'created_at Temuan tidak dapat diubah';END IF;
  IF COALESCE(current_setting('certitrack.finding_sync',true),'')='1' THEN
+  IF OLD.review_status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'Kategori sumber terkunci setelah Finding dikirim untuk review';END IF;
   IF (to_jsonb(NEW)-ARRAY['kategori','updated_at']) IS DISTINCT FROM (to_jsonb(OLD)-ARRAY['kategori','updated_at']) THEN RAISE EXCEPTION 'Sinkronisasi sumber hanya boleh mengubah kategori Finding';END IF;RETURN NEW;
  END IF;
  IF COALESCE(current_setting('certitrack.finding_workflow',true),'')='1' THEN
-  IF OLD.status='DRAFT' AND NEW.status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['status','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.status='REVISION_REQUIRED' AND NEW.status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['status','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.status='LEAD_REVIEW' AND NEW.status='REVISION_REQUIRED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['status','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.status='LEAD_REVIEW' AND NEW.status='READY_FOR_RELEASE' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['kode_temuan','status','approved_at','approved_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['kode_temuan','status','approved_at','approved_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.status='LEAD_REVIEW' AND NEW.status='ANNULLED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.status='READY_FOR_RELEASE' AND NEW.status='PUBLISHED' AND public.is_admin_identity() AND (to_jsonb(NEW)-ARRAY['status','released_at','released_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['status','released_at','released_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='DRAFT' AND NEW.review_status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='REVISION_REQUIRED' AND NEW.review_status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='REVISION_REQUIRED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='READY_FOR_RELEASE' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='ANNULLED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='READY_FOR_RELEASE' AND NEW.review_status='PUBLISHED' AND public.is_admin_identity() AND (to_jsonb(NEW)-ARRAY['review_status','released_at','released_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','released_at','released_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
   RAISE EXCEPTION 'Mutasi workflow Finding tidak sesuai aksi/otoritas resmi';
  END IF;
- IF (NEW.instruction_row_id,NEW.kode_audit,NEW.kode_temuan,NEW.draft_reference,NEW.nomor_urut_temuan,NEW.source_type,NEW.source_item_id,NEW.kategori,NEW.status,NEW.car_id,NEW.approved_at,NEW.approved_by,NEW.released_at,NEW.released_by,NEW.annulled_at,NEW.annulled_by,NEW.annul_reason)
-  IS DISTINCT FROM (OLD.instruction_row_id,OLD.kode_audit,OLD.kode_temuan,OLD.draft_reference,OLD.nomor_urut_temuan,OLD.source_type,OLD.source_item_id,OLD.kategori,OLD.status,OLD.car_id,OLD.approved_at,OLD.approved_by,OLD.released_at,OLD.released_by,OLD.annulled_at,OLD.annulled_by,OLD.annul_reason) THEN RAISE EXCEPTION 'Identitas dan workflow Temuan hanya dapat diubah melalui aksi resmi';END IF;
+ IF (NEW.instruction_row_id,NEW.kode_audit,NEW.kode_temuan,NEW.draft_reference,NEW.nomor_urut_temuan,NEW.source_type,NEW.source_item_id,NEW.kategori,NEW.status,NEW.review_status,NEW.car_id,NEW.approved_at,NEW.approved_by,NEW.released_at,NEW.released_by,NEW.annulled_at,NEW.annulled_by,NEW.annul_reason)
+  IS DISTINCT FROM (OLD.instruction_row_id,OLD.kode_audit,OLD.kode_temuan,OLD.draft_reference,OLD.nomor_urut_temuan,OLD.source_type,OLD.source_item_id,OLD.kategori,OLD.status,OLD.review_status,OLD.car_id,OLD.approved_at,OLD.approved_by,OLD.released_at,OLD.released_by,OLD.annulled_at,OLD.annulled_by,OLD.annul_reason) THEN RAISE EXCEPTION 'Identitas dan workflow Temuan hanya dapat diubah melalui aksi resmi';END IF;
  IF NEW.auditor_penemu_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.audit_instruction_rows r JOIN public.audit_team_master_members m ON m.team_id=r.team_master_id WHERE r.id=NEW.instruction_row_id AND m.auditor_id=NEW.auditor_penemu_id) THEN RAISE EXCEPTION 'Auditor Penemu harus anggota Tim Audit';END IF;
- IF OLD.status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'PLOR tidak dapat diedit pada status %',OLD.status;END IF;
+ IF OLD.review_status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'PLOR tidak dapat diedit pada status %',OLD.review_status;END IF;
  IF v_identity='AUDITOR' AND NOT public.auditor_can_access_instruction_row(OLD.instruction_row_id) THEN RAISE EXCEPTION 'Temuan bukan milik Tim Auditor';
  ELSIF v_identity<>'AUDITOR' AND v_identity<>'ADMIN' THEN RAISE EXCEPTION 'Identitas tidak diizinkan mengedit PLOR';END IF;
  IF NEW.revision_version<>OLD.revision_version THEN RAISE EXCEPTION 'Versi Temuan tidak valid';END IF;
@@ -119,7 +128,7 @@ CREATE FUNCTION public.add_finding_notification(p_finding uuid,p_type text,p_tit
  INSERT INTO public.notifications(recipient_user_id,finding_id,notification_type,title,message) VALUES(p_recipient,p_finding,p_type,p_title,p_message)
 $$;
 CREATE FUNCTION public.finding_transition(p_id uuid,p_action text,p_comment text DEFAULT NULL,p_effective_judgement text DEFAULT NULL) RETURNS public.findings LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;
+DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;v_actor_name text;
 BEGIN
  SELECT x.* INTO f FROM public.findings x WHERE x.id=p_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Temuan tidak ditemukan';END IF;
@@ -127,43 +136,58 @@ BEGIN
  SELECT r.team_master_id,i.tahun_fiskal INTO v_team,v_year FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE r.id=f.instruction_row_id;
  PERFORM set_config('certitrack.finding_workflow','1',true);
  IF p_action='SUBMIT' THEN
-  IF f.status<>'DRAFT' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim Draft';END IF;PERFORM public.assert_complete_plor(f);
-  UPDATE public.findings SET status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'DRAFT' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim Draft';END IF;PERFORM public.assert_complete_plor(f);
+  UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_SUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
   FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'LEAD_REVIEW','Finding menunggu review',f.kode_audit||' · '||f.draft_reference,u.user_id);END LOOP;
  ELSIF p_action='RESUBMIT' THEN
-  IF f.status<>'REVISION_REQUIRED' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim ulang revisi';END IF;PERFORM public.assert_complete_plor(f);
-  UPDATE public.findings SET status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'REVISION_REQUIRED' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim ulang revisi';END IF;PERFORM public.assert_complete_plor(f);
+  UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_RESUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
   FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'RESUBMITTED','Finding dikirim ulang',f.kode_audit||' · '||f.draft_reference,u.user_id);END LOOP;
  ELSIF p_action='REQUEST_REVISION' THEN
-  IF f.status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat meminta revisi';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar revisi wajib diisi';END IF;
-  UPDATE public.findings SET status='REVISION_REQUIRED',revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat meminta revisi';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar revisi wajib diisi';END IF;
+  UPDATE public.findings SET review_status='REVISION_REQUIRED',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'REVISION_REQUESTED',auth.uid(),v_identity,p_comment,NULL,NULL,NULL,now());
   FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' AND l.user_id<>auth.uid() LOOP PERFORM public.add_finding_notification(p_id,'REVISION_REQUIRED','Finding Revision Required',f.kode_audit||' · '||f.draft_reference||E'\n'||p_comment,u.user_id);END LOOP;
  ELSIF p_action='APPROVE' THEN
-  IF f.status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);PERFORM pg_advisory_xact_lock(hashtext('finding-number'),hashtext(f.kode_audit));
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);PERFORM pg_advisory_xact_lock(hashtext('finding-number'),hashtext(f.kode_audit));
   v_prefix:=CASE f.source_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
   SELECT COALESCE(max((regexp_match(kode_temuan,'/([0-9]+)$'))[1]::int),0)+1 INTO v_seq FROM public.findings WHERE kode_audit=f.kode_audit AND kode_temuan IS NOT NULL;
-  UPDATE public.findings SET kode_temuan=f.kode_audit||'/'||v_prefix||'/'||v_year||'/'||lpad(v_seq::text,3,'0'),status='READY_FOR_RELEASE',approved_at=now(),approved_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
+  UPDATE public.findings SET kode_temuan=f.kode_audit||'/'||v_prefix||'/'||v_year||'/'||lpad(v_seq::text,3,'0'),review_status='READY_FOR_RELEASE',approved_at=now(),approved_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'APPROVED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
   FOR u IN SELECT id user_id FROM public.user_profiles WHERE status='Aktif' AND identity_type='ADMIN' UNION SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'APPROVED','Finding disetujui',f.kode_audit||' siap dirilis',u.user_id);END LOOP;
  ELSIF p_action='ANNUL' THEN
-  IF f.status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat membatalkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Alasan pembatalan wajib diisi';END IF;
-  IF f.source_type='ChecklistProduk' THEN v_initial:='NG';IF p_effective_judgement<>'OK' THEN RAISE EXCEPTION 'Judgement efektif Produk harus OK';END IF;ELSE v_initial:=f.kategori;IF p_effective_judgement<>'O' THEN RAISE EXCEPTION 'Judgement efektif harus O';END IF;END IF;
-  INSERT INTO public.finding_source_dispositions(finding_id,source_type,source_item_id,initial_judgement,effective_judgement,reason,actor_user_id) VALUES(p_id,f.source_type,f.source_item_id,v_initial,p_effective_judgement,p_comment,auth.uid());
-  UPDATE public.findings SET status='ANNULLED',annulled_at=now(),annulled_by=auth.uid(),annul_reason=p_comment,revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat membatalkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Alasan pembatalan wajib diisi';END IF;
+  SELECT display_name INTO v_actor_name FROM public.user_profiles WHERE id=auth.uid() AND identity_type='AUDITOR' AND status='Aktif';
+  IF v_actor_name IS NULL THEN RAISE EXCEPTION 'Identitas Lead Auditor tidak aktif';END IF;
+  PERFORM set_config('certitrack.finding_annul_source',p_id::text,true);
+  IF f.source_type='ChecklistProduk' THEN
+   SELECT concat_ws(' / ',judgment,finding_kategori) INTO v_initial FROM public.checklist_produk_items WHERE id=f.source_item_id AND finding_id=f.id FOR UPDATE;
+   IF v_initial IS NULL OR split_part(v_initial,' / ',1)<>'NG' OR p_effective_judgement<>'OK' THEN RAISE EXCEPTION 'Sumber Produk harus NG dan judgement efektif harus OK';END IF;
+   UPDATE public.checklist_produk_items SET judgment='OK',finding_kategori=NULL WHERE id=f.source_item_id AND finding_id=f.id;
+  ELSIF f.source_type='ChecklistSistem' THEN
+   SELECT hasil INTO v_initial FROM public.checklist_items WHERE id=f.source_item_id AND finding_id=f.id FOR UPDATE;
+   IF v_initial NOT IN('A','B','C') OR p_effective_judgement<>'O' THEN RAISE EXCEPTION 'Sumber Sistem harus A/B/C dan hasil efektif harus O';END IF;
+   UPDATE public.checklist_items SET hasil='O' WHERE id=f.source_item_id AND finding_id=f.id;
+  ELSE
+   SELECT hasil INTO v_initial FROM public.checklist_manufaktur_items WHERE id=f.source_item_id AND finding_id=f.id FOR UPDATE;
+   IF v_initial NOT IN('A','B','C') OR p_effective_judgement<>'O' THEN RAISE EXCEPTION 'Sumber Manufaktur harus A/B/C dan hasil efektif harus O';END IF;
+   UPDATE public.checklist_manufaktur_items SET hasil='O' WHERE id=f.source_item_id AND finding_id=f.id;
+  END IF;
+  INSERT INTO public.finding_source_dispositions(finding_id,source_type,source_item_id,initial_judgement,effective_judgement,reason,actor_user_id,actor_display_name) VALUES(p_id,f.source_type,f.source_item_id,v_initial,p_effective_judgement,p_comment,auth.uid(),v_actor_name);
+  UPDATE public.findings SET review_status='ANNULLED',annulled_at=now(),annulled_by=auth.uid(),annul_reason=p_comment,revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'ANNULLED',auth.uid(),v_identity,p_comment,NULL,NULL,jsonb_build_object('effective_judgement',p_effective_judgement),now());
  ELSIF p_action='RELEASE' THEN
-  IF f.status<>'READY_FOR_RELEASE' OR NOT public.is_admin_identity() THEN RAISE EXCEPTION 'Hanya Admin dapat merilis Finding yang disetujui';END IF;
-  UPDATE public.findings SET status='PUBLISHED',released_at=now(),released_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'READY_FOR_RELEASE' OR NOT public.is_admin_identity() THEN RAISE EXCEPTION 'Hanya Admin dapat merilis Finding yang disetujui';END IF;
+  UPDATE public.findings SET review_status='PUBLISHED',released_at=now(),released_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'RELEASED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
  ELSE RAISE EXCEPTION 'Aksi Finding tidak valid';END IF;
  SELECT * INTO f FROM public.findings WHERE id=p_id;RETURN f;
 END $$;
 
 CREATE FUNCTION public.add_finding_team_response(p_id uuid,p_comment text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE f public.findings%ROWTYPE;BEGIN SELECT * INTO f FROM public.findings WHERE id=p_id;IF NOT public.auditor_can_access_instruction_row(f.instruction_row_id) OR f.status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'Respons Tim tidak diizinkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar wajib diisi';END IF;INSERT INTO public.finding_review_events(finding_id,event_type,actor_user_id,actor_identity_type,comment) VALUES(p_id,'TEAM_RESPONSE',auth.uid(),'AUDITOR',p_comment);END $$;
+DECLARE f public.findings%ROWTYPE;BEGIN SELECT * INTO f FROM public.findings WHERE id=p_id;IF NOT public.auditor_can_access_instruction_row(f.instruction_row_id) OR f.review_status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'Respons Tim tidak diizinkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar wajib diisi';END IF;INSERT INTO public.finding_review_events(finding_id,event_type,actor_user_id,actor_identity_type,comment) VALUES(p_id,'TEAM_RESPONSE',auth.uid(),'AUDITOR',p_comment);END $$;
 
 CREATE FUNCTION public.finding_capabilities(p_id uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  SELECT jsonb_build_object('is_team_member',public.auditor_can_access_instruction_row(f.instruction_row_id),'is_team_leader',public.current_auditor_is_team_leader(f.id),'is_lead_auditor',public.current_auditor_is_lead_auditor(f.id),'is_admin',public.is_admin_identity()) FROM public.findings f WHERE f.id=p_id AND (public.is_admin_identity() OR public.auditor_can_access_instruction_row(f.instruction_row_id))
@@ -171,8 +195,14 @@ $$;
 
 -- Admin remains preparation authority but cannot act as an execution Auditor.
 CREATE OR REPLACE FUNCTION public.guard_identity_execution_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
-DECLARE v_identity text:=public.current_identity_type();v_sync boolean:=COALESCE(current_setting('certitrack.finding_sync',true),'')='1';
+DECLARE v_identity text:=public.current_identity_type();v_sync boolean:=COALESCE(current_setting('certitrack.finding_sync',true),'')='1';v_annul text:=COALESCE(current_setting('certitrack.finding_annul_source',true),'');v_review text;
 BEGIN
+ IF v_annul<>'' AND v_identity='AUDITOR' THEN
+  IF TG_TABLE_NAME='checklist_items' AND OLD.finding_id::text=v_annul AND NEW.finding_id=OLD.finding_id AND NEW.hasil='O' AND (to_jsonb(NEW)-ARRAY['hasil','updated_at']) IS NOT DISTINCT FROM(to_jsonb(OLD)-ARRAY['hasil','updated_at']) THEN RETURN NEW;END IF;
+  IF TG_TABLE_NAME='checklist_produk_items' AND OLD.finding_id::text=v_annul AND NEW.finding_id=OLD.finding_id AND NEW.judgment='OK' AND NEW.finding_kategori IS NULL AND (to_jsonb(NEW)-ARRAY['judgment','finding_kategori','updated_at']) IS NOT DISTINCT FROM(to_jsonb(OLD)-ARRAY['judgment','finding_kategori','updated_at']) THEN RETURN NEW;END IF;
+  IF TG_TABLE_NAME='checklist_manufaktur_items' AND OLD.finding_id::text=v_annul AND NEW.finding_id=OLD.finding_id AND NEW.hasil='O' AND (to_jsonb(NEW)-ARRAY['hasil','updated_at']) IS NOT DISTINCT FROM(to_jsonb(OLD)-ARRAY['hasil','updated_at']) THEN RETURN NEW;END IF;
+  RAISE EXCEPTION 'Konteks annulment hanya boleh menerapkan hasil conforming pada sumber Finding yang sama';
+ END IF;
  IF v_sync THEN
   IF TG_TABLE_NAME='checklist_items' AND (to_jsonb(NEW)-ARRAY['finding_id','updated_at']) IS DISTINCT FROM (to_jsonb(OLD)-ARRAY['finding_id','updated_at']) THEN RAISE EXCEPTION 'Sinkronisasi hanya boleh mengubah finding_id';END IF;
   IF TG_TABLE_NAME='checklist_produk_items' AND (to_jsonb(NEW)-ARRAY['finding_id','finding_kategori','updated_at']) IS DISTINCT FROM (to_jsonb(OLD)-ARRAY['finding_id','finding_kategori','updated_at']) THEN RAISE EXCEPTION 'Sinkronisasi hanya boleh mengubah relasi Finding';END IF;
@@ -185,6 +215,10 @@ BEGIN
   IF TG_TABLE_NAME='checklist_manufaktur_items' AND (NEW.hasil_pengamatan,NEW.hasil) IS DISTINCT FROM (OLD.hasil_pengamatan,OLD.hasil) THEN RAISE EXCEPTION 'Admin tidak dapat mengisi pelaksanaan Manufaktur';END IF;RETURN NEW;
  END IF;
  IF v_identity<>'AUDITOR' THEN RAISE EXCEPTION 'Identitas tidak diizinkan mengubah pelaksanaan';END IF;
+ IF TG_TABLE_NAME<>'audit_instruction_rows' THEN
+  SELECT review_status INTO v_review FROM public.findings WHERE id=OLD.finding_id;
+  IF v_review IS NOT NULL AND v_review NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'Hasil sumber terkunci pada tahap review %',v_review;END IF;
+ END IF;
  IF TG_TABLE_NAME='audit_instruction_rows' THEN IF NOT public.auditor_can_access_instruction_row(OLD.id) OR (to_jsonb(NEW)-'cek_selesai'-'updated_at') IS DISTINCT FROM(to_jsonb(OLD)-'cek_selesai'-'updated_at') THEN RAISE EXCEPTION 'Auditor hanya dapat menyelesaikan audit Tim';END IF;
  ELSIF TG_TABLE_NAME='checklist_items' AND (to_jsonb(NEW)-ARRAY['hasil','komentar_auditor','finding_id','updated_at']) IS DISTINCT FROM(to_jsonb(OLD)-ARRAY['hasil','komentar_auditor','finding_id','updated_at']) THEN RAISE EXCEPTION 'Struktur Sistem tidak dapat diubah Auditor';
  ELSIF TG_TABLE_NAME='checklist_produk_items' AND (to_jsonb(NEW)-ARRAY['jumlah_sampel','hasil_pemeriksaan','judgment','finding_kategori','finding_id','updated_at']) IS DISTINCT FROM(to_jsonb(OLD)-ARRAY['jumlah_sampel','hasil_pemeriksaan','judgment','finding_kategori','finding_id','updated_at']) THEN RAISE EXCEPTION 'Struktur Produk tidak dapat diubah Auditor';
@@ -203,7 +237,7 @@ CREATE TRIGGER trg_identity_manufacturing_insert BEFORE INSERT ON public.checkli
 
 CREATE FUNCTION public.require_auditor_execution_transition() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
 BEGIN IF NEW.cek_selesai IS DISTINCT FROM OLD.cek_selesai AND (public.current_identity_type()<>'AUDITOR' OR NOT public.auditor_can_access_instruction_row(OLD.id)) THEN RAISE EXCEPTION 'Hanya Auditor Tim dapat menyelesaikan atau membuka pelaksanaan';END IF;
- IF NEW.cek_selesai AND EXISTS(SELECT 1 FROM public.findings f WHERE f.instruction_row_id=OLD.id AND f.status IN('DRAFT','LEAD_REVIEW','REVISION_REQUIRED')) THEN RAISE EXCEPTION 'Audit belum dapat diselesaikan. Review Finding masih tertunda.';END IF;RETURN NEW;END $$;
+ IF NEW.cek_selesai AND EXISTS(SELECT 1 FROM public.findings f WHERE f.instruction_row_id=OLD.id AND f.review_status IN('DRAFT','LEAD_REVIEW','REVISION_REQUIRED')) THEN RAISE EXCEPTION 'Audit belum dapat diselesaikan. Review Finding masih tertunda.';END IF;RETURN NEW;END $$;
 CREATE TRIGGER trg_require_auditor_execution_transition BEFORE UPDATE OF cek_selesai ON public.audit_instruction_rows FOR EACH ROW EXECUTE FUNCTION public.require_auditor_execution_transition();
 
 CREATE FUNCTION public.product_evidence_phase_matches(p_name text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -226,9 +260,12 @@ BEGIN
     JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE r.id=v_ctx.instruction_row_id FOR UPDATE OF r;
   IF v_row.kode_audit IS DISTINCT FROM v_ctx.kode_audit THEN RAISE EXCEPTION 'Sumber Checklist tidak dimiliki No. Audit yang sama'; END IF;
   SELECT * INTO v_f FROM public.findings WHERE source_type=p_type AND source_item_id=p_item;
+  -- Controlled Lead-annulment keeps the source link and permanent Finding while the
+  -- authoritative source result is changed to conforming in the same transaction.
+  IF v_f.id IS NOT NULL AND COALESCE(current_setting('certitrack.finding_annul_source',true),'')=v_f.id::text THEN RETURN v_f.id; END IF;
   IF p_category IS NULL THEN
     IF v_f.id IS NULL THEN RETURN NULL; END IF;
-    IF v_f.status <> 'DRAFT' OR v_f.car_id IS NOT NULL OR
+    IF v_f.review_status <> 'DRAFT' OR v_f.car_id IS NOT NULL OR
        COALESCE(btrim(v_f.klasifikasi_dis),'')<>'' OR COALESCE(btrim(v_f.problem),'')<>'' OR
        COALESCE(btrim(v_f.location),'')<>'' OR COALESCE(btrim(v_f.objective_evidence),'')<>'' OR
        COALESCE(btrim(v_f.reference),'')<>'' OR COALESCE(btrim(v_f.saran_perbaikan),'')<>'' THEN
@@ -254,6 +291,10 @@ BEGIN
   END IF;
   IF p_category NOT IN ('A','B','C') THEN RAISE EXCEPTION 'Kategori Temuan tidak valid'; END IF;
   IF v_f.id IS NOT NULL THEN
+    IF v_f.review_status NOT IN('DRAFT','REVISION_REQUIRED') THEN
+      IF v_f.kategori IS DISTINCT FROM p_category THEN RAISE EXCEPTION 'Kategori Finding terkunci pada tahap review %',v_f.review_status;END IF;
+      RETURN v_f.id;
+    END IF;
     v_previous_sync:=current_setting('certitrack.finding_sync',true);
     PERFORM set_config('certitrack.finding_sync','1',true);
     BEGIN

@@ -8,11 +8,14 @@ import { Input, Select } from '../ui/Field';
 import { ManufacturingAuditExecutionPanel } from './pelaksanaan/ManufacturingAuditExecutionPanel';
 import { ProductAuditExecutionPanel } from './pelaksanaan/ProductAuditExecutionPanel';
 import { SystemAuditExecutionPanel } from './pelaksanaan/SystemAuditExecutionPanel';
+import { useAuth } from '../../contexts/AuthContext';
 
 const statusVariant = (status: string) => status === STATUS_PROGRESS.ADA_NC ? 'red' : status === STATUS_PROGRESS.TIDAK_ADA_NC ? 'green' : status === STATUS_PROGRESS.BERJALAN ? 'blue' : 'gray';
 const date = (value: string | null) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID') : '-';
 
 export function PelaksanaanAuditPage() {
+  const { profile } = useAuth();
+  const canExecute = profile?.identity_type === 'AUDITOR';
   const [items, setItems] = useState<AuditExecutionSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null); const [search, setSearch] = useState('');
   const [type, setType] = useState(''); const [status, setStatus] = useState('');
@@ -33,12 +36,12 @@ export function PelaksanaanAuditPage() {
       <div className="grid grid-cols-4 gap-2 mt-5">{(['O','A','B','C'] as const).map(key => <div key={key} className="rounded-lg bg-gray-50 p-3 text-center"><p className="text-xs text-gray-500">{key}</p><p className="text-xl font-bold">{active.counter[key]}</p></div>)}</div>
     </Card>
     <div className="rounded-xl bg-white overflow-hidden">
-      {active.row.tipe_baris === TIPE_BARIS.REGULER && <SystemAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
-      {active.row.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
-      {(active.row.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || active.row.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) && <ManufacturingAuditExecutionPanel row={active.row} readOnly={active.row.cek_selesai} onError={setError} onChanged={load}/>}
+      {active.row.tipe_baris === TIPE_BARIS.REGULER && <SystemAuditExecutionPanel row={active.row} readOnly={!canExecute || active.row.cek_selesai} onError={setError} onChanged={load}/>}
+      {active.row.tipe_baris === TIPE_BARIS.AUDIT_PRODUK && <ProductAuditExecutionPanel row={active.row} readOnly={!canExecute || active.row.cek_selesai} onError={setError} onChanged={load}/>}
+      {(active.row.tipe_baris === TIPE_BARIS.AUDIT_MANUFAKTUR || active.row.tipe_baris === TIPE_BARIS.AUDIT_SHIFT) && <ManufacturingAuditExecutionPanel row={active.row} readOnly={!canExecute || active.row.cek_selesai} onError={setError} onChanged={load}/>}
     </div>
-    {active.findings.length > 0 && <Card className="p-4"><h2 className="font-semibold mb-3">Status Temuan / PLOR</h2><div className="grid sm:grid-cols-2 gap-2">{active.findings.map(finding => <div key={finding.id} className="flex justify-between rounded-lg border p-3 text-sm"><span className="font-mono">{finding.kode_temuan??finding.draft_reference} · {finding.kategori}</span><Badge variant={finding.plor_complete ? 'green' : 'amber'}>{finding.plor_complete ? 'PLOR Lengkap' : 'PLOR Belum Lengkap'}</Badge></div>)}</div></Card>}
-    <div className="sticky bottom-3 flex justify-end"><Button disabled={busy} variant={active.row.cek_selesai ? 'secondary' : 'primary'} onClick={() => setCompletion(active.row.cek_selesai)}>{busy ? 'Memproses...' : active.row.cek_selesai ? 'Buka Kembali Pelaksanaan' : 'Selesaikan Pelaksanaan'}</Button></div>
+    {active.findings.length > 0 && <Card className="p-4"><h2 className="font-semibold mb-3">Status Temuan / PLOR</h2><div className="grid sm:grid-cols-2 gap-2">{active.findings.map(finding => <div key={finding.id} className="rounded-lg border p-3 text-sm"><div className="flex justify-between"><span className="font-mono">{finding.kode_temuan??finding.draft_reference} · {finding.kategori}</span><Badge variant={finding.plor_complete ? 'green' : 'amber'}>{finding.plor_complete ? 'PLOR Lengkap' : 'PLOR Belum Lengkap'}</Badge></div>{finding.disposition&&<div className="mt-2 border-t pt-2 text-xs text-amber-800"><b>Hasil efektif:</b> {finding.disposition.effective_judgement} · Finding Annulled<br/><b>Hasil awal:</b> {finding.disposition.initial_judgement}<br/><b>Alasan:</b> {finding.disposition.reason}<br/><b>Ditinjau:</b> {finding.disposition.actor_display_name}, {new Date(finding.disposition.created_at).toLocaleString('id-ID')}</div>}</div>)}</div></Card>}
+    {canExecute && <div className="sticky bottom-3 flex justify-end"><Button disabled={busy} variant={active.row.cek_selesai ? 'secondary' : 'primary'} onClick={() => setCompletion(active.row.cek_selesai)}>{busy ? 'Memproses...' : active.row.cek_selesai ? 'Buka Kembali Pelaksanaan' : 'Selesaikan Pelaksanaan'}</Button></div>}
   </div>;
   return <div><div className="mb-6"><h1 className="text-2xl font-bold">Pelaksanaan Audit</h1><p className="text-sm text-gray-500">Workspace eksekusi mobile atas Checklist Audit yang sama, berbasis No. Audit QA.</p></div>{error && <div className="mb-4 p-3 bg-red-50 text-red-700">{error}</div>}
     <Card className="p-4 mb-4"><div className="grid md:grid-cols-3 gap-3"><Input placeholder="Cari QA / proses..." value={search} onChange={e => setSearch(e.target.value)}/><Select value={type} onChange={e => setType(e.target.value)}><option value="">Semua Tipe</option>{Object.entries(TIPE_BARIS_LABEL).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</Select><Select value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua Status Progress</option>{Object.values(STATUS_PROGRESS).map(value => <option key={value}>{value}</option>)}</Select></div></Card>

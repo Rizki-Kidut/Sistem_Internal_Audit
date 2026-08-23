@@ -1,5 +1,9 @@
 # CertiTrack Identity & Access Setup
 
+> Finding compatibility: identity authorization does not replace the operational Finding/CAR
+> lifecycle. `findings.status` remains operational; Team/Lead/Admin publication uses the separate
+> `findings.review_status`. Existing numbered Findings remain preserved as `LEGACY_ESTABLISHED`.
+
 ## Identity is not a person
 
 Each Supabase Auth account has exactly one active CertiTrack identity: `ADMIN`, `AUDITOR`,
