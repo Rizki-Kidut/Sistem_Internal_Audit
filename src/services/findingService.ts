@@ -3,6 +3,12 @@ import type { Auditor, ClauseKeywordMap, Finding, FindingCapabilities, FindingCo
 import { FINDING_SOURCE_TYPE, KLASIFIKASI_DIS } from '../lib/enums';
 import { getAuditTeamMasterById } from './auditTeamMasterService';
 
+export interface ChecklistFindingReviewHistory {
+  finding_id:string; finding_ref:string; source_type:string;
+  initial_judgement:string; effective_judgement:string; reason:string;
+  actor_display_name:string; created_at:string;
+}
+
 const mapFinding = (row: Record<string, unknown>) => row as unknown as Finding;
 export async function listFindings(): Promise<Finding[]> {
   const { data,error }=await supabase.from('findings').select('*,auditor_penemu:auditors(*)').order('created_at',{ascending:false});
@@ -25,6 +31,22 @@ export async function transitionFinding(id:string,action:string,comment?:string,
 export async function addFindingTeamResponse(id:string,comment:string):Promise<void>{const{error}=await supabase.rpc('add_finding_team_response',{p_id:id,p_comment:comment});if(error)throw new Error(error.message);}
 export async function listOwnFindingNotifications():Promise<FindingNotification[]>{const{data,error}=await supabase.from('notifications').select('*').order('created_at',{ascending:false}).limit(20);if(error)throw new Error(error.message);return(data??[]) as FindingNotification[];}
 export async function markFindingNotificationRead(id:string):Promise<void>{const{error}=await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);}
+export async function listChecklistAnnulmentHistory(instructionRowId:string):Promise<ChecklistFindingReviewHistory[]>{
+  const {data:findingRows,error:findingError}=await supabase.from('findings').select('id,kode_temuan,draft_reference,source_type').eq('instruction_row_id',instructionRowId).eq('review_status','ANNULLED');
+  if(findingError)throw new Error(`Gagal memuat Finding annulled: ${findingError.message}`);
+  const findingIds=(findingRows??[]).map(item=>item.id as string);
+  if(!findingIds.length)return[];
+  const {data:dispositions,error:dispositionError}=await supabase.from('finding_source_dispositions').select('finding_id,initial_judgement,effective_judgement,reason,actor_display_name,created_at').in('finding_id',findingIds).order('created_at',{ascending:false});
+  if(dispositionError)throw new Error(`Gagal memuat disposisi review: ${dispositionError.message}`);
+  const findingById=new Map((findingRows??[]).map(item=>[item.id as string,item]));
+  return(dispositions??[]).map(item=>{const finding=findingById.get(item.finding_id as string);return{
+    finding_id:item.finding_id as string,
+    finding_ref:String(finding?.kode_temuan??finding?.draft_reference??'Finding'),
+    source_type:String(finding?.source_type??''),
+    initial_judgement:String(item.initial_judgement??'-'),effective_judgement:String(item.effective_judgement??'-'),
+    reason:String(item.reason??'-'),actor_display_name:String(item.actor_display_name??'-'),created_at:String(item.created_at??''),
+  };});
+}
 export async function getClauseSuggestions(problem:string|null):Promise<ClauseKeywordMap[]>{
   if(!problem?.trim())return[];const {data,error}=await supabase.from('clause_keyword_map').select('*').eq('status','Aktif').order('prioritas',{ascending:false});
   if(error)throw new Error(`Gagal memuat saran klausul: ${error.message}`);const normalized=problem.toLocaleLowerCase('id-ID');
