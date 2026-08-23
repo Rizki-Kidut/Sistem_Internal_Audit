@@ -57,7 +57,7 @@ export const FINDING_SOURCE_TYPE = {
   SISTEM: 'ChecklistSistem', PRODUK: 'ChecklistProduk', MANUFAKTUR_SHIFT: 'ChecklistManufakturShift',
 } as const;
 export type FindingSourceType = (typeof FINDING_SOURCE_TYPE)[keyof typeof FINDING_SOURCE_TYPE];
-export const FINDING_STATUS = { OPEN: 'Open', CAR_SUBMITTED: 'CAR Submitted', VERIFIKASI: 'Verifikasi', CLOSED: 'Closed', OVERDUE: 'Overdue' } as const;
+export const FINDING_STATUS = { DRAFT:'DRAFT', LEAD_REVIEW:'LEAD_REVIEW', REVISION_REQUIRED:'REVISION_REQUIRED', READY_FOR_RELEASE:'READY_FOR_RELEASE', PUBLISHED:'PUBLISHED', ANNULLED:'ANNULLED' } as const;
 export type FindingStatus = (typeof FINDING_STATUS)[keyof typeof FINDING_STATUS];
 export const KLASIFIKASI_DIS = { DOKUMEN: 'Dokumen', IMPLEMENTASI: 'Implementasi', SISTEM: 'Sistem' } as const;
 export type KlasifikasiDIS = (typeof KLASIFIKASI_DIS)[keyof typeof KLASIFIKASI_DIS];

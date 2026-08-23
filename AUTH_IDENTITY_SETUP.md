@@ -85,6 +85,21 @@ Agenda approval/rejection is intentionally a follow-up. Batch 7a LTP must reuse 
 helpers: Auditee by active `AUDIT_PIC`, Manager by active `SECTION_MANAGER`, Auditor by assigned Team,
 and Admin globally. This foundation does not create LTP/CAR tables or transitions.
 
+## Finding responsibility and publication
+
+Finding review uses audit-team responsibilities, not additional Auth identities. Existing Team Leads
+are migrated explicitly as both Team Leader and Lead Auditor by default; the two boolean authorities
+remain independent and may be assigned to the same or different Auditor members. The controlled flow is:
+
+`Auditor Member prepares/revises PLOR → Team Leader submits/resubmits → Lead Auditor requests revision,
+approves, or annuls → System assigns the official number on approval → Admin/QMS releases`.
+
+Drafts use a stable `Draft Finding #NN` reference. Official `{QA}/{SYS|PRD|MFG}/{year}/{NNN}` numbers
+are transactionally allocated only at Lead approval. Review events, Admin/Team PLOR edits, annulled-source
+dispositions, and release actions are append-only. Revision notifications are generated for every active
+mapped Team Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves
+use `revision_version` optimistic concurrency to reject stale edits.
+
 ## Runtime/RLS verification plan (not executed in this PR)
 
 Using disposable Auth users and transaction-safe fixtures, verify: anonymous SELECT rejection; Admin

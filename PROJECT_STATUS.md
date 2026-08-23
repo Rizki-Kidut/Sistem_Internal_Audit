@@ -36,7 +36,22 @@
       existing Batch 6a SECURITY DEFINER source triggers remain the sole Finding lifecycle authority.
 
 New migrations: `20260823010000_create_identity_access_foundation.sql` and
-`20260823020000_enforce_identity_scoped_audit_access.sql`. Batch 7 LTP/CAR, notifications, Agenda
+`20260823020000_enforce_identity_scoped_audit_access.sql`.
+
+### Finding review static implementation
+
+- [x] Added explicit Team Leader and Lead Auditor responsibilities without new Auth identity types.
+- [x] Added Draft → Lead Review → Revision Required / Ready for Release / Annulled → Published RPC
+      transitions, Team/Lead/Admin separation, mandatory PLOR checks, and concurrency-safe official numbering.
+- [x] Added append-only review/change events, per-recipient notifications, optimistic PLOR versioning,
+      immutable `created_at`, and normalized initial/effective source disposition for annulment.
+- [x] Admin may auditably edit Draft/Revision Required PLOR and release approved Findings, but cannot
+      submit/resubmit, approve/annul, mutate execution results, complete/reopen execution, or hard-delete.
+- [x] Product evidence authorization additionally verifies that the path phase belongs to its checklist.
+- [ ] Migration-chain execution, RLS/RPC role matrix, notification delivery, concurrency, browser workflow,
+      Storage, Security Advisor, and Staging verification remain pending.
+
+New Finding workflow migration: `20260823030000_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
 approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
 out of scope. The local `auditors` table remains a compatibility proxy pending the real Training adapter.
 

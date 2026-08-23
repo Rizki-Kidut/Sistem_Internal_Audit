@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import type { Auditor, ClauseKeywordMap, Finding, FindingContext } from '../lib/types';
+import type { Auditor, ClauseKeywordMap, Finding, FindingCapabilities, FindingContext, FindingNotification, FindingReviewEvent, FindingSourceDisposition } from '../lib/types';
 import { FINDING_SOURCE_TYPE, KLASIFIKASI_DIS } from '../lib/enums';
 import { getAuditTeamMasterById } from './auditTeamMasterService';
 
@@ -17,9 +17,14 @@ export async function saveFindingPLOR(finding:Finding):Promise<Finding>{
   const payload={klasifikasi_dis:finding.klasifikasi_dis,problem:finding.problem?.trim()||null,location:finding.location?.trim()||null,
     objective_evidence:finding.objective_evidence?.trim()||null,reference:finding.reference?.trim()||null,saran_perbaikan:finding.saran_perbaikan?.trim()||null,
     auditor_penemu_id:finding.auditor_penemu_id,auditee_area:finding.auditee_area?.trim()||null,tanggal_temuan:finding.tanggal_temuan};
-  const {data,error}=await supabase.from('findings').update(payload).eq('id',finding.id).select('*,auditor_penemu:auditors(*)').single();
-  if(error)throw new Error(`Gagal menyimpan PLOR: ${error.message}`);return mapFinding(data as Record<string,unknown>);
+  const {data,error}=await supabase.from('findings').update({...payload,revision_version:finding.revision_version}).eq('id',finding.id).eq('revision_version',finding.revision_version).select('*,auditor_penemu:auditors(*)').maybeSingle();
+  if(error)throw new Error(`Gagal menyimpan PLOR: ${error.message}`);if(!data)throw new Error('Finding ini telah diperbarui anggota Tim lain. Muat ulang data terbaru sebelum menyimpan.');return mapFinding(data as Record<string,unknown>);
 }
+export async function getFindingWorkflow(id:string):Promise<{capabilities:FindingCapabilities;events:FindingReviewEvent[];disposition:FindingSourceDisposition|null}>{const [c,e,d]=await Promise.all([supabase.rpc('finding_capabilities',{p_id:id}),supabase.from('finding_review_events').select('*').eq('finding_id',id).order('created_at'),supabase.from('finding_source_dispositions').select('*').eq('finding_id',id).maybeSingle()]);if(c.error||e.error||d.error)throw new Error(c.error?.message??e.error?.message??d.error?.message??'Workflow Finding gagal dimuat');return{capabilities:c.data as FindingCapabilities,events:(e.data??[]) as FindingReviewEvent[],disposition:d.data as FindingSourceDisposition|null};}
+export async function transitionFinding(id:string,action:string,comment?:string,effectiveJudgement?:string):Promise<Finding>{const{data,error}=await supabase.rpc('finding_transition',{p_id:id,p_action:action,p_comment:comment??null,p_effective_judgement:effectiveJudgement??null});if(error)throw new Error(error.message);return mapFinding(data as Record<string,unknown>);}
+export async function addFindingTeamResponse(id:string,comment:string):Promise<void>{const{error}=await supabase.rpc('add_finding_team_response',{p_id:id,p_comment:comment});if(error)throw new Error(error.message);}
+export async function listOwnFindingNotifications():Promise<FindingNotification[]>{const{data,error}=await supabase.from('notifications').select('*').order('created_at',{ascending:false}).limit(20);if(error)throw new Error(error.message);return(data??[]) as FindingNotification[];}
+export async function markFindingNotificationRead(id:string):Promise<void>{const{error}=await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);}
 export async function getClauseSuggestions(problem:string|null):Promise<ClauseKeywordMap[]>{
   if(!problem?.trim())return[];const {data,error}=await supabase.from('clause_keyword_map').select('*').eq('status','Aktif').order('prioritas',{ascending:false});
   if(error)throw new Error(`Gagal memuat saran klausul: ${error.message}`);const normalized=problem.toLocaleLowerCase('id-ID');

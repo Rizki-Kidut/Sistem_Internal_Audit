@@ -49,7 +49,7 @@ export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
       team: teams.find(item => item.id === row.team_master_id) ?? null,
       counter: state.counter, checklist_exists: state.exists, checklist_complete: state.complete,
       status_progress: 'Belum Mulai', findings: rowFindings.map(finding => ({
-        id: finding.id, source_item_id: finding.source_item_id, kode_temuan: finding.kode_temuan,
+        id: finding.id, source_item_id: finding.source_item_id, kode_temuan: finding.kode_temuan, draft_reference: finding.draft_reference,
         kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
       })),
     };
