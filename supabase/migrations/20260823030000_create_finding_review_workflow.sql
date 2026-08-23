@@ -33,13 +33,21 @@ ALTER TABLE public.findings ADD COLUMN draft_reference text,
   ADD COLUMN approved_at timestamptz, ADD COLUMN approved_by uuid REFERENCES auth.users(id),
   ADD COLUMN released_at timestamptz, ADD COLUMN released_by uuid REFERENCES auth.users(id),
   ADD COLUMN annulled_at timestamptz, ADD COLUMN annulled_by uuid REFERENCES auth.users(id), ADD COLUMN annul_reason text;
--- Existing numbered Findings predate this review workflow. Keep their official number,
--- operational status, CAR relationship, PLOR, and timestamps. LEGACY_ESTABLISHED is a
--- compatibility marker only; it does not manufacture a historical approval event.
-UPDATE public.findings
-SET review_status = CASE WHEN kode_temuan IS NOT NULL THEN 'LEGACY_ESTABLISHED' ELSE 'DRAFT' END,
-    draft_reference = CASE WHEN kode_temuan IS NULL
-      THEN 'Draft Finding #'||lpad(nomor_urut_temuan::text,2,'0') ELSE NULL END;
+-- Existing numbered Findings predate this review workflow. Preserve their official
+-- number and operational lifecycle. Only records that are already completed or have
+-- progressed beyond Open/CAR-less operation are treated as established. Numbered
+-- Findings on an unfinished audit remain DRAFT-compatible so the Team can finish PLOR
+-- and submit them through the new review workflow without losing the legacy number.
+UPDATE public.findings f
+SET review_status = CASE
+      WHEN f.kode_temuan IS NULL THEN 'DRAFT'
+      WHEN r.cek_selesai IS TRUE OR f.status <> 'Open' OR f.car_id IS NOT NULL THEN 'LEGACY_ESTABLISHED'
+      ELSE 'DRAFT'
+    END,
+    draft_reference = CASE WHEN f.kode_temuan IS NULL
+      THEN 'Draft Finding #'||lpad(f.nomor_urut_temuan::text,2,'0') ELSE NULL END
+FROM public.audit_instruction_rows r
+WHERE r.id=f.instruction_row_id;
 ALTER TABLE public.findings ALTER COLUMN review_status SET DEFAULT 'DRAFT';
 ALTER TABLE public.findings ALTER COLUMN review_status SET NOT NULL;
 ALTER TABLE public.findings ADD CONSTRAINT findings_review_status_check CHECK(review_status IN('DRAFT','LEAD_REVIEW','REVISION_REQUIRED','READY_FOR_RELEASE','PUBLISHED','ANNULLED','LEGACY_ESTABLISHED'));
@@ -128,35 +136,43 @@ CREATE FUNCTION public.add_finding_notification(p_finding uuid,p_type text,p_tit
  INSERT INTO public.notifications(recipient_user_id,finding_id,notification_type,title,message) VALUES(p_recipient,p_finding,p_type,p_title,p_message)
 $$;
 CREATE FUNCTION public.finding_transition(p_id uuid,p_action text,p_comment text DEFAULT NULL,p_effective_judgement text DEFAULT NULL) RETURNS public.findings LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;v_actor_name text;
+DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;v_actor_name text;v_display_ref text;
 BEGIN
  SELECT x.* INTO f FROM public.findings x WHERE x.id=p_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Temuan tidak ditemukan';END IF;
  IF NOT public.is_admin_identity() AND NOT public.auditor_can_access_instruction_row(f.instruction_row_id) THEN RAISE EXCEPTION 'Temuan tidak ditemukan atau tidak dapat diakses';END IF;
  SELECT r.team_master_id,i.tahun_fiskal INTO v_team,v_year FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE r.id=f.instruction_row_id;
+ v_display_ref:=COALESCE(f.kode_temuan,f.draft_reference,'Finding');
  PERFORM set_config('certitrack.finding_workflow','1',true);
  IF p_action='SUBMIT' THEN
   IF f.review_status<>'DRAFT' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim Draft';END IF;PERFORM public.assert_complete_plor(f);
   UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_SUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
-  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'LEAD_REVIEW','Finding menunggu review',f.kode_audit||' · '||f.draft_reference,u.user_id);END LOOP;
+  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'LEAD_REVIEW','Finding menunggu review',f.kode_audit||' · '||v_display_ref,u.user_id);END LOOP;
  ELSIF p_action='RESUBMIT' THEN
   IF f.review_status<>'REVISION_REQUIRED' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim ulang revisi';END IF;PERFORM public.assert_complete_plor(f);
   UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_RESUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
-  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'RESUBMITTED','Finding dikirim ulang',f.kode_audit||' · '||f.draft_reference,u.user_id);END LOOP;
+  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'RESUBMITTED','Finding dikirim ulang',f.kode_audit||' · '||v_display_ref,u.user_id);END LOOP;
  ELSIF p_action='REQUEST_REVISION' THEN
   IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat meminta revisi';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar revisi wajib diisi';END IF;
   UPDATE public.findings SET review_status='REVISION_REQUIRED',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'REVISION_REQUESTED',auth.uid(),v_identity,p_comment,NULL,NULL,NULL,now());
-  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' AND l.user_id<>auth.uid() LOOP PERFORM public.add_finding_notification(p_id,'REVISION_REQUIRED','Finding Revision Required',f.kode_audit||' · '||f.draft_reference||E'\n'||p_comment,u.user_id);END LOOP;
+  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' AND l.user_id<>auth.uid() LOOP PERFORM public.add_finding_notification(p_id,'REVISION_REQUIRED','Finding Revision Required',f.kode_audit||' · '||v_display_ref||E'\n'||p_comment,u.user_id);END LOOP;
  ELSIF p_action='APPROVE' THEN
-  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);PERFORM pg_advisory_xact_lock(hashtext('finding-number'),hashtext(f.kode_audit));
-  v_prefix:=CASE f.source_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
-  SELECT COALESCE(max((regexp_match(kode_temuan,'/([0-9]+)$'))[1]::int),0)+1 INTO v_seq FROM public.findings WHERE kode_audit=f.kode_audit AND kode_temuan IS NOT NULL;
-  UPDATE public.findings SET kode_temuan=f.kode_audit||'/'||v_prefix||'/'||v_year||'/'||lpad(v_seq::text,3,'0'),review_status='READY_FOR_RELEASE',approved_at=now(),approved_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);
+  IF f.kode_temuan IS NULL THEN
+   PERFORM pg_advisory_xact_lock(hashtext('finding-number'),hashtext(f.kode_audit));
+   v_prefix:=CASE f.source_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
+   SELECT COALESCE(max((regexp_match(kode_temuan,'/([0-9]+)$'))[1]::int),0)+1 INTO v_seq FROM public.findings WHERE kode_audit=f.kode_audit AND kode_temuan IS NOT NULL;
+   UPDATE public.findings SET kode_temuan=f.kode_audit||'/'||v_prefix||'/'||v_year||'/'||lpad(v_seq::text,3,'0'),review_status='READY_FOR_RELEASE',approved_at=now(),approved_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
+  ELSE
+   -- Legacy in-progress Findings already own an official number from Batch 6a.
+   -- Preserve that number and only advance the new review state.
+   UPDATE public.findings SET review_status='READY_FOR_RELEASE',approved_at=now(),approved_by=auth.uid(),revision_version=revision_version+1 WHERE id=p_id;
+  END IF;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'APPROVED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
-  FOR u IN SELECT id user_id FROM public.user_profiles WHERE status='Aktif' AND identity_type='ADMIN' UNION SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'APPROVED','Finding disetujui',f.kode_audit||' siap dirilis',u.user_id);END LOOP;
+  FOR u IN SELECT id user_id FROM public.user_profiles WHERE status='Aktif' AND identity_type='ADMIN' UNION SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'APPROVED','Finding disetujui',f.kode_audit||' · '||v_display_ref||' siap dirilis',u.user_id);END LOOP;
  ELSIF p_action='ANNUL' THEN
   IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat membatalkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Alasan pembatalan wajib diisi';END IF;
   SELECT display_name INTO v_actor_name FROM public.user_profiles WHERE id=auth.uid() AND identity_type='AUDITOR' AND status='Aktif';
@@ -265,6 +281,12 @@ BEGIN
   IF v_f.id IS NOT NULL AND COALESCE(current_setting('certitrack.finding_annul_source',true),'')=v_f.id::text THEN RETURN v_f.id; END IF;
   IF p_category IS NULL THEN
     IF v_f.id IS NULL THEN RETURN NULL; END IF;
+    -- A numbered legacy Draft already owns an externally traceable Batch 6a number.
+    -- Do not silently delete it through ordinary source correction; route cancellation
+    -- through Team submission and Lead annulment so the number/history remains visible.
+    IF v_f.kode_temuan IS NOT NULL THEN
+      RAISE EXCEPTION 'Temuan legacy bernomor tidak dapat dibatalkan otomatis. Lengkapi/submit PLOR lalu gunakan keputusan Annul oleh Lead Auditor.';
+    END IF;
     IF v_f.review_status <> 'DRAFT' OR v_f.car_id IS NOT NULL OR
        COALESCE(btrim(v_f.klasifikasi_dis),'')<>'' OR COALESCE(btrim(v_f.problem),'')<>'' OR
        COALESCE(btrim(v_f.location),'')<>'' OR COALESCE(btrim(v_f.objective_evidence),'')<>'' OR
