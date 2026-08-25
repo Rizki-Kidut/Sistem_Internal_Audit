@@ -12,6 +12,7 @@ BEGIN
   EXECUTE 'ALTER TABLE public.audit_team_master_members DISABLE TRIGGER trg_protect_locked_audit_team_members';
   BEGIN
     UPDATE public.audit_team_master_members SET is_team_leader=true WHERE peran='Lead';
+    SET CONSTRAINTS ALL IMMEDIATE;
   EXCEPTION WHEN OTHERS THEN
     EXECUTE 'ALTER TABLE public.audit_team_master_members ENABLE TRIGGER trg_protect_locked_audit_team_members';
     RAISE;
