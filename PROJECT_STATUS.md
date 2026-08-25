@@ -34,8 +34,8 @@
       receive only SELECT/UPDATE with matching RLS. Direct INSERT/DELETE remains unavailable and the
       existing Batch 6a SECURITY DEFINER source triggers remain the sole Finding lifecycle authority.
 
-New migrations: `20260823010000_create_identity_access_foundation.sql` and
-`20260823020000_enforce_identity_scoped_audit_access.sql`.
+New migrations: `20260825155950_create_identity_access_foundation.sql` and
+`20260825160109_enforce_identity_scoped_audit_access.sql`.
 
 ### Finding review static implementation
 
@@ -74,7 +74,7 @@ New migrations: `20260823010000_create_identity_access_foundation.sql` and
 - [ ] Migration-chain execution, RLS/RPC role matrix, notification delivery, concurrency, browser workflow,
       Storage, Security Advisor, and Staging verification remain pending.
 
-New Finding workflow migration: `20260823030000_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
+New Finding workflow migration: `20260825170649_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
 approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
 out of scope. The local `auditors` table remains a compatibility proxy pending the real Training adapter.
 
