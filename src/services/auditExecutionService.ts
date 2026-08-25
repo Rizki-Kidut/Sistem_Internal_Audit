@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { computeStatusProgress, type AuditExecutionCounter, type AuditExecutionSummary, type Finding } from '../lib/types';
+import { resolveFindingSourceLabels } from './findingService';
 import { isFindingPLORComplete } from '../lib/finding';
 import { getAllInstructionRows } from './auditInstructionService';
 import { getAllProses } from './prosesService';
@@ -44,6 +45,7 @@ export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
   if (dispositionResult.error) throw new Error(`Gagal memuat disposisi review: ${dispositionResult.error.message}`);
   const findings = (findingResult.data ?? []) as Finding[];
   const dispositions = dispositionResult.data ?? [];
+  const sourceLabels=await resolveFindingSourceLabels(findings);
   return Promise.all(rows.map(async row => {
     const state = await sourceState(row);
     const rowFindings = findings.filter(finding => finding.instruction_row_id === row.id);
@@ -52,8 +54,9 @@ export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
       team: teams.find(item => item.id === row.team_master_id) ?? null,
       counter: state.counter, checklist_exists: state.exists, checklist_complete: state.complete,
       status_progress: 'Belum Mulai', findings: rowFindings.map(finding => ({
-        id: finding.id, source_item_id: finding.source_item_id, kode_temuan: finding.kode_temuan, draft_reference: finding.draft_reference,
-        kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
+        id: finding.id, source_item_id: finding.source_item_id, source_type: finding.source_type,
+        source_label: sourceLabels.get(finding.source_item_id) ?? `Source ${finding.source_item_id}`,
+        kode_temuan: finding.kode_temuan, draft_reference: finding.draft_reference, kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
         disposition: dispositions.find(item => item.finding_id === finding.id) ?? null,
       })),
     };

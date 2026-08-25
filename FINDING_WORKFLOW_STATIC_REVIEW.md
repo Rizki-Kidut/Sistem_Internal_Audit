@@ -24,15 +24,16 @@ disposition/review history, and set `review_status = ANNULLED`. A narrow transac
 context prevents source synchronization from deleting or recreating the governed Finding.
 
 The Checklist workspace must also expose annulment traceability for the selected QA: effective result,
-initial result, reason, reviewer, timestamp, Finding reference, and source type. Normal source fields show
-the effective/current value while the review card preserves the original judgement for external-audit review.
+initial result, reason, reviewer, timestamp, Finding reference, source type, immutable source item ID, and
+a concrete RLS-scoped source label/question. Normal source fields show the effective/current value while
+the review card preserves the original judgement for external-audit review.
 
 ## Identity and Team matrix
 
 - Team A Member: Team A SELECT/edit Draft or Revision Required; Team B receives zero rows; Submit/Resubmit/Lead decisions fail.
 - Team A Team Leader: Submit Draft and Resubmit Revision Required succeed; cross-Team and wrong-state actions fail.
 - Team A Lead Auditor: Request Revision/Approve/Annul in Lead Review succeed; required comment/reason and effective disposition are enforced; cross-Team actions fail.
-- Admin: global SELECT; audited Draft/Revision Required PLOR edit; release Ready for Release; execution writes, complete/reopen, Team/Lead actions, and hard delete fail.
+- Admin: global SELECT; audited Draft/Revision Required PLOR edit only through `save_finding_plor` with a reason of at least ten non-whitespace characters; release Ready for Release; execution writes, complete/reopen, Team/Lead actions, direct ordinary PLOR update, and hard delete fail.
 - Auditee/Section Manager: no pre-publication Finding access.
 
 ## Transaction and audit assertions
@@ -48,3 +49,5 @@ the effective/current value while the review card preserves the original judgeme
 9. Evidence paths fail closed unless prefix/count/UUIDs are valid and the phase belongs to the checklist.
 10. Checklist UI displays annulled source history while the authoritative source carries the effective O/OK result.
 11. Confirm execution/agenda RPCs remain SECURITY INVOKER and Batch 6a source triggers still create/remove only eligible new Draft Findings.
+12. Confirm historical `peran='Lead'` backfills both responsibilities once, no trigger continually collapses the flags, and same-person/different-person Team Leader/Lead Auditor assignments survive save/reload.
+13. Confirm application function EXECUTE is revoked from `PUBLIC`/`anon`, sensitive source-sync/trigger helpers are not authenticated browser RPCs, and the required authenticated RPC/helper allowlist remains callable.

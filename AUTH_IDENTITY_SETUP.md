@@ -93,9 +93,11 @@ and Admin globally. This foundation does not create LTP/CAR tables or transition
 
 ## Finding responsibility and publication
 
-Finding review uses audit-team responsibilities, not additional Auth identities. Existing Team Leads
-are migrated explicitly as both Team Leader and Lead Auditor by default; the two boolean authorities
-remain independent and may be assigned to the same or different Auditor members. The controlled flow is:
+Finding review uses audit-team responsibilities, not additional Auth identities. Existing historical
+`peran='Lead'` members are backfilled to both Team Leader and Lead Auditor exactly once during this
+migration for compatibility. After that backfill, `is_team_leader` and `is_lead_auditor` are the
+authoritative independent flags; they may be assigned to the same or different Auditor members and are
+persisted independently by the Team-save RPC. The controlled flow is:
 
 `Auditor Member prepares/revises PLOR → Team Leader submits/resubmits → Lead Auditor requests revision,
 approves, or annuls → System assigns the official number on approval → Admin/QMS releases`.
@@ -104,13 +106,20 @@ New Drafts use a stable draft reference and receive official `{QA}/{SYS|PRD|MFG}
 only at Lead approval. A numbered legacy Draft keeps its pre-workflow number through review instead of
 receiving a replacement number. Review events, Admin/Team PLOR edits, annulled-source dispositions,
 and release actions are append-only. Revision notifications are generated for every active mapped Team
-Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves use
-`revision_version` optimistic concurrency to reject stale edits.
+Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves use the
+controlled `save_finding_plor` RPC plus `revision_version` optimistic concurrency to reject stale edits.
+Admin/QMS Draft/Revision Required edits require a reason containing at least ten non-whitespace characters,
+and that reason is retained in the immutable `PLOR_EDITED` event. Direct ordinary PLOR updates are rejected.
+
+Application functions revoke inherited `PUBLIC`/`anon` execution. Authenticated browser execution is
+limited to caller-bound helpers/RPCs needed by the application, while trigger/source-sync internals remain
+private; the Batch 6b blocker/complete/reopen functions remain `SECURITY INVOKER`.
 
 Lead annulment changes the authoritative source result to effective conforming (`O` for System/
 Manufacturing, `OK` for Product) while preserving the initial judgement, reason, reviewer, timestamp,
-Finding link, and review event. The Checklist workspace exposes that history so external reviewers can
-see why an originally nonconforming judgement now has a conforming effective result.
+Finding link, and review event. Checklist and Pelaksanaan history also resolve the concrete RLS-scoped
+source item (System item/question/clause, Product phase/item/criteria, or Manufacturing process/bank item)
+so external reviewers can distinguish multiple annulled Findings without relying on UUIDs.
 
 ## Runtime/RLS verification plan (not executed in this PR)
 
