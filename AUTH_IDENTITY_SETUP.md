@@ -80,12 +80,13 @@ section assignment first, so mapping history is never deleted silently.
 - **Auditee:** restricted authenticated state until LTP exists.
 - **Section Manager:** section-scoped Agenda read-only; no Checklist, Pelaksanaan, or PLOR.
 
-Reference visibility follows the same least-visibility boundary: Auditors receive only process and
-section labels referenced by Team-owned Instruction rows, while Managers receive only managed-section
-Agenda context. Auditees receive no general process/section masters in Batch 7.0. Clause suggestions are
-Auditor/Admin-only, Manufacturing bank labels are limited to Team-owned execution items, and Manager
-Team/Lead/member names are limited to Teams used by Manager-accessible Agenda rows. Agenda may be
-printed by Admin, assigned Auditors, and scoped Managers without changing database state.
+Reference visibility follows the same least-visibility boundary for ordinary Auditors: they receive only
+process and section labels referenced by Team-owned Instruction rows, while Managers receive only
+managed-section Agenda context. The single company Lead Auditor is the deliberate exception for read-only
+oversight: that Auditor identity may read all Finding/checklist/source context needed to review Findings from
+every Team, while execution mutations remain Team-scoped. Auditees receive no general process/section
+masters in Batch 7.0. Clause suggestions are Auditor/Admin-only. Agenda may be printed by Admin, assigned
+Auditors, and scoped Managers without changing database state.
 
 Agenda approval/rejection is intentionally a follow-up. Batch 7a LTP must reuse these ownership
 helpers: Auditee by active `AUDIT_PIC`, Manager by active `SECTION_MANAGER`, Auditor by assigned Team,
@@ -93,23 +94,47 @@ and Admin globally. This foundation does not create LTP/CAR tables or transition
 
 ## Finding responsibility and publication
 
-Finding review uses audit-team responsibilities, not additional Auth identities. Existing historical
-`peran='Lead'` members are backfilled to both Team Leader and Lead Auditor exactly once during this
-migration for compatibility. After that backfill, `is_team_leader` and `is_lead_auditor` are the
-authoritative independent flags; they may be assigned to the same or different Auditor members and are
-persisted independently by the Team-save RPC. The controlled flow is:
+Finding review separates Team authority from company authority without creating another Auth identity type.
 
-`Auditor Member prepares/revises PLOR → Team Leader submits/resubmits → Lead Auditor requests revision,
-approves, or annuls → System assigns the official number on approval → Admin/QMS releases`.
+- Every active Audit Team has exactly one **Team Leader**. Historical `peran='Lead'` is retained only as the
+  legacy storage marker for that Team Leader and is backfilled once to `is_team_leader=true`.
+- The company has at most one active **Lead Auditor** capability, stored on `user_auditor_links.is_lead_auditor`.
+  Lead Auditor is company-wide and is not selected inside Audit Team Master.
+- The Lead Auditor may also be Team Leader/member of one Team, or may belong to no Team at all. Company-wide
+  review authority is unchanged either way.
+- Ordinary Auditor execution and PLOR editing remain Team-scoped. The company Lead Auditor may read all
+  Finding/checklist/source context but may execute or edit PLOR only when separately assigned to that Team.
 
-New Drafts use a stable draft reference and receive official `{QA}/{SYS|PRD|MFG}/{year}/{NNN}` numbers
-only at Lead approval. A numbered legacy Draft keeps its pre-workflow number through review instead of
-receiving a replacement number. Review events, Admin/Team PLOR edits, annulled-source dispositions,
-and release actions are append-only. Revision notifications are generated for every active mapped Team
-Auditor except the requesting Lead; every recipient owns independent read state. PLOR saves use the
-controlled `save_finding_plor` RPC plus `revision_version` optimistic concurrency to reject stale edits.
-Admin/QMS Draft/Revision Required edits require a reason containing at least ten non-whitespace characters,
-and that reason is retained in the immutable `PLOR_EDITED` event. Direct ordinary PLOR updates are rejected.
+Provision the company Lead Auditor only after creating the AUDITOR profile and Auditor link:
+
+```sql
+-- At most one row may be true. Clear the old holder first when transferring authority.
+update public.user_auditor_links
+set is_lead_auditor = true
+where user_id = '<lead-auditor-auth-user-uuid>';
+```
+
+The controlled flow is:
+
+`Auditor Member prepares/revises PLOR → Team Leader submits/resubmits → Company Lead Auditor requests
+revision, approves, or annuls → System assigns the official number on approval → Admin/QMS releases`.
+
+Submit/Resubmit fails closed when no active company Lead Auditor is configured, preventing a Finding from
+entering review with no authorized reviewer. New Drafts use a stable draft reference and receive official
+`{QA}/{SYS|PRD|MFG}/{year}/{NNN}` numbers only at Lead approval. A numbered legacy Draft keeps its
+pre-workflow number through review instead of receiving a replacement number.
+
+Review events, Admin/Team PLOR edits, annulled-source dispositions, and release actions are append-only.
+Submit/Resubmit notifications go to the active company Lead Auditor. Revision notifications are generated
+for every active mapped Auditor in the owning Team except the requesting Lead when that person is also a
+Team member; every recipient owns independent read state. PLOR saves use the controlled `save_finding_plor`
+RPC plus `revision_version` optimistic concurrency to reject stale edits. Admin/QMS correction is an
+explicit controlled exception, not the normal authoring path: it is available only while the Finding is
+`DRAFT` or `REVISION_REQUIRED`, requires a reason containing at least ten non-whitespace characters, and
+records actor, reason, changed fields, and full before/after values in the immutable `PLOR_EDITED` event.
+The exception cannot change Checklist/source judgement or execution state, cannot submit/resubmit or make
+Lead decisions, and does not bypass the Team Leader → company Lead Auditor review chain. Direct ordinary
+PLOR updates are rejected.
 
 Application functions revoke inherited `PUBLIC`/`anon` execution. Authenticated browser execution is
 limited to caller-bound helpers/RPCs needed by the application, while trigger/source-sync internals remain
@@ -124,11 +149,13 @@ so external reviewers can distinguish multiple annulled Findings without relying
 ## Runtime/RLS verification plan (not executed in this PR)
 
 Using disposable Auth users and transaction-safe fixtures, verify: anonymous SELECT rejection; Admin
-global access; inverse Team A/Team B worklists and direct UUID denial; scoped counters/search/filter
-values; System/Product/Manufacturing allowed execution columns and rejected structural columns;
-Finding and Agenda Team isolation; Manager target-section Agenda visibility; profile escalation,
-Auditor remapping, and section self-assignment rejection; completion/reopen ownership; continued
-DB-trigger Finding creation/removal; legacy numbered Draft preservation; governed annulment and source
-history; evidence signed URL isolation; and final `cek_selesai` locks.
+global access; inverse Team A/Team B execution mutation denial; ordinary Auditor direct UUID isolation;
+company Lead Auditor global Finding/checklist/source read with zero execution/PLOR authority outside any
+Team; company Lead review/approve/annul across Team A and Team B; the same Lead acting as Team Leader only
+for a separately assigned Team; submit failure when no active company Lead is configured; Manager
+target-section Agenda visibility; profile escalation, Auditor remapping, and section self-assignment
+rejection; completion/reopen ownership; continued DB-trigger Finding creation/removal; legacy numbered
+Draft preservation; governed annulment and source history; evidence signed URL isolation; and final
+`cek_selesai` locks.
 Also confirm `complete_audit_execution`, `reopen_audit_execution`, and `audit_execution_blockers`
 remain `SECURITY INVOKER`.

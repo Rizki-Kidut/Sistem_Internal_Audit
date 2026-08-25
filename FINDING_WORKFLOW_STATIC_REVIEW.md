@@ -30,24 +30,26 @@ the review card preserves the original judgement for external-audit review.
 
 ## Identity and Team matrix
 
-- Team A Member: Team A SELECT/edit Draft or Revision Required; Team B receives zero rows; Submit/Resubmit/Lead decisions fail.
-- Team A Team Leader: Submit Draft and Resubmit Revision Required succeed; cross-Team and wrong-state actions fail.
-- Team A Lead Auditor: Request Revision/Approve/Annul in Lead Review succeed; required comment/reason and effective disposition are enforced; cross-Team actions fail.
-- Admin: global SELECT; audited Draft/Revision Required PLOR edit only through `save_finding_plor` with a reason of at least ten non-whitespace characters; release Ready for Release; execution writes, complete/reopen, Team/Lead actions, direct ordinary PLOR update, and hard delete fail.
+- Team A Member: Team A execute/select/edit Draft or Revision Required; Team B execution/PLOR remains inaccessible; Submit/Resubmit/Lead decisions fail.
+- Team A Team Leader: Submit Draft and Resubmit Revision Required for Team A succeed; Team B Submit/Resubmit and wrong-state actions fail.
+- Company Lead Auditor, not assigned to any Team: all Teams' Findings/checklist/source context is readable; Request Revision/Approve/Annul in Lead Review succeeds for Team A and Team B; ordinary execution, Complete/Reopen, Team Response, Submit/Resubmit, and PLOR edits fail.
+- Company Lead Auditor also assigned as Team A Team Leader: retains company-wide review authority, gains Team A execution/PLOR + Submit/Resubmit only through the separate Team membership/Team Leader assignment, and gains no Team B execution/PLOR authority.
+- Admin: global SELECT; controlled-exception Draft/Revision Required PLOR correction only through `save_finding_plor` with a reason of at least ten non-whitespace characters and immutable actor/reason/changed-fields/before/after audit trail; release Ready for Release; source judgement/execution writes, complete/reopen, Team/Lead actions, direct ordinary PLOR update, and hard delete fail. Admin correction never bypasses Team Leader → company Lead Auditor review.
 - Auditee/Section Manager: no pre-publication Finding access.
 
 ## Transaction and audit assertions
 
 1. Two editors load version 5; first save increments to 6; second update matches zero rows and reports a stale-version error.
+1a. Admin correction succeeds only in Draft/Revision Required with a >=10 non-whitespace-character reason; `PLOR_EDITED` preserves actor, reason, changed fields, before, and after; direct source judgement/execution mutation and workflow transitions remain rejected.
 2. New source A/B/C or NG creates a Draft with UUID and draft reference but null official number.
 3. Lead approval locks the Finding. New Drafts allocate one `{QA}/{source}/{year}/{NNN}` under an advisory transaction lock; legacy numbered Drafts retain their existing official number. Both append an approval event and notify Team/Admin.
 4. Repeated revision cycles append events and never overwrite earlier comments.
 5. Annul requires a reason, writes O/OK to the authoritative source, retains initial judgement/source link, and does not hard-delete the Finding.
 6. Completion fails while a Finding is Draft, Lead Review, or Revision Required, including an unfinished legacy numbered Draft.
 7. `created_at` mutation, event/disposition update/delete, Finding direct insert/delete, and private sync helper calls fail.
-8. Revision notification recipients are all active mapped Team Auditors except the requesting Lead; each recipient can read/update only its own `read_at`.
+8. Submit/Resubmit notifies the single active company Lead Auditor; Revision Required notifies all active mapped Auditors in the owning Team except the requesting Lead when that person is also a Team member; each recipient can read/update only its own `read_at`.
 9. Evidence paths fail closed unless prefix/count/UUIDs are valid and the phase belongs to the checklist.
 10. Checklist UI displays annulled source history while the authoritative source carries the effective O/OK result.
 11. Confirm execution/agenda RPCs remain SECURITY INVOKER and Batch 6a source triggers still create/remove only eligible new Draft Findings.
-12. Confirm historical `peran='Lead'` backfills both responsibilities once, no trigger continually collapses the flags, and same-person/different-person Team Leader/Lead Auditor assignments survive save/reload.
+12. Confirm historical `peran='Lead'` backfills Team Leader only; every active Team has exactly one Team Leader; `user_auditor_links.is_lead_auditor` allows at most one company Lead Auditor independent of Team membership; transfer requires clearing the prior holder; Submit/Resubmit fails when no active company Lead exists.
 13. Confirm application function EXECUTE is revoked from `PUBLIC`/`anon`, sensitive source-sync/trigger helpers are not authenticated browser RPCs, and the required authenticated RPC/helper allowlist remains callable.

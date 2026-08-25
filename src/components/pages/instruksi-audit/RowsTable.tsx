@@ -185,7 +185,7 @@ export function RowsTable({
     const resolve = (id: string) => team.members.find((member) => member.auditor_id === id)?.auditor?.nama ?? auditorList.find((auditor) => auditor.id === id)?.nama ?? id;
     const lead = team.members.find((member) => member.peran === 'Lead');
     const members = team.members.filter((member) => member.peran === 'Member').map((member) => resolve(member.auditor_id));
-    return `${lead ? `Lead Auditor: ${resolve(lead.auditor_id)}` : 'Lead Auditor: -'}${members.length ? `; Member: ${members.join(', ')}` : ''}`;
+    return `${lead ? `Team Leader: ${resolve(lead.auditor_id)}` : 'Team Leader: -'}${members.length ? `; Member: ${members.join(', ')}` : ''}`;
   }
 
   // Matrix display helpers

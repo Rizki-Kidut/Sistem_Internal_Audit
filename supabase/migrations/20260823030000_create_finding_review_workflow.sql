@@ -2,14 +2,27 @@
 -- Batch 6a/6b history stays immutable; these definitions supersede it additively.
 
 ALTER TABLE public.audit_team_master_members
-  ADD COLUMN is_team_leader boolean NOT NULL DEFAULT false,
-  ADD COLUMN is_lead_auditor boolean NOT NULL DEFAULT false;
-UPDATE public.audit_team_master_members SET is_team_leader=true,is_lead_auditor=true WHERE peran='Lead';
+  ADD COLUMN is_team_leader boolean NOT NULL DEFAULT false;
+-- Historical peran='Lead' is the legacy Team coordinator marker; it maps once to Team Leader.
+-- Company Lead Auditor authority lives on user_auditor_links and is intentionally independent of Team membership.
+UPDATE public.audit_team_master_members SET is_team_leader=true WHERE peran='Lead';
 CREATE UNIQUE INDEX uq_team_one_team_leader ON public.audit_team_master_members(team_id) WHERE is_team_leader;
-CREATE UNIQUE INDEX uq_team_one_lead_auditor ON public.audit_team_master_members(team_id) WHERE is_lead_auditor;
+DO $$
+BEGIN
+  IF EXISTS(
+    SELECT t.id
+    FROM public.audit_team_masters t
+    LEFT JOIN public.audit_team_master_members m ON m.team_id=t.id
+    WHERE t.status='Aktif'
+    GROUP BY t.id
+    HAVING count(*) FILTER (WHERE m.is_team_leader) <> 1
+  ) THEN
+    RAISE EXCEPTION 'Setiap Tim Audit aktif wajib memiliki tepat satu Team Leader sebelum Batch 7 dapat diterapkan';
+  END IF;
+END $$;
 CREATE FUNCTION public.validate_team_responsibilities() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
 DECLARE v_team uuid:=CASE WHEN TG_TABLE_NAME='audit_team_masters' THEN CASE WHEN TG_OP='DELETE' THEN OLD.id ELSE NEW.id END ELSE CASE WHEN TG_OP='DELETE' THEN OLD.team_id ELSE NEW.team_id END END;
-BEGIN IF EXISTS(SELECT 1 FROM public.audit_team_masters t WHERE t.id=v_team AND t.status='Aktif') AND ((SELECT count(*) FROM public.audit_team_master_members m WHERE m.team_id=v_team AND m.is_team_leader)<>1 OR (SELECT count(*) FROM public.audit_team_master_members m WHERE m.team_id=v_team AND m.is_lead_auditor)<>1) THEN RAISE EXCEPTION 'Tim aktif wajib memiliki tepat satu Team Leader dan satu Lead Auditor';END IF;RETURN NULL;END $$;
+BEGIN IF EXISTS(SELECT 1 FROM public.audit_team_masters t WHERE t.id=v_team AND t.status='Aktif') AND (SELECT count(*) FROM public.audit_team_master_members m WHERE m.team_id=v_team AND m.is_team_leader)<>1 THEN RAISE EXCEPTION 'Tim aktif wajib memiliki tepat satu Team Leader';END IF;RETURN NULL;END $$;
 CREATE CONSTRAINT TRIGGER trg_validate_team_responsibilities AFTER INSERT OR UPDATE OR DELETE ON public.audit_team_master_members DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_team_responsibilities();
 CREATE CONSTRAINT TRIGGER trg_validate_team_header_responsibilities AFTER INSERT OR UPDATE ON public.audit_team_masters DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.validate_team_responsibilities();
 
@@ -25,7 +38,6 @@ BEGIN
   IF p_status NOT IN('Aktif','Nonaktif') OR jsonb_typeof(p_members)<>'array' THEN RAISE EXCEPTION 'Data Tim Audit tidak valid';END IF;
   IF (SELECT count(*) FROM jsonb_array_elements(p_members))<>(SELECT count(DISTINCT x->>'auditor_id') FROM jsonb_array_elements(p_members)x) THEN RAISE EXCEPTION 'Auditor tidak boleh duplikat';END IF;
   IF p_status='Aktif' AND (SELECT count(*) FROM jsonb_array_elements(p_members)x WHERE COALESCE((x->>'is_team_leader')::boolean,false))<>1 THEN RAISE EXCEPTION 'Tim Audit aktif harus memiliki tepat satu Team Leader';END IF;
-  IF p_status='Aktif' AND (SELECT count(*) FROM jsonb_array_elements(p_members)x WHERE COALESCE((x->>'is_lead_auditor')::boolean,false))<>1 THEN RAISE EXCEPTION 'Tim Audit aktif harus memiliki tepat satu Lead Auditor';END IF;
   IF EXISTS(SELECT 1 FROM jsonb_array_elements(p_members)x LEFT JOIN public.auditors a ON a.id=(x->>'auditor_id')::uuid WHERE a.id IS NULL OR a.status<>'Aktif') THEN RAISE EXCEPTION 'Semua anggota Tim Audit harus merupakan auditor aktif';END IF;
   IF p_id IS NULL THEN
     INSERT INTO public.audit_team_masters(plan_id,kode_tim,nama_tim,status,catatan) VALUES(p_plan_id,btrim(p_kode_tim),btrim(p_nama_tim),p_status,nullif(btrim(p_catatan),'')) RETURNING id INTO v_id;
@@ -37,10 +49,10 @@ BEGIN
     UPDATE public.audit_team_masters SET kode_tim=btrim(p_kode_tim),nama_tim=btrim(p_nama_tim),status=p_status,catatan=nullif(btrim(p_catatan),'') WHERE id=p_id RETURNING id INTO v_id;
     DELETE FROM public.audit_team_master_members WHERE team_id=v_id;
   END IF;
-  INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,is_team_leader,is_lead_auditor,urutan_tampil)
+  INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,is_team_leader,urutan_tampil)
   SELECT v_id,(x->>'auditor_id')::uuid,
          CASE WHEN COALESCE((x->>'is_team_leader')::boolean,false) THEN 'Lead' ELSE 'Member' END,
-         COALESCE((x->>'is_team_leader')::boolean,false),COALESCE((x->>'is_lead_auditor')::boolean,false),COALESCE((x->>'urutan_tampil')::integer,0)
+         COALESCE((x->>'is_team_leader')::boolean,false),COALESCE((x->>'urutan_tampil')::integer,0)
   FROM jsonb_array_elements(p_members)x;
   RETURN v_id;
 END $$;
@@ -48,10 +60,6 @@ END $$;
 CREATE FUNCTION public.current_auditor_is_team_leader(p_finding_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  SELECT public.current_identity_type()='AUDITOR' AND EXISTS(SELECT 1 FROM public.findings f JOIN public.audit_instruction_rows r ON r.id=f.instruction_row_id JOIN public.audit_team_master_members m ON m.team_id=r.team_master_id WHERE f.id=p_finding_id AND m.auditor_id=public.current_auditor_id() AND m.is_team_leader)
 $$;
-CREATE FUNCTION public.current_auditor_is_lead_auditor(p_finding_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
- SELECT public.current_identity_type()='AUDITOR' AND EXISTS(SELECT 1 FROM public.findings f JOIN public.audit_instruction_rows r ON r.id=f.instruction_row_id JOIN public.audit_team_master_members m ON m.team_id=r.team_master_id WHERE f.id=p_finding_id AND m.auditor_id=public.current_auditor_id() AND m.is_lead_auditor)
-$$;
-
 ALTER TABLE public.findings ALTER COLUMN kode_temuan DROP NOT NULL;
 ALTER TABLE public.findings ADD COLUMN draft_reference text,
   ADD COLUMN review_status text,
@@ -103,8 +111,8 @@ CREATE INDEX idx_notifications_recipient ON public.notifications(recipient_user_
 ALTER TABLE public.finding_review_events ENABLE ROW LEVEL SECURITY; ALTER TABLE public.finding_source_dispositions ENABLE ROW LEVEL SECURITY; ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON public.finding_review_events,public.finding_source_dispositions TO authenticated;
 GRANT SELECT,UPDATE ON public.notifications TO authenticated;
-CREATE POLICY finding_events_scoped_read ON public.finding_review_events FOR SELECT TO authenticated USING(public.is_admin_identity() OR public.auditor_can_access_instruction_row((SELECT f.instruction_row_id FROM public.findings f WHERE f.id=finding_review_events.finding_id)));
-CREATE POLICY finding_dispositions_scoped_read ON public.finding_source_dispositions FOR SELECT TO authenticated USING(public.is_admin_identity() OR public.auditor_can_access_instruction_row((SELECT f.instruction_row_id FROM public.findings f WHERE f.id=finding_source_dispositions.finding_id)));
+CREATE POLICY finding_events_scoped_read ON public.finding_review_events FOR SELECT TO authenticated USING(public.is_admin_identity() OR public.current_auditor_is_lead_auditor() OR public.auditor_can_access_instruction_row((SELECT f.instruction_row_id FROM public.findings f WHERE f.id=finding_review_events.finding_id)));
+CREATE POLICY finding_dispositions_scoped_read ON public.finding_source_dispositions FOR SELECT TO authenticated USING(public.is_admin_identity() OR public.current_auditor_is_lead_auditor() OR public.auditor_can_access_instruction_row((SELECT f.instruction_row_id FROM public.findings f WHERE f.id=finding_source_dispositions.finding_id)));
 CREATE POLICY notifications_own_read ON public.notifications FOR SELECT TO authenticated USING(recipient_user_id=auth.uid());
 CREATE POLICY notifications_own_update ON public.notifications FOR UPDATE TO authenticated USING(recipient_user_id=auth.uid()) WITH CHECK(recipient_user_id=auth.uid());
 
@@ -138,9 +146,9 @@ BEGIN
  IF COALESCE(current_setting('certitrack.finding_workflow',true),'')='1' THEN
   IF OLD.review_status='DRAFT' AND NEW.review_status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
   IF OLD.review_status='REVISION_REQUIRED' AND NEW.review_status='LEAD_REVIEW' AND public.current_auditor_is_team_leader(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='REVISION_REQUIRED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='READY_FOR_RELEASE' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
-  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='ANNULLED' AND public.current_auditor_is_lead_auditor(OLD.id) AND (to_jsonb(NEW)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='REVISION_REQUIRED' AND public.current_auditor_is_lead_auditor() AND (to_jsonb(NEW)-ARRAY['review_status','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='READY_FOR_RELEASE' AND public.current_auditor_is_lead_auditor() AND (to_jsonb(NEW)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['kode_temuan','review_status','approved_at','approved_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
+  IF OLD.review_status='LEAD_REVIEW' AND NEW.review_status='ANNULLED' AND public.current_auditor_is_lead_auditor() AND (to_jsonb(NEW)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','annulled_at','annulled_by','annul_reason','revision_version','updated_at']) THEN RETURN NEW;END IF;
   IF OLD.review_status='READY_FOR_RELEASE' AND NEW.review_status='PUBLISHED' AND public.is_admin_identity() AND (to_jsonb(NEW)-ARRAY['review_status','released_at','released_by','revision_version','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD)-ARRAY['review_status','released_at','released_by','revision_version','updated_at']) THEN RETURN NEW;END IF;
   RAISE EXCEPTION 'Mutasi workflow Finding tidak sesuai aksi/otoritas resmi';
  END IF;
@@ -189,11 +197,11 @@ CREATE FUNCTION public.add_finding_notification(p_finding uuid,p_type text,p_tit
  INSERT INTO public.notifications(recipient_user_id,finding_id,notification_type,title,message) VALUES(p_recipient,p_finding,p_type,p_title,p_message)
 $$;
 CREATE FUNCTION public.finding_transition(p_id uuid,p_action text,p_comment text DEFAULT NULL,p_effective_judgement text DEFAULT NULL) RETURNS public.findings LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;v_actor_name text;v_display_ref text;
+DECLARE f public.findings%ROWTYPE;v_identity text:=public.current_identity_type();v_team uuid;v_year int;v_prefix text;v_seq int;u record;v_initial text;v_actor_name text;v_display_ref text;v_company_lead_user uuid;
 BEGIN
  SELECT x.* INTO f FROM public.findings x WHERE x.id=p_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Temuan tidak ditemukan';END IF;
- IF NOT public.is_admin_identity() AND NOT public.auditor_can_access_instruction_row(f.instruction_row_id) THEN RAISE EXCEPTION 'Temuan tidak ditemukan atau tidak dapat diakses';END IF;
+ IF NOT public.is_admin_identity() AND NOT public.current_auditor_is_lead_auditor() AND NOT public.auditor_can_access_instruction_row(f.instruction_row_id) THEN RAISE EXCEPTION 'Temuan tidak ditemukan atau tidak dapat diakses';END IF;
  SELECT r.team_master_id,i.tahun_fiskal INTO v_team,v_year FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE r.id=f.instruction_row_id;
  v_display_ref:=COALESCE(f.kode_temuan,f.draft_reference,'Finding');
  PERFORM set_config('certitrack.finding_workflow','1',true);
@@ -201,19 +209,31 @@ BEGIN
   IF f.review_status<>'DRAFT' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim Draft';END IF;PERFORM public.assert_complete_plor(f);
   UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_SUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
-  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'LEAD_REVIEW','Finding menunggu review',f.kode_audit||' · '||v_display_ref,u.user_id);END LOOP;
+  SELECT l.user_id INTO v_company_lead_user
+  FROM public.user_auditor_links l
+  JOIN public.user_profiles p ON p.id=l.user_id
+  JOIN public.auditors a ON a.id=l.auditor_id
+  WHERE l.is_lead_auditor AND p.identity_type='AUDITOR' AND p.status='Aktif' AND a.status='Aktif';
+  IF v_company_lead_user IS NULL THEN RAISE EXCEPTION 'Lead Auditor perusahaan aktif belum dikonfigurasi';END IF;
+  PERFORM public.add_finding_notification(p_id,'LEAD_REVIEW','Finding menunggu review',f.kode_audit||' · '||v_display_ref,v_company_lead_user);
  ELSIF p_action='RESUBMIT' THEN
   IF f.review_status<>'REVISION_REQUIRED' OR NOT public.current_auditor_is_team_leader(p_id) THEN RAISE EXCEPTION 'Hanya Team Leader dapat mengirim ulang revisi';END IF;PERFORM public.assert_complete_plor(f);
   UPDATE public.findings SET review_status='LEAD_REVIEW',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'TEAM_RESUBMITTED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
-  FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND m.is_lead_auditor AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'RESUBMITTED','Finding dikirim ulang',f.kode_audit||' · '||v_display_ref,u.user_id);END LOOP;
+  SELECT l.user_id INTO v_company_lead_user
+  FROM public.user_auditor_links l
+  JOIN public.user_profiles p ON p.id=l.user_id
+  JOIN public.auditors a ON a.id=l.auditor_id
+  WHERE l.is_lead_auditor AND p.identity_type='AUDITOR' AND p.status='Aktif' AND a.status='Aktif';
+  IF v_company_lead_user IS NULL THEN RAISE EXCEPTION 'Lead Auditor perusahaan aktif belum dikonfigurasi';END IF;
+  PERFORM public.add_finding_notification(p_id,'RESUBMITTED','Finding dikirim ulang',f.kode_audit||' · '||v_display_ref,v_company_lead_user);
  ELSIF p_action='REQUEST_REVISION' THEN
-  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat meminta revisi';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar revisi wajib diisi';END IF;
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor() THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat meminta revisi';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar revisi wajib diisi';END IF;
   UPDATE public.findings SET review_status='REVISION_REQUIRED',revision_version=revision_version+1 WHERE id=p_id;
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'REVISION_REQUESTED',auth.uid(),v_identity,p_comment,NULL,NULL,NULL,now());
   FOR u IN SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' AND l.user_id<>auth.uid() LOOP PERFORM public.add_finding_notification(p_id,'REVISION_REQUIRED','Finding Revision Required',f.kode_audit||' · '||v_display_ref||E'\n'||p_comment,u.user_id);END LOOP;
  ELSIF p_action='APPROVE' THEN
-  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor() THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat menyetujui';END IF;PERFORM public.assert_complete_plor(f);
   IF f.kode_temuan IS NULL THEN
    PERFORM pg_advisory_xact_lock(hashtext('finding-number'),hashtext(f.kode_audit));
    v_prefix:=CASE f.source_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
@@ -223,7 +243,7 @@ BEGIN
   INSERT INTO public.finding_review_events VALUES(gen_random_uuid(),p_id,'APPROVED',auth.uid(),v_identity,NULLIF(btrim(p_comment),''),NULL,NULL,NULL,now());
   FOR u IN SELECT id user_id FROM public.user_profiles WHERE status='Aktif' AND identity_type='ADMIN' UNION SELECT l.user_id FROM public.audit_team_master_members m JOIN public.user_auditor_links l ON l.auditor_id=m.auditor_id JOIN public.user_profiles p ON p.id=l.user_id WHERE m.team_id=v_team AND p.status='Aktif' LOOP PERFORM public.add_finding_notification(p_id,'APPROVED','Finding disetujui',f.kode_audit||' · '||v_display_ref||' siap dirilis',u.user_id);END LOOP;
  ELSIF p_action='ANNUL' THEN
-  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor(p_id) THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat membatalkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Alasan pembatalan wajib diisi';END IF;
+  IF f.review_status<>'LEAD_REVIEW' OR NOT public.current_auditor_is_lead_auditor() THEN RAISE EXCEPTION 'Hanya Lead Auditor dapat membatalkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Alasan pembatalan wajib diisi';END IF;
   SELECT display_name INTO v_actor_name FROM public.user_profiles WHERE id=auth.uid() AND identity_type='AUDITOR' AND status='Aktif';
   IF v_actor_name IS NULL THEN RAISE EXCEPTION 'Identitas Lead Auditor tidak aktif';END IF;
   PERFORM set_config('certitrack.finding_annul_source',p_id::text,true);
@@ -255,7 +275,7 @@ CREATE FUNCTION public.add_finding_team_response(p_id uuid,p_comment text) RETUR
 DECLARE f public.findings%ROWTYPE;BEGIN SELECT * INTO f FROM public.findings WHERE id=p_id;IF NOT public.auditor_can_access_instruction_row(f.instruction_row_id) OR f.review_status NOT IN('DRAFT','REVISION_REQUIRED') THEN RAISE EXCEPTION 'Respons Tim tidak diizinkan';END IF;IF COALESCE(btrim(p_comment),'')='' THEN RAISE EXCEPTION 'Komentar wajib diisi';END IF;INSERT INTO public.finding_review_events(finding_id,event_type,actor_user_id,actor_identity_type,comment) VALUES(p_id,'TEAM_RESPONSE',auth.uid(),'AUDITOR',p_comment);END $$;
 
 CREATE FUNCTION public.finding_capabilities(p_id uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
- SELECT jsonb_build_object('is_team_member',public.auditor_can_access_instruction_row(f.instruction_row_id),'is_team_leader',public.current_auditor_is_team_leader(f.id),'is_lead_auditor',public.current_auditor_is_lead_auditor(f.id),'is_admin',public.is_admin_identity()) FROM public.findings f WHERE f.id=p_id AND (public.is_admin_identity() OR public.auditor_can_access_instruction_row(f.instruction_row_id))
+ SELECT jsonb_build_object('is_team_member',public.auditor_can_access_instruction_row(f.instruction_row_id),'is_team_leader',public.current_auditor_is_team_leader(f.id),'is_lead_auditor',public.current_auditor_is_lead_auditor(),'is_admin',public.is_admin_identity()) FROM public.findings f WHERE f.id=p_id AND (public.is_admin_identity() OR public.current_auditor_is_lead_auditor() OR public.auditor_can_access_instruction_row(f.instruction_row_id))
 $$;
 
 -- Admin remains preparation authority but cannot act as an execution Auditor.
@@ -309,7 +329,7 @@ CREATE FUNCTION public.product_evidence_phase_matches(p_name text) RETURNS boole
  SELECT EXISTS(SELECT 1 FROM public.checklist_produk_fase f WHERE f.id=CASE WHEN public.product_evidence_checklist_id(p_name) IS NOT NULL THEN (storage.foldername(p_name))[3]::uuid END AND f.checklist_produk_id=public.product_evidence_checklist_id(p_name))
 $$;
 DROP POLICY IF EXISTS audit_evidence_scoped_select ON storage.objects;DROP POLICY IF EXISTS audit_evidence_admin_insert ON storage.objects;DROP POLICY IF EXISTS audit_evidence_admin_update ON storage.objects;DROP POLICY IF EXISTS audit_evidence_admin_delete ON storage.objects;
-CREATE POLICY audit_evidence_scoped_select ON storage.objects FOR SELECT TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND (public.is_admin_identity() OR EXISTS(SELECT 1 FROM public.checklist_produk c WHERE c.id=public.product_evidence_checklist_id(name) AND public.auditor_can_access_instruction_row(c.row_id))));
+CREATE POLICY audit_evidence_scoped_select ON storage.objects FOR SELECT TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND (public.is_admin_identity() OR public.current_auditor_is_lead_auditor() OR EXISTS(SELECT 1 FROM public.checklist_produk c WHERE c.id=public.product_evidence_checklist_id(name) AND public.auditor_can_access_instruction_row(c.row_id))));
 CREATE POLICY audit_evidence_admin_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND public.is_admin_identity());
 CREATE POLICY audit_evidence_admin_update ON storage.objects FOR UPDATE TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND public.is_admin_identity()) WITH CHECK(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND public.is_admin_identity());
 CREATE POLICY audit_evidence_admin_delete ON storage.objects FOR DELETE TO authenticated USING(bucket_id='audit-evidence' AND public.product_evidence_phase_matches(name) AND public.is_admin_identity());
@@ -380,7 +400,7 @@ BEGIN
   SELECT COALESCE(MAX(nomor_urut_temuan),0)+1 INTO v_seq FROM public.findings WHERE kode_audit=v_ctx.kode_audit;
   v_prefix:=CASE p_type WHEN 'ChecklistSistem' THEN 'SYS' WHEN 'ChecklistProduk' THEN 'PRD' ELSE 'MFG' END;
   SELECT m.auditor_id INTO v_lead FROM public.audit_team_master_members m
-    WHERE m.team_id=v_row.team_master_id AND m.peran='Lead' LIMIT 1;
+    WHERE m.team_id=v_row.team_master_id AND m.is_team_leader LIMIT 1;
   INSERT INTO public.findings(instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,auditor_penemu_id,auditee_area,tanggal_temuan)
   VALUES(v_ctx.instruction_row_id,v_ctx.kode_audit,NULL,v_seq,p_type,p_item,p_category,v_lead,NULLIF(v_ctx.auditee_area,''),COALESCE(v_row.tanggal_pelaksanaan_audit,current_date)) RETURNING id INTO v_id;
   RETURN v_id;
@@ -396,11 +416,11 @@ REVOKE ALL ON FUNCTION public.validate_team_responsibilities(),public.prepare_dr
 REVOKE ALL ON FUNCTION public.finding_source_context(text,uuid),public.sync_checklist_finding(text,uuid,text),public.sync_system_finding(),public.sync_product_finding(),public.sync_manufacturing_finding() FROM authenticated;
 
 -- Caller-bound identity/RLS helpers required by authenticated policies.
-GRANT EXECUTE ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid),public.identity_can_access_proses(uuid),public.identity_can_access_seksi(uuid),public.manager_can_access_team(uuid),public.manager_can_access_auditor(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_identity_type(),public.is_admin_identity(),public.current_auditor_id(),public.current_auditor_is_lead_auditor(),public.current_auditor_belongs_to_team(uuid),public.current_auditor_is_peer(uuid),public.auditor_can_access_instruction_row(uuid),public.manager_can_access_instruction_row(uuid),public.identity_can_access_proses(uuid),public.identity_can_access_seksi(uuid),public.manager_can_access_team(uuid),public.manager_can_access_auditor(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.product_evidence_checklist_id(text),public.product_evidence_phase_matches(text) TO authenticated;
 
 -- Active browser RPC allowlist.
 GRANT EXECUTE ON FUNCTION public.next_qa_audit_code(),public.generate_instruction_from_program(uuid,integer),public.save_audit_team_master(uuid,uuid,text,text,text,text,jsonb),public.lock_audit_team_master(uuid),public.unlock_audit_team_master(uuid),public.assign_team_to_instruction_row(uuid,uuid,text),public.save_instruction_row_with_team(uuid,uuid,text,jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_audit_agenda_from_row(uuid),public.finalize_audit_agenda(uuid),public.return_audit_agenda_to_draft(uuid),public.reorder_audit_agenda_items(uuid,uuid[]),public.validate_audit_agenda_creation_context(uuid),public.save_audit_agenda_draft(uuid,date,text,text,text,text,jsonb,text,jsonb),public.create_manufacturing_checklist_from_row(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.audit_execution_blockers(uuid),public.complete_audit_execution(uuid),public.reopen_audit_execution(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.current_auditor_is_team_leader(uuid),public.current_auditor_is_lead_auditor(uuid),public.finding_transition(uuid,text,text,text),public.add_finding_team_response(uuid,text),public.finding_capabilities(uuid),public.save_finding_plor(uuid,integer,text,text,text,text,text,text,uuid,text,date,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_auditor_is_team_leader(uuid),public.current_auditor_is_lead_auditor(),public.finding_transition(uuid,text,text,text),public.add_finding_team_response(uuid,text),public.finding_capabilities(uuid),public.save_finding_plor(uuid,integer,text,text,text,text,text,text,uuid,text,date,text) TO authenticated;

@@ -364,7 +364,6 @@ export interface AuditTeamMasterMember {
   auditor_id: string;
   peran: AuditTeamMemberRole;
   is_team_leader: boolean;
-  is_lead_auditor: boolean;
   urutan_tampil: number;
   auditor?: Auditor;
 }
@@ -390,6 +389,7 @@ export interface AuditExecutionSummary {
   row: AuditInstructionRow; proses: Proses | null; team: AuditTeamMaster | null;
   counter: AuditExecutionCounter; checklist_exists: boolean; checklist_complete: boolean;
   status_progress: RowStatusProgress; findings: AuditExecutionFindingSummary[];
+  can_execute: boolean;
 }
 
 export function computeStatusProgress(input: Pick<AuditExecutionSummary, 'checklist_exists'|'checklist_complete'|'counter'>): RowStatusProgress {

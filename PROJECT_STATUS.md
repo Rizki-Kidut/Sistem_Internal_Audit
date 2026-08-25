@@ -19,11 +19,10 @@
       future LTP contract, and a runtime/RLS verification plan. No credentials or Auth users are included.
 - [ ] Runtime Supabase, Staging, browser, Team-isolation, and Storage signed-URL verification remain pending.
       No migration was applied and no Staging account/data was created in this implementation pass.
-- [ ] Reconstruction validation gate: the reconstructed TS/TSX files pass TypeScript syntax/JSX parsing,
-      but a clean `npm run typecheck`, `npm run build`, and lint rerun is still required because this recovery
-      environment cannot complete dependency installation from npm. Prior correction-pass reports recorded
-      successful typecheck/build and a 24-error pre-existing repository lint baseline, but those prior results
-      are not treated as verification of this reconstructed candidate.
+- [x] Reconstruction and company-Lead correction validation gate: `npm run typecheck` and production
+      `npm run build` pass; changed-file ESLint is clean. Repository-wide lint remains exactly at the known
+      pre-existing baseline of 24 unused-symbol errors and zero warnings. No Batch 7 migration has been
+      applied to Staging during these validation passes.
 - [x] PR #9 static-review corrections now scope own-profile loading by `auth.uid`, require a current
       active Manager identity, reject incompatible profile identity changes, scope process/section/
       Manufacturing-bank/Team reference reads, and preserve Manager Agenda Team context.
@@ -40,17 +39,24 @@ New migrations: `20260823010000_create_identity_access_foundation.sql` and
 
 ### Finding review static implementation
 
-- [x] Added explicit Team Leader and Lead Auditor responsibilities without new Auth identity types; legacy
-      `peran='Lead'` is a one-time compatibility backfill only, while explicit flags are authoritative and
-      independently persisted thereafter (same or different Auditor supported).
+> Terminology note: older Batch 3/5 historical entries that say “Lead Auditor” refer to the legacy
+> Team-level `peran='Lead'` coordinator. In Batch 7 authority terminology that role is **Team Leader**;
+> **Lead Auditor** means the single company-wide reviewer capability.
+
+- [x] Corrected Team/Lead authority model without adding a new Auth identity type: every active Audit Team
+      has exactly one Team Leader (`is_team_leader`; legacy `peran='Lead'` backfills this once), while the
+      single company Lead Auditor is an independent `user_auditor_links.is_lead_auditor` capability and may
+      review/approve/annul Findings from every Team even when not assigned to any Team.
 - [x] Added Draft → Lead Review → Revision Required / Ready for Release / Annulled → Published RPC
       transitions, Team/Lead/Admin separation, mandatory PLOR checks, and concurrency-safe official numbering.
 - [x] Added append-only review/change events, per-recipient notifications, optimistic PLOR versioning,
       immutable `created_at`, and normalized initial/effective source disposition for annulment.
-- [x] Admin may auditably edit Draft/Revision Required PLOR only through controlled `save_finding_plor`
-      with a minimum ten-non-whitespace-character reason persisted in `PLOR_EDITED`, and may release approved
-      Findings, but cannot submit/resubmit, approve/annul, mutate execution results, complete/reopen execution,
-      direct-update ordinary PLOR fields, or hard-delete.
+- [x] Admin/QMS PLOR correction is explicitly a controlled exception: only Draft/Revision Required may be
+      corrected through `save_finding_plor`, with a minimum ten-non-whitespace-character reason and immutable
+      actor/reason/changed-fields/before/after `PLOR_EDITED` audit trail. The UI labels this action `Koreksi PLOR
+      (Admin/QMS)`. It cannot alter Checklist/source judgement or execution state and does not bypass Team Leader
+      → company Lead Auditor review; Admin may release approved Findings but cannot submit/resubmit,
+      approve/annul, complete/reopen execution, direct-update ordinary PLOR fields, or hard-delete.
 - [x] Product evidence authorization additionally verifies that the path phase belongs to its checklist.
 - [x] Preserved every legacy Finding number, operational status, CAR relationship, PLOR, source link,
       and timestamp. Publication now uses separate `review_status`; existing numbered rows receive the
@@ -59,8 +65,9 @@ New migrations: `20260823010000_create_identity_access_foundation.sql` and
       to the authoritative source, retains its Finding link, appends immutable disposition/review history,
       and changes only `review_status`. Normal source sync is locked after submission.
 - [x] Checklist/Pelaksanaan traceability resolves the exact RLS-scoped source item/question plus effective/
-      original annulment results, reason, reviewer, and time. Admin can view all Pelaksanaan data but receives
-      no execution editor or Complete/Reopen control.
+      original annulment results, reason, reviewer, and time. Admin receives no execution editor or
+      Complete/Reopen control. Company Lead Auditor has company-wide review-context read access, while
+      `can_execute` remains true only for Audit Teams where that Auditor is actually assigned.
 - [x] Function ACL hardening revokes inherited application-function EXECUTE from `PUBLIC`/`anon`, keeps
       sensitive trigger/source-sync helpers private, and preserves the Batch 6b blocker/complete/reopen RPCs
       as authenticated-callable `SECURITY INVOKER` functions.
