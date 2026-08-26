@@ -2,7 +2,7 @@
 
 ## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
 
-**Status:** `STAGING_RUNTIME_VERIFIED — BROWSER_SMOKE_PENDING`
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
 
 - [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
       missing/inactive-profile gates, and protection against protected-content flash.
@@ -21,8 +21,12 @@
       transactional Product annulment, notification isolation, Storage RLS boundary, concurrency stale-version,
       and fail-closed missing-company-Lead verification passed using rollback-only runtime fixtures.
       No temporary Auth/profile/mapping/notification/review/disposition fixtures remain after verification.
-- [ ] Real deployed-browser Auth/UI smoke remains pending: login/session restoration/logout, role-aware sidebar/page
-      guards, Finding action visibility, notification UI, and actual Product evidence signed-URL behavior.
+- [x] Real deployed-browser Auth/UI smoke passed with confirmed Supabase email/password users for Admin,
+      Team Leader, Member, company Lead Auditor, outsider Auditor, Section Manager, and Auditee. Login,
+      session restoration, logout, role-aware menus/page guards, Team isolation, Finding action visibility,
+      notification UI, Admin correction, Team submit, Lead approval, and Admin release were verified.
+      The private evidence bucket contained no real object for a browser signed-URL click test; the Batch 7
+      Storage authorization boundary itself passed with rollback-only metadata fixtures and remains non-blocking.
 - [x] Reconstruction and company-Lead correction validation gate: `npm run typecheck` and production
       `npm run build` pass; changed-file ESLint is clean. Repository-wide lint remains exactly at the known
       pre-existing baseline of 24 unused-symbol errors and zero warnings. Batch 7 migrations are applied on
@@ -42,8 +46,9 @@ Batch 7 migrations applied and aligned with CertiTrack-Staging history:
 `20260825155950_create_identity_access_foundation.sql`,
 `20260825160109_enforce_identity_scoped_audit_access.sql`,
 `20260825170649_create_finding_review_workflow.sql`,
-`20260825181042_fix_identity_mapping_trigger.sql`, and
-`20260825182444_harden_identity_execution_trigger.sql`.
+`20260825181042_fix_identity_mapping_trigger.sql`,
+`20260825182444_harden_identity_execution_trigger.sql`, and
+`20260826033534_close_obsolete_finding_notifications.sql`.
 
 ### Finding review static implementation
 
@@ -84,7 +89,14 @@ Batch 7 migrations applied and aligned with CertiTrack-Staging history:
       missing Company Lead Submit failed closed and rolled back; notification and Storage RLS isolation passed.
 - [x] Supabase Security Advisor was reviewed after Batch 7 DDL. Remaining WARN notices are the expected
       authenticated-callable `SECURITY DEFINER` RPC/helper class; tested authority boundaries remained enforced.
-- [ ] Final deployed-browser/Auth UI smoke remains pending before merge.
+- [x] Final deployed-browser/Auth UI smoke passed. Browser testing additionally found and corrected two
+      concrete issues before merge: the shared Login button defaulted to `type="button"` instead of submitting
+      the form, and completed Lead review left obsolete actionable notifications unread. The login submit fix
+      is deployed, and the additive notification-lifecycle trigger now closes `LEAD_REVIEW` / `RESUBMITTED`
+      after Lead decisions and `REVISION_REQUIRED` after Team resubmission.
+- [x] Persistent browser-smoke cleanup passed: seven temporary Auth users, profiles, Auditor links, section
+      assignments, two temporary Auditor masters, QA-9909 smoke notifications, and QA-9909 smoke review events
+      were removed. QA-9909 was restored exactly to its pre-smoke `DRAFT`, revision version 1 baseline.
 
 New Finding workflow migration: `20260825170649_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
 approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
