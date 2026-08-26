@@ -2,7 +2,7 @@
 
 ## Batch 7a — LTP Foundation — 26 Aug 2026
 
-**Status:** `IN_PROGRESS`
+**Status:** `VERIFIED_COMPLETE`
 
 - [x] User-facing terminology is **LTP — Laporan Tindakan Perbaikan**; historical internal names
       (`cars`, `car_id`, and `kode_car`) remain for backward compatibility without a broad rename.
@@ -17,17 +17,31 @@
       through their active matching section assignment. Anonymous access is denied.
 - [x] Added the authorized LTP worklist and read-only derived context RPCs, service layer, enabled LTP
       menu for all four identities, worklist/search/status filter, and read-only LTP/PLOR detail.
-- [ ] Staging migration/runtime/RLS verification is pending; this task is source-first and does not
-      apply hosted migrations.
-- [ ] Mutable LTP editor, Why-Why/action evidence operations, and Manager → Auditor → Admin workflow
-      remain pending for the next controlled slice.
+- [x] CertiTrack-Staging migration applied successfully and recorded as
+      `20260826064707 create_ltp_foundation`; the Git migration filename is aligned to
+      `20260826064707_create_ltp_foundation.sql` without changing the SQL blob.
+- [x] Staging backfill produced exactly 3 eligible LTP rows, all starting at `AUDITEE_DRAFT`; all three
+      preserve `kode_car = findings.kode_temuan`, derive the expected target section, and leave
+      `findings.car_id` / operational `findings.status` untouched.
+- [x] Runtime/RLS identity verification passed **8/8** with rollback-only fixtures: Admin, Team Auditor,
+      company Lead Auditor, scoped Auditee, and scoped Section Manager receive the intended LTP visibility;
+      outsider Auditor and out-of-scope Auditee/Manager receive zero rows. Worklist/context RPCs and all
+      normalized child-table SELECT boundaries matched the same ownership rules.
+- [x] Security/integrity checks passed: anonymous table/RPC access is denied; authenticated browser roles
+      remain SELECT-only on LTP tables; duplicate `cars.finding_id` is rejected; workflow-event UPDATE is
+      rejected; rollback cleanup left zero temporary Auth/profile/mapping/Auditor/child fixtures.
+- [x] Deployed-browser Auditee smoke confirmed the LTP landing/worklist and read-only detail page against
+      CertiTrack-Staging, including the expected 3 section-scoped LTP records. Mutable authoring is
+      intentionally not part of this foundation slice.
 - [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
-      `git diff --check`. Hosted migration/runtime verification remains intentionally pending.
+      `git diff --check`. Vercel deployment status for the verified branch head is successful.
+- [ ] Mutable LTP editor, Why-Why/action evidence operations, and Manager → Auditor → Admin workflow
+      remain pending for subsequent controlled slices.
 
 Changed files: `PROJECT_STATUS.md`, `src/App.tsx`, `src/components/layout/Sidebar.tsx`,
 `src/components/pages/LtpPage.tsx`, `src/lib/auth.ts`, `src/lib/enums.ts`, `src/lib/types.ts`,
 `src/services/ltpService.ts`, and
-`supabase/migrations/20260826090000_create_ltp_foundation.sql`.
+`supabase/migrations/20260826064707_create_ltp_foundation.sql`.
 
 ## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
 
@@ -422,7 +436,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
 ### Remaining blockers / decisions
 
 - The local `auditors` table remains a temporary compatibility proxy. Tim Audit and Instruksi must
-  move behind an adapter when the real Training module source/schema is supplied; no external schema
+  move behind an adapter when the real Training integration source/schema is supplied; no external schema
   was invented and the proxy was not expanded.
 - The migration preserves historical duplicate QA values if a different live database contains them;
   the verified clean and representative upgrade projects contained no such duplicates.
