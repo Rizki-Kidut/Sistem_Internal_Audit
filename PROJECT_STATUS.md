@@ -1,5 +1,32 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7b — Auditee LTP Authoring — 26 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+- [x] Added authorized Auditee Draft authoring for `AUDITEE_DRAFT` / `AUDITEE_RETURNED`, with
+      database-derived edit authority and read-only response views for other authorized identities.
+- [x] Added one atomic Draft RPC with row locking, optimistic `revision_version` concurrency, exactly
+      one revision increment, and synchronized Why, action, and system-revision children. Save Draft
+      permits partial content and does not change LTP/Finding lifecycle state.
+- [x] Added A/B Why-Why editing with contiguous non-empty persistence; category C hides Why and the
+      database rejects a non-empty Why payload.
+- [x] Added Temporary, Corrective, and Preventive action authoring. Category C locally initializes an
+      absent Corrective action from `finding.saran_perbaikan` without modifying the Finding.
+- [x] Added private `audit-evidence` action evidence under the isolated `ltp/<car>/<action>/<state>/`
+      namespace, controlled metadata RPCs, BEFORE/AFTER uploads, signed viewing, and editable-state delete.
+- [x] Added editable system revisions using the three existing categories.
+- [x] Hardened Batch 7a LTP target-section parsing with a safe UUID helper in the new additive migration;
+      the applied Batch 7a migration remains unchanged.
+- [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. The build reported only the existing bundle-size/Browserslist advisories.
+- [ ] Staging migration, runtime/RLS verification, and browser smoke remain pending.
+- [ ] Submit, Manager review, Auditor verification, and Admin/QMS approval remain pending controlled slices.
+
+Changed files: `PROJECT_STATUS.md`, `src/components/pages/LtpPage.tsx`,
+`src/components/pages/ltp/LtpAuditeeForm.tsx`, `src/services/ltpService.ts`, `src/lib/enums.ts`,
+`src/lib/types.ts`, and `supabase/migrations/20260826110000_add_ltp_auditee_authoring.sql`.
+
 ## Batch 7a — LTP Foundation — 26 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE`
@@ -1162,6 +1189,8 @@ Security Advisor, Vercel Preview/browser smoke desktop-mobile, serta cleanup fix
 
 No CAR implementation found.
 
+Historical target-plan snapshot; superseded by the controlled LTP slices documented at the top.
+
 ---
 
 ## Batch 7b — CAR OFI + CAR Tracker
@@ -1169,6 +1198,8 @@ No CAR implementation found.
 **Status:** `NOT_STARTED`
 
 Sidebar entry exists as disabled, but no implementation was found.
+
+Historical target-plan snapshot; superseded by the controlled LTP slices documented at the top.
 
 ---
 

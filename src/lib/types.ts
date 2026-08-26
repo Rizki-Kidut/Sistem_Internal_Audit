@@ -524,15 +524,24 @@ export interface FindingContext {
   source_reference: string | null; source_details: Record<string, string | number | null>;
 }
 
-import type { LtpStatus } from './enums';
+import type { LtpActionType, LtpEvidenceState, LtpStatus, LtpSystemRevisionCategory } from './enums';
+export interface LtpWhyAnalysis { id?:string;level:number;teks:string; }
+export interface LtpActionEvidence { id:string;action_id:string;evidence_state:LtpEvidenceState;file_name:string;path:string;mime_type:string|null;size_bytes:number|null;uploaded_at:string; }
+export interface LtpAction { id?:string;action_type:LtpActionType;description:string;pic:string|null;due_date:string|null;evidence:LtpActionEvidence[]; }
+export interface LtpSystemRevision { id?:string;kategori:LtpSystemRevisionCategory;nama_dokumen:string;created_at?:string; }
+export interface LtpDraftPayload { car_id:string;expected_revision:number;dampak_temuan:string;manfaat_perbaikan:string;why_analysis:LtpWhyAnalysis[];actions:LtpAction[];system_revisions:LtpSystemRevision[]; }
 export interface LtpWorklistRow { car_id:string;finding_id:string;kode_ltp:string;kode_audit:string;kategori:KategoriTemuan;status:LtpStatus;seksi_auditee_id:string|null;seksi_nama:string|null;proses_nama:string|null;tanggal_temuan:string; }
 export interface LtpContext {
-  ltp:{id:string;finding_id:string;kode_ltp:string;status:LtpStatus;seksi_auditee_id:string|null;revision_version:number;created_at:string};
+  ltp:{id:string;finding_id:string;kode_ltp:string;status:LtpStatus;seksi_auditee_id:string|null;revision_version:number;dampak_temuan:string|null;manfaat_perbaikan:string|null;auditor_verification_result:string|null;created_at:string};
   finding:{kode_audit:string;kode_temuan:string;kategori:KategoriTemuan;problem:string;location:string;objective_evidence:string;reference:string|null;saran_perbaikan:string|null;auditee_area:string|null;tanggal_temuan:string};
   section:{id:string;nama:string;kepala_seksi:string|null}|null;
   process:{id:string;nama:string}|null;
   team:{id:string;kode:string;nama:string}|null;
   team_leader:{id:string;nama:string}|null;
+  permissions:{can_edit_auditee:boolean};
+  why_analysis:LtpWhyAnalysis[];
+  actions:LtpAction[];
+  system_revisions:LtpSystemRevision[];
 }
 
 export type { ChecklistManufakturStatus } from './enums';
