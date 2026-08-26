@@ -25,12 +25,20 @@
       the applied Batch 7a migration remains unchanged.
 - [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
       `git diff --check`. The build reported only the existing bundle-size/Browserslist advisories.
-- [ ] Staging migration, runtime/RLS verification, and browser smoke remain pending.
+- [x] Initial Batch 7b migration was applied to CertiTrack-Staging as `20260826134353`; positive A/B
+      and category-C rollback runtime checks passed, and the Storage predicate matrix passed.
+- [x] Runtime verification found that a NULL `expected_revision` bypassed the original nullable
+      comparison. Additive migration `20260826140000_fix_ltp_draft_revision_guard.sql` replaces only
+      that comparison with fail-closed `IS DISTINCT FROM` optimistic concurrency.
+- [ ] The additive concurrency correction still requires Staging apply and runtime re-verification;
+      Batch 7b remains implementation-unverified.
+- [ ] Browser smoke remains pending.
 - [ ] Submit, Manager review, Auditor verification, and Admin/QMS approval remain pending controlled slices.
 
 Changed files: `PROJECT_STATUS.md`, `src/components/pages/LtpPage.tsx`,
 `src/components/pages/ltp/LtpAuditeeForm.tsx`, `src/services/ltpService.ts`, `src/lib/enums.ts`,
-`src/lib/types.ts`, and `supabase/migrations/20260826110000_add_ltp_auditee_authoring.sql`.
+`src/lib/types.ts`, `supabase/migrations/20260826134353_add_ltp_auditee_authoring.sql`, and
+`supabase/migrations/20260826140000_fix_ltp_draft_revision_guard.sql`.
 
 ## Batch 7a — LTP Foundation — 26 Aug 2026
 
