@@ -61,6 +61,15 @@ export const FINDING_STATUS = { OPEN:'Open', CAR_SUBMITTED:'CAR Submitted', VERI
 export type FindingStatus = (typeof FINDING_STATUS)[keyof typeof FINDING_STATUS];
 export const FINDING_REVIEW_STATUS = { DRAFT:'DRAFT', LEAD_REVIEW:'LEAD_REVIEW', REVISION_REQUIRED:'REVISION_REQUIRED', READY_FOR_RELEASE:'READY_FOR_RELEASE', PUBLISHED:'PUBLISHED', ANNULLED:'ANNULLED', LEGACY_ESTABLISHED:'LEGACY_ESTABLISHED' } as const;
 export type FindingReviewStatus = (typeof FINDING_REVIEW_STATUS)[keyof typeof FINDING_REVIEW_STATUS];
+export const LTP_STATUS = {
+  AUDITEE_DRAFT:'AUDITEE_DRAFT', MANAGER_REVIEW:'MANAGER_REVIEW', AUDITEE_RETURNED:'AUDITEE_RETURNED',
+  AUDITOR_REVIEW:'AUDITOR_REVIEW', AUDITOR_RETURNED:'AUDITOR_RETURNED', ADMIN_REVIEW:'ADMIN_REVIEW', CLOSED:'CLOSED',
+} as const;
+export type LtpStatus = (typeof LTP_STATUS)[keyof typeof LTP_STATUS];
+export const LTP_STATUS_LABEL:Record<LtpStatus,string> = {
+  AUDITEE_DRAFT:'Draft Auditee', MANAGER_REVIEW:'Menunggu Section Manager', AUDITEE_RETURNED:'Dikembalikan ke Auditee',
+  AUDITOR_REVIEW:'Menunggu Verifikasi Auditor', AUDITOR_RETURNED:'Dikembalikan ke Auditor', ADMIN_REVIEW:'Menunggu Approval Admin/QMS', CLOSED:'Closed',
+};
 export const KLASIFIKASI_DIS = { DOKUMEN: 'Dokumen', IMPLEMENTASI: 'Implementasi', SISTEM: 'Sistem' } as const;
 export type KlasifikasiDIS = (typeof KLASIFIKASI_DIS)[keyof typeof KLASIFIKASI_DIS];
 

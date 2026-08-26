@@ -1,8 +1,39 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7a — LTP Foundation — 26 Aug 2026
+
+**Status:** `IN_PROGRESS`
+
+- [x] User-facing terminology is **LTP — Laporan Tindakan Perbaikan**; historical internal names
+      (`cars`, `car_id`, and `kode_car`) remain for backward compatibility without a broad rename.
+- [x] Added the Finding `1 : 0..1` LTP relationship through `cars.finding_id UNIQUE`; No. LTP is
+      exactly the published Finding `kode_temuan` and has no independent sequence.
+- [x] Added normalized foundation tables for LTP headers, unlimited Why analysis levels, typed actions,
+      action-evidence metadata, system revisions, and append-only workflow events.
+- [x] Eligible `PUBLISHED` / `LEGACY_ESTABLISHED` Findings with complete PLOR create LTP idempotently.
+      Target section is assigned only when exactly one valid `seksi_marks` target exists.
+- [x] Added identity-scoped RLS and SELECT-only authenticated browser privileges: Admin and company
+      Lead Auditor read globally, Auditor reads Team-owned LTP, and Auditee/Section Manager read only
+      through their active matching section assignment. Anonymous access is denied.
+- [x] Added the authorized LTP worklist and read-only derived context RPCs, service layer, enabled LTP
+      menu for all four identities, worklist/search/status filter, and read-only LTP/PLOR detail.
+- [ ] Staging migration/runtime/RLS verification is pending; this task is source-first and does not
+      apply hosted migrations.
+- [ ] Mutable LTP editor, Why-Why/action evidence operations, and Manager → Auditor → Admin workflow
+      remain pending for the next controlled slice.
+- [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. Hosted migration/runtime verification remains intentionally pending.
+
+Changed files: `PROJECT_STATUS.md`, `src/App.tsx`, `src/components/layout/Sidebar.tsx`,
+`src/components/pages/LtpPage.tsx`, `src/lib/auth.ts`, `src/lib/enums.ts`, `src/lib/types.ts`,
+`src/services/ltpService.ts`, and
+`supabase/migrations/20260826090000_create_ltp_foundation.sql`.
+
 ## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+**Status:** `VERIFIED_COMPLETE`
+
+Merged through PR #9 on 26 Aug 2026.
 
 - [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
       missing/inactive-profile gates, and protection against protected-content flash.
