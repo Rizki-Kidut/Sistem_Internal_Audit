@@ -13,6 +13,7 @@ import { ChecklistAuditPage } from './components/pages/ChecklistAuditPage';
 import { AgendaAuditPage } from './components/pages/AgendaAuditPage';
 import { TemuanPage } from './components/pages/TemuanPage';
 import { PelaksanaanAuditPage } from './components/pages/PelaksanaanAuditPage';
+import { LtpPage } from './components/pages/LtpPage';
 import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
@@ -31,7 +32,7 @@ function App() {
   if(!profile)return <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6"><div className="bg-white rounded-xl shadow p-8 text-center max-w-md"><h1 className="text-xl font-bold text-gray-900">Akses CertiTrack</h1><p className="mt-3 text-gray-600">{profileError??'Akun belum dikonfigurasi untuk CertiTrack.'}</p><Button className="mt-6" onClick={()=>void logout()}>Logout</Button></div></div>;
   const identityType=profile.identity_type;
   const landing=landingPage(identityType);
-  if(!landing)return <div className="min-h-screen bg-gray-100 flex"><Sidebar currentPage={currentPage} onNavigate={setCurrentPage} profile={profile} onLogout={()=>void logout()}/><main className="flex-1 flex items-center justify-center p-6"><div className="bg-white rounded-xl shadow p-8 text-center"><h1 className="text-xl font-bold">Tidak ada tugas LTP saat ini</h1><p className="mt-2 text-gray-500">Akses LTP akan tersedia pada batch berikutnya.</p></div></main></div>;
+  if(!landing)return null;
 
   function handleNavigateToProgram(programId: string) {
     setInitialProgramId(programId);
@@ -65,6 +66,8 @@ function App() {
         return <PelaksanaanAuditPage />;
       case 'temuan':
         return <TemuanPage />;
+      case 'car':
+        return <LtpPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':

@@ -524,6 +524,17 @@ export interface FindingContext {
   source_reference: string | null; source_details: Record<string, string | number | null>;
 }
 
+import type { LtpStatus } from './enums';
+export interface LtpWorklistRow { car_id:string;finding_id:string;kode_ltp:string;kode_audit:string;kategori:KategoriTemuan;status:LtpStatus;seksi_auditee_id:string|null;seksi_nama:string|null;proses_nama:string|null;tanggal_temuan:string; }
+export interface LtpContext {
+  ltp:{id:string;finding_id:string;kode_ltp:string;status:LtpStatus;seksi_auditee_id:string|null;revision_version:number;created_at:string};
+  finding:{kode_audit:string;kode_temuan:string;kategori:KategoriTemuan;problem:string;location:string;objective_evidence:string;reference:string|null;saran_perbaikan:string|null;auditee_area:string|null;tanggal_temuan:string};
+  section:{id:string;nama:string;kepala_seksi:string|null}|null;
+  process:{id:string;nama:string}|null;
+  team:{id:string;kode:string;nama:string}|null;
+  team_leader:{id:string;nama:string}|null;
+}
+
 export type { ChecklistManufakturStatus } from './enums';
 import type { ChecklistManufakturStatus, HasilChecklist } from './enums';
 

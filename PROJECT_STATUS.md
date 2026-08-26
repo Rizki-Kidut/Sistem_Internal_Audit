@@ -1,8 +1,53 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7a — LTP Foundation — 26 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+- [x] User-facing terminology is **LTP — Laporan Tindakan Perbaikan**; historical internal names
+      (`cars`, `car_id`, and `kode_car`) remain for backward compatibility without a broad rename.
+- [x] Added the Finding `1 : 0..1` LTP relationship through `cars.finding_id UNIQUE`; No. LTP is
+      exactly the published Finding `kode_temuan` and has no independent sequence.
+- [x] Added normalized foundation tables for LTP headers, unlimited Why analysis levels, typed actions,
+      action-evidence metadata, system revisions, and append-only workflow events.
+- [x] Eligible `PUBLISHED` / `LEGACY_ESTABLISHED` Findings with complete PLOR create LTP idempotently.
+      Target section is assigned only when exactly one valid `seksi_marks` target exists.
+- [x] Added identity-scoped RLS and SELECT-only authenticated browser privileges: Admin and company
+      Lead Auditor read globally, Auditor reads Team-owned LTP, and Auditee/Section Manager read only
+      through their active matching section assignment. Anonymous access is denied.
+- [x] Added the authorized LTP worklist and read-only derived context RPCs, service layer, enabled LTP
+      menu for all four identities, worklist/search/status filter, and read-only LTP/PLOR detail.
+- [x] CertiTrack-Staging migration applied successfully and recorded as
+      `20260826064707 create_ltp_foundation`; the Git migration filename is aligned to
+      `20260826064707_create_ltp_foundation.sql` without changing the SQL blob.
+- [x] Staging backfill produced exactly 3 eligible LTP rows, all starting at `AUDITEE_DRAFT`; all three
+      preserve `kode_car = findings.kode_temuan`, derive the expected target section, and leave
+      `findings.car_id` / operational `findings.status` untouched.
+- [x] Runtime/RLS identity verification passed **8/8** with rollback-only fixtures: Admin, Team Auditor,
+      company Lead Auditor, scoped Auditee, and scoped Section Manager receive the intended LTP visibility;
+      outsider Auditor and out-of-scope Auditee/Manager receive zero rows. Worklist/context RPCs and all
+      normalized child-table SELECT boundaries matched the same ownership rules.
+- [x] Security/integrity checks passed: anonymous table/RPC access is denied; authenticated browser roles
+      remain SELECT-only on LTP tables; duplicate `cars.finding_id` is rejected; workflow-event UPDATE is
+      rejected; rollback cleanup left zero temporary Auth/profile/mapping/Auditor/child fixtures.
+- [x] Deployed-browser Auditee smoke confirmed the LTP landing/worklist and read-only detail page against
+      CertiTrack-Staging, including the expected 3 section-scoped LTP records. Mutable authoring is
+      intentionally not part of this foundation slice.
+- [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. Vercel deployment status for the verified branch head is successful.
+- [ ] Mutable LTP editor, Why-Why/action evidence operations, and Manager → Auditor → Admin workflow
+      remain pending for subsequent controlled slices.
+
+Changed files: `PROJECT_STATUS.md`, `src/App.tsx`, `src/components/layout/Sidebar.tsx`,
+`src/components/pages/LtpPage.tsx`, `src/lib/auth.ts`, `src/lib/enums.ts`, `src/lib/types.ts`,
+`src/services/ltpService.ts`, and
+`supabase/migrations/20260826064707_create_ltp_foundation.sql`.
+
 ## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+**Status:** `VERIFIED_COMPLETE`
+
+Merged through PR #9 on 26 Aug 2026.
 
 - [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
       missing/inactive-profile gates, and protection against protected-content flash.
@@ -391,7 +436,7 @@ The overall stabilization state is `VERIFIED_COMPLETE`.
 ### Remaining blockers / decisions
 
 - The local `auditors` table remains a temporary compatibility proxy. Tim Audit and Instruksi must
-  move behind an adapter when the real Training module source/schema is supplied; no external schema
+  move behind an adapter when the real Training integration source/schema is supplied; no external schema
   was invented and the proxy was not expanded.
 - The migration preserves historical duplicate QA values if a different live database contains them;
   the verified clean and representative upgrade projects contained no such duplicates.
