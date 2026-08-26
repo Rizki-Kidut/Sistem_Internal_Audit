@@ -18,6 +18,8 @@
       namespace, controlled metadata RPCs, BEFORE/AFTER uploads, signed viewing, and editable-state delete.
       Storage policies expose only high-level identity-aware predicates; low-level path parsers remain
       private, and DELETE permits authorized orphan cleanup without requiring the action row to survive.
+      Evidence mutations are blocked while the Auditee has unsaved Draft form changes, preventing context
+      refresh from silently replacing local authoring data.
 - [x] Added editable system revisions using the three existing categories.
 - [x] Hardened Batch 7a LTP target-section parsing with a safe UUID helper in the new additive migration;
       the applied Batch 7a migration remains unchanged.
