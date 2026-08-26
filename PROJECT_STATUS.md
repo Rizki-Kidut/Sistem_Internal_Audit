@@ -2,7 +2,7 @@
 
 ## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `STAGING_RUNTIME_VERIFIED — BROWSER_SMOKE_PENDING`
 
 - [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
       missing/inactive-profile gates, and protection against protected-content flash.
@@ -17,12 +17,16 @@
       architecture are retained; the three Batch 6b RPCs are explicitly kept `SECURITY INVOKER`.
 - [x] Added `AUTH_IDENTITY_SETUP.md` with trusted bootstrap, separate-persona provisioning, mappings,
       future LTP contract, and a runtime/RLS verification plan. No credentials or Auth users are included.
-- [ ] Runtime Supabase, Staging, browser, Team-isolation, and Storage signed-URL verification remain pending.
-      No migration was applied and no Staging account/data was created in this implementation pass.
+- [x] CertiTrack-Staging migration-chain, RLS/RPC authorization, Team isolation, Finding workflow,
+      transactional Product annulment, notification isolation, Storage RLS boundary, concurrency stale-version,
+      and fail-closed missing-company-Lead verification passed using rollback-only runtime fixtures.
+      No temporary Auth/profile/mapping/notification/review/disposition fixtures remain after verification.
+- [ ] Real deployed-browser Auth/UI smoke remains pending: login/session restoration/logout, role-aware sidebar/page
+      guards, Finding action visibility, notification UI, and actual Product evidence signed-URL behavior.
 - [x] Reconstruction and company-Lead correction validation gate: `npm run typecheck` and production
       `npm run build` pass; changed-file ESLint is clean. Repository-wide lint remains exactly at the known
-      pre-existing baseline of 24 unused-symbol errors and zero warnings. No Batch 7 migration has been
-      applied to Staging during these validation passes.
+      pre-existing baseline of 24 unused-symbol errors and zero warnings. Batch 7 migrations are applied on
+      CertiTrack-Staging and Git migration filenames are aligned with the recorded Staging migration versions.
 - [x] PR #9 static-review corrections now scope own-profile loading by `auth.uid`, require a current
       active Manager identity, reject incompatible profile identity changes, scope process/section/
       Manufacturing-bank/Team reference reads, and preserve Manager Agenda Team context.
@@ -34,8 +38,12 @@
       receive only SELECT/UPDATE with matching RLS. Direct INSERT/DELETE remains unavailable and the
       existing Batch 6a SECURITY DEFINER source triggers remain the sole Finding lifecycle authority.
 
-New migrations: `20260825155950_create_identity_access_foundation.sql` and
-`20260825160109_enforce_identity_scoped_audit_access.sql`.
+Batch 7 migrations applied and aligned with CertiTrack-Staging history:
+`20260825155950_create_identity_access_foundation.sql`,
+`20260825160109_enforce_identity_scoped_audit_access.sql`,
+`20260825170649_create_finding_review_workflow.sql`,
+`20260825181042_fix_identity_mapping_trigger.sql`, and
+`20260825182444_harden_identity_execution_trigger.sql`.
 
 ### Finding review static implementation
 
@@ -71,8 +79,12 @@ New migrations: `20260825155950_create_identity_access_foundation.sql` and
 - [x] Function ACL hardening revokes inherited application-function EXECUTE from `PUBLIC`/`anon`, keeps
       sensitive trigger/source-sync helpers private, and preserves the Batch 6b blocker/complete/reopen RPCs
       as authenticated-callable `SECURITY INVOKER` functions.
-- [ ] Migration-chain execution, RLS/RPC role matrix, notification delivery, concurrency, browser workflow,
-      Storage, Security Advisor, and Staging verification remain pending.
+- [x] Staging migration chain and Git-history alignment passed. Release/workflow authorization matrix passed
+      23/23; transactional Product annulment passed 5/5; stale optimistic-concurrency version was rejected;
+      missing Company Lead Submit failed closed and rolled back; notification and Storage RLS isolation passed.
+- [x] Supabase Security Advisor was reviewed after Batch 7 DDL. Remaining WARN notices are the expected
+      authenticated-callable `SECURITY DEFINER` RPC/helper class; tested authority boundaries remained enforced.
+- [ ] Final deployed-browser/Auth UI smoke remains pending before merge.
 
 New Finding workflow migration: `20260825170649_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
 approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
