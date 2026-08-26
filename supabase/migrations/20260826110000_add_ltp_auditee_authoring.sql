@@ -70,6 +70,26 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
       WHERE a.id=public.ltp_evidence_action_id(p_path) AND a.car_id=public.ltp_evidence_car_id(p_path))
 $$;
 
+CREATE OR REPLACE FUNCTION public.ltp_evidence_can_read(p_path text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+  SELECT public.ltp_evidence_path_matches(p_path)
+    AND public.car_accessible_to_current_identity(public.ltp_evidence_car_id(p_path))
+$$;
+
+CREATE OR REPLACE FUNCTION public.ltp_evidence_can_insert(p_path text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+  SELECT public.ltp_evidence_path_matches(p_path)
+    AND public.auditee_can_edit_ltp(public.ltp_evidence_car_id(p_path))
+$$;
+
+CREATE OR REPLACE FUNCTION public.ltp_evidence_can_delete(p_path text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+  SELECT public.ltp_evidence_car_id(p_path) IS NOT NULL
+    AND public.ltp_evidence_action_id(p_path) IS NOT NULL
+    AND public.ltp_evidence_state(p_path) IS NOT NULL
+    AND public.auditee_can_edit_ltp(public.ltp_evidence_car_id(p_path))
+$$;
+
 CREATE UNIQUE INDEX idx_car_action_evidence_path ON public.car_action_evidence(path);
 
 CREATE OR REPLACE FUNCTION public.save_ltp_auditee_draft(
@@ -175,12 +195,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 $$;
 
 CREATE POLICY ltp_evidence_authorized_select ON storage.objects FOR SELECT TO authenticated
-USING(bucket_id='audit-evidence' AND public.ltp_evidence_path_matches(name) AND public.car_accessible_to_current_identity(public.ltp_evidence_car_id(name)));
+USING(bucket_id='audit-evidence' AND public.ltp_evidence_can_read(name));
 CREATE POLICY ltp_evidence_auditee_insert ON storage.objects FOR INSERT TO authenticated
-WITH CHECK(bucket_id='audit-evidence' AND public.ltp_evidence_path_matches(name) AND public.auditee_can_edit_ltp(public.ltp_evidence_car_id(name)));
+WITH CHECK(bucket_id='audit-evidence' AND public.ltp_evidence_can_insert(name));
 CREATE POLICY ltp_evidence_auditee_delete ON storage.objects FOR DELETE TO authenticated
-USING(bucket_id='audit-evidence' AND public.ltp_evidence_path_matches(name) AND public.auditee_can_edit_ltp(public.ltp_evidence_car_id(name)));
+USING(bucket_id='audit-evidence' AND public.ltp_evidence_can_delete(name));
 
-REVOKE ALL ON FUNCTION public.safe_uuid(text),public.safe_date(text),public.auditee_can_edit_ltp(uuid),public.ltp_evidence_car_id(text),public.ltp_evidence_action_id(text),public.ltp_evidence_state(text),public.ltp_evidence_path_matches(text),public.save_ltp_auditee_draft(uuid,integer,text,text,jsonb,jsonb,jsonb),public.register_ltp_action_evidence(uuid,text,text,text,text,bigint),public.delete_ltp_action_evidence(uuid) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.safe_uuid(text),public.safe_date(text),public.auditee_can_edit_ltp(uuid),public.ltp_evidence_car_id(text),public.ltp_evidence_action_id(text),public.ltp_evidence_state(text),public.ltp_evidence_path_matches(text),public.ltp_evidence_can_read(text),public.ltp_evidence_can_insert(text),public.ltp_evidence_can_delete(text),public.save_ltp_auditee_draft(uuid,integer,text,text,jsonb,jsonb,jsonb),public.register_ltp_action_evidence(uuid,text,text,text,text,bigint),public.delete_ltp_action_evidence(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.safe_uuid(text),public.safe_date(text),public.ltp_evidence_car_id(text),public.ltp_evidence_action_id(text),public.ltp_evidence_state(text),public.ltp_evidence_path_matches(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.auditee_can_edit_ltp(uuid),public.save_ltp_auditee_draft(uuid,integer,text,text,jsonb,jsonb,jsonb),public.register_ltp_action_evidence(uuid,text,text,text,text,bigint),public.delete_ltp_action_evidence(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.auditee_can_edit_ltp(uuid),public.ltp_evidence_can_read(text),public.ltp_evidence_can_insert(text),public.ltp_evidence_can_delete(text),public.save_ltp_auditee_draft(uuid,integer,text,text,jsonb,jsonb,jsonb),public.register_ltp_action_evidence(uuid,text,text,text,text,bigint),public.delete_ltp_action_evidence(uuid) TO authenticated;

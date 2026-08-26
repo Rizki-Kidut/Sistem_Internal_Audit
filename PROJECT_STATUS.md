@@ -12,9 +12,12 @@
 - [x] Added A/B Why-Why editing with contiguous non-empty persistence; category C hides Why and the
       database rejects a non-empty Why payload.
 - [x] Added Temporary, Corrective, and Preventive action authoring. Category C locally initializes an
-      absent Corrective action from `finding.saran_perbaikan` without modifying the Finding.
+      absent Corrective action from `finding.saran_perbaikan` only for an authorized editable Auditee;
+      read-only identities see only persisted LTP responses, and the Finding is never modified.
 - [x] Added private `audit-evidence` action evidence under the isolated `ltp/<car>/<action>/<state>/`
       namespace, controlled metadata RPCs, BEFORE/AFTER uploads, signed viewing, and editable-state delete.
+      Storage policies expose only high-level identity-aware predicates; low-level path parsers remain
+      private, and DELETE permits authorized orphan cleanup without requiring the action row to survive.
 - [x] Added editable system revisions using the three existing categories.
 - [x] Hardened Batch 7a LTP target-section parsing with a safe UUID helper in the new additive migration;
       the applied Batch 7a migration remains unchanged.
