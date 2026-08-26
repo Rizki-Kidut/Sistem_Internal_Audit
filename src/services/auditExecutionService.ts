@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { computeStatusProgress, type AuditExecutionCounter, type AuditExecutionSummary, type Finding } from '../lib/types';
+import { resolveFindingSourceLabels } from './findingService';
 import { isFindingPLORComplete } from '../lib/finding';
 import { getAllInstructionRows } from './auditInstructionService';
 import { getAllProses } from './prosesService';
@@ -35,22 +36,32 @@ async function sourceState(row: AuditExecutionSummary['row']) {
 }
 
 export async function listAuditExecutions(): Promise<AuditExecutionSummary[]> {
-  const [rows, proses, teams, findingResult] = await Promise.all([
+  const [rows, proses, teams, findingResult, dispositionResult, currentAuditorResult] = await Promise.all([
     getAllInstructionRows(), getAllProses(), getAuditTeamMasters(),
     supabase.from('findings').select('*'),
+    supabase.from('finding_source_dispositions').select('*'),
+    supabase.rpc('current_auditor_id'),
   ]);
   if (findingResult.error) throw new Error(`Gagal memuat status PLOR: ${findingResult.error.message}`);
+  if (dispositionResult.error) throw new Error(`Gagal memuat disposisi review: ${dispositionResult.error.message}`);
+  if (currentAuditorResult.error) throw new Error(`Gagal memuat identitas Auditor: ${currentAuditorResult.error.message}`);
+  const currentAuditorId = currentAuditorResult.data as string | null;
   const findings = (findingResult.data ?? []) as Finding[];
+  const dispositions = dispositionResult.data ?? [];
+  const sourceLabels=await resolveFindingSourceLabels(findings);
   return Promise.all(rows.map(async row => {
     const state = await sourceState(row);
     const rowFindings = findings.filter(finding => finding.instruction_row_id === row.id);
+    const team = teams.find(item => item.id === row.team_master_id) ?? null;
     const summary: AuditExecutionSummary = {
       row, proses: proses.find(item => item.id === row.proses_id) ?? null,
-      team: teams.find(item => item.id === row.team_master_id) ?? null,
+      team,
       counter: state.counter, checklist_exists: state.exists, checklist_complete: state.complete,
-      status_progress: 'Belum Mulai', findings: rowFindings.map(finding => ({
-        id: finding.id, source_item_id: finding.source_item_id, kode_temuan: finding.kode_temuan,
-        kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
+      status_progress: 'Belum Mulai', can_execute: Boolean(currentAuditorId && team?.members.some(member => member.auditor_id === currentAuditorId)), findings: rowFindings.map(finding => ({
+        id: finding.id, source_item_id: finding.source_item_id, source_type: finding.source_type,
+        source_label: sourceLabels.get(finding.source_item_id) ?? `Source ${finding.source_item_id}`,
+        kode_temuan: finding.kode_temuan, draft_reference: finding.draft_reference, kategori: finding.kategori, plor_complete: isFindingPLORComplete(finding),
+        disposition: dispositions.find(item => item.finding_id === finding.id) ?? null,
       })),
     };
     summary.status_progress = computeStatusProgress(summary);

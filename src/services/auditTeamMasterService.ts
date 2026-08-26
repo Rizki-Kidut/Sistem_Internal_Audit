@@ -5,7 +5,11 @@ import { checkIndependensi, checkKompetensi, getActiveAuditors } from './auditor
 import { getSeksiList } from './seksiService';
 
 function mapTeam(row: Record<string, unknown>): AuditTeamMaster {
-  return { ...row, plan_id: (row.plan_id as string) ?? null, is_locked: row.is_locked ?? false, locked_at: row.locked_at ?? null, members: (row.members ?? []) as AuditTeamMasterMember[] } as unknown as AuditTeamMaster;
+  const members=((row.members ?? []) as Record<string, unknown>[]).map((member) => ({
+    ...member,
+    is_team_leader: Boolean(member.is_team_leader ?? member.peran === AUDIT_TEAM_MEMBER_ROLE.LEAD),
+  })) as unknown as AuditTeamMasterMember[];
+  return { ...row, plan_id: (row.plan_id as string) ?? null, is_locked: row.is_locked ?? false, locked_at: row.locked_at ?? null, members } as unknown as AuditTeamMaster;
 }
 const selectTeam = '*,members:audit_team_master_members(*,auditor:auditors(*))';
 
@@ -33,11 +37,14 @@ export async function saveAuditTeamMaster(team: Partial<AuditTeamMaster>): Promi
   if (!team.plan_id) throw new Error('Rencana Audit Tahunan wajib dipilih');
   if (team.id && team.is_locked) throw new Error('Tim Audit terkunci. Buka kunci sebelum mengedit.');
   if (!team.kode_tim?.trim() || !team.nama_tim?.trim()) throw new Error('Kode dan nama Tim Audit wajib diisi');
-  if (team.status === AUDIT_TEAM_MASTER_STATUS.AKTIF && members.filter((m) => m.peran === AUDIT_TEAM_MEMBER_ROLE.LEAD).length !== 1) throw new Error('Tim Audit aktif harus memiliki tepat satu Lead');
   if (new Set(members.map((m) => m.auditor_id)).size !== members.length) throw new Error('Auditor dalam satu Tim Audit tidak boleh duplikat');
+  if (team.status === AUDIT_TEAM_MASTER_STATUS.AKTIF && members.filter((m) => m.is_team_leader).length !== 1) {
+    throw new Error('Tim Audit aktif harus memiliki tepat satu Team Leader');
+  }
   const { data, error } = await supabase.rpc('save_audit_team_master', { p_id: team.id || null, p_plan_id:team.plan_id,p_kode_tim: team.kode_tim,
     p_nama_tim: team.nama_tim, p_status: team.status ?? AUDIT_TEAM_MASTER_STATUS.AKTIF, p_catatan: team.catatan ?? null,
-    p_members: members.map((m) => ({ auditor_id: m.auditor_id, peran: m.peran, urutan_tampil: m.urutan_tampil })) });
+    p_members: members.map((m) => ({ auditor_id: m.auditor_id, peran: m.is_team_leader ? AUDIT_TEAM_MEMBER_ROLE.LEAD : AUDIT_TEAM_MEMBER_ROLE.MEMBER,
+      is_team_leader: m.is_team_leader, urutan_tampil: m.urutan_tampil })) });
   if (error) throw new Error(`Gagal menyimpan Tim Audit: ${error.message}`);
   const saved = await getAuditTeamMasterById(data as string); if (!saved) throw new Error('Tim Audit tersimpan tidak ditemukan'); return saved;
 }
@@ -67,7 +74,7 @@ export async function assignTeamToInstructionRow(rowId: string, teamMasterId: st
   }
   const [team, auditors, seksiList] = await Promise.all([getAuditTeamMasterById(teamMasterId), getActiveAuditors(), getSeksiList()]);
   if (!team || team.status !== AUDIT_TEAM_MASTER_STATUS.AKTIF || !team.is_locked || !team.plan_id) throw new Error('Tim Audit aktif dan terkunci tidak ditemukan');
-  if (team.members.filter((m) => m.peran === AUDIT_TEAM_MEMBER_ROLE.LEAD).length !== 1) throw new Error('Tim Audit harus memiliki tepat satu Lead');
+  if (team.members.filter((m) => m.is_team_leader).length !== 1) throw new Error('Tim Audit harus memiliki tepat satu Team Leader');
   const auditorMap = new Map(auditors.map((a) => [a.id, a]));
   const inactiveMembers = team.members.filter((member) => !auditorMap.has(member.auditor_id));
   if (inactiveMembers.length) {

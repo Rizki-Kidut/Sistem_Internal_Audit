@@ -1,5 +1,107 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7.0 — Identity & Access Foundation — 23 Aug 2026
+
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+
+- [x] Added persisted Supabase Auth session restoration, email/password login, logout, profile loading,
+      missing/inactive-profile gates, and protection against protected-content flash.
+- [x] Added one-identity-per-account profiles for Admin, Auditor, Auditee, and Section Manager; Auditor
+      identities link to the existing temporary Training proxy `auditors` master rather than duplicating it.
+- [x] Added validated Auditee/Manager section assignments, role-aware navigation, central page access,
+      and restricted authenticated landing behavior for Auditee.
+- [x] Added additive RLS hardening for anonymous rejection, Admin global access, Auditor Team ownership,
+      Manager target-section Agenda visibility, direct-record isolation, execution-only Auditor updates,
+      PLOR isolation, read-only Agenda access, and private Product evidence scoping.
+- [x] Existing Finding synchronization, final execution lock, and public completion/reopen/blocker RPC
+      architecture are retained; the three Batch 6b RPCs are explicitly kept `SECURITY INVOKER`.
+- [x] Added `AUTH_IDENTITY_SETUP.md` with trusted bootstrap, separate-persona provisioning, mappings,
+      future LTP contract, and a runtime/RLS verification plan. No credentials or Auth users are included.
+- [x] CertiTrack-Staging migration-chain, RLS/RPC authorization, Team isolation, Finding workflow,
+      transactional Product annulment, notification isolation, Storage RLS boundary, concurrency stale-version,
+      and fail-closed missing-company-Lead verification passed using rollback-only runtime fixtures.
+      No temporary Auth/profile/mapping/notification/review/disposition fixtures remain after verification.
+- [x] Real deployed-browser Auth/UI smoke passed with confirmed Supabase email/password users for Admin,
+      Team Leader, Member, company Lead Auditor, outsider Auditor, Section Manager, and Auditee. Login,
+      session restoration, logout, role-aware menus/page guards, Team isolation, Finding action visibility,
+      notification UI, Admin correction, Team submit, Lead approval, and Admin release were verified.
+      The private evidence bucket contained no real object for a browser signed-URL click test; the Batch 7
+      Storage authorization boundary itself passed with rollback-only metadata fixtures and remains non-blocking.
+- [x] Reconstruction and company-Lead correction validation gate: `npm run typecheck` and production
+      `npm run build` pass; changed-file ESLint is clean. Repository-wide lint remains exactly at the known
+      pre-existing baseline of 24 unused-symbol errors and zero warnings. Batch 7 migrations are applied on
+      CertiTrack-Staging and Git migration filenames are aligned with the recorded Staging migration versions.
+- [x] PR #9 static-review corrections now scope own-profile loading by `auth.uid`, require a current
+      active Manager identity, reject incompatible profile identity changes, scope process/section/
+      Manufacturing-bank/Team reference reads, and preserve Manager Agenda Team context.
+- [x] Agenda read-only identities now receive Print only (no reopen control), token refresh updates the
+      session without unmounting the current page, malformed evidence paths are rejected safely, and
+      authenticated table privileges are normalized to SELECT/INSERT/UPDATE/DELETE (RLS remains the
+      per-identity authority; TRUNCATE/REFERENCES/TRIGGER are not granted).
+- [x] Findings are the deliberate privilege exception: authenticated identities, including Admin,
+      receive only SELECT/UPDATE with matching RLS. Direct INSERT/DELETE remains unavailable and the
+      existing Batch 6a SECURITY DEFINER source triggers remain the sole Finding lifecycle authority.
+
+Batch 7 migrations applied and aligned with CertiTrack-Staging history:
+`20260825155950_create_identity_access_foundation.sql`,
+`20260825160109_enforce_identity_scoped_audit_access.sql`,
+`20260825170649_create_finding_review_workflow.sql`,
+`20260825181042_fix_identity_mapping_trigger.sql`,
+`20260825182444_harden_identity_execution_trigger.sql`, and
+`20260826033534_close_obsolete_finding_notifications.sql`.
+
+### Finding review static implementation
+
+> Terminology note: older Batch 3/5 historical entries that say “Lead Auditor” refer to the legacy
+> Team-level `peran='Lead'` coordinator. In Batch 7 authority terminology that role is **Team Leader**;
+> **Lead Auditor** means the single company-wide reviewer capability.
+
+- [x] Corrected Team/Lead authority model without adding a new Auth identity type: every active Audit Team
+      has exactly one Team Leader (`is_team_leader`; legacy `peran='Lead'` backfills this once), while the
+      single company Lead Auditor is an independent `user_auditor_links.is_lead_auditor` capability and may
+      review/approve/annul Findings from every Team even when not assigned to any Team.
+- [x] Added Draft → Lead Review → Revision Required / Ready for Release / Annulled → Published RPC
+      transitions, Team/Lead/Admin separation, mandatory PLOR checks, and concurrency-safe official numbering.
+- [x] Added append-only review/change events, per-recipient notifications, optimistic PLOR versioning,
+      immutable `created_at`, and normalized initial/effective source disposition for annulment.
+- [x] Admin/QMS PLOR correction is explicitly a controlled exception: only Draft/Revision Required may be
+      corrected through `save_finding_plor`, with a minimum ten-non-whitespace-character reason and immutable
+      actor/reason/changed-fields/before/after `PLOR_EDITED` audit trail. The UI labels this action `Koreksi PLOR
+      (Admin/QMS)`. It cannot alter Checklist/source judgement or execution state and does not bypass Team Leader
+      → company Lead Auditor review; Admin may release approved Findings but cannot submit/resubmit,
+      approve/annul, complete/reopen execution, direct-update ordinary PLOR fields, or hard-delete.
+- [x] Product evidence authorization additionally verifies that the path phase belongs to its checklist.
+- [x] Preserved every legacy Finding number, operational status, CAR relationship, PLOR, source link,
+      and timestamp. Publication now uses separate `review_status`; existing numbered rows receive the
+      non-historical `LEGACY_ESTABLISHED` compatibility marker without fake approval events.
+- [x] Lead annulment now atomically captures the actual initial judgement, applies the conforming result
+      to the authoritative source, retains its Finding link, appends immutable disposition/review history,
+      and changes only `review_status`. Normal source sync is locked after submission.
+- [x] Checklist/Pelaksanaan traceability resolves the exact RLS-scoped source item/question plus effective/
+      original annulment results, reason, reviewer, and time. Admin receives no execution editor or
+      Complete/Reopen control. Company Lead Auditor has company-wide review-context read access, while
+      `can_execute` remains true only for Audit Teams where that Auditor is actually assigned.
+- [x] Function ACL hardening revokes inherited application-function EXECUTE from `PUBLIC`/`anon`, keeps
+      sensitive trigger/source-sync helpers private, and preserves the Batch 6b blocker/complete/reopen RPCs
+      as authenticated-callable `SECURITY INVOKER` functions.
+- [x] Staging migration chain and Git-history alignment passed. Release/workflow authorization matrix passed
+      23/23; transactional Product annulment passed 5/5; stale optimistic-concurrency version was rejected;
+      missing Company Lead Submit failed closed and rolled back; notification and Storage RLS isolation passed.
+- [x] Supabase Security Advisor was reviewed after Batch 7 DDL. Remaining WARN notices are the expected
+      authenticated-callable `SECURITY DEFINER` RPC/helper class; tested authority boundaries remained enforced.
+- [x] Final deployed-browser/Auth UI smoke passed. Browser testing additionally found and corrected two
+      concrete issues before merge: the shared Login button defaulted to `type="button"` instead of submitting
+      the form, and completed Lead review left obsolete actionable notifications unread. The login submit fix
+      is deployed, and the additive notification-lifecycle trigger now closes `LEAD_REVIEW` / `RESUBMITTED`
+      after Lead decisions and `REVISION_REQUIRED` after Team resubmission.
+- [x] Persistent browser-smoke cleanup passed: seven temporary Auth users, profiles, Auditor links, section
+      assignments, two temporary Auditor masters, QA-9909 smoke notifications, and QA-9909 smoke review events
+      were removed. QA-9909 was restored exactly to its pre-smoke `DRAFT`, revision version 1 baseline.
+
+New Finding workflow migration: `20260825170649_create_finding_review_workflow.sql`. Batch 7 LTP/CAR, Agenda
+approval, Auditor LTP verification, Section Manager LTP approval, and Admin final LTP approval remain
+out of scope. The local `auditors` table remains a compatibility proxy pending the real Training adapter.
+
 ## Annual Team Audit Refinement — 20 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE`

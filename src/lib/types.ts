@@ -363,6 +363,7 @@ export interface AuditTeamMasterMember {
   team_id: string;
   auditor_id: string;
   peran: AuditTeamMemberRole;
+  is_team_leader: boolean;
   urutan_tampil: number;
   auditor?: Auditor;
 }
@@ -383,11 +384,12 @@ export interface AuditTeamMaster {
 export type RowStatusProgress = StatusProgress;
 
 export interface AuditExecutionCounter { O: number; A: number; B: number; C: number; evaluated: number; total: number; }
-export interface AuditExecutionFindingSummary { id: string; source_item_id: string; kode_temuan: string; kategori: KategoriTemuan; plor_complete: boolean; }
+export interface AuditExecutionFindingSummary { id: string; source_item_id: string; source_type: FindingSourceType; source_label: string; kode_temuan: string | null; draft_reference: string | null; kategori: KategoriTemuan; plor_complete: boolean; disposition: FindingSourceDisposition | null; }
 export interface AuditExecutionSummary {
   row: AuditInstructionRow; proses: Proses | null; team: AuditTeamMaster | null;
   counter: AuditExecutionCounter; checklist_exists: boolean; checklist_complete: boolean;
   status_progress: RowStatusProgress; findings: AuditExecutionFindingSummary[];
+  can_execute: boolean;
 }
 
 export function computeStatusProgress(input: Pick<AuditExecutionSummary, 'checklist_exists'|'checklist_complete'|'counter'>): RowStatusProgress {
@@ -501,16 +503,20 @@ export interface ChecklistProdukItem {
 // ============================================================
 // BATCH 6a: TEMUAN / PLOR FORMAL
 // ============================================================
-import type { FindingSourceType, FindingStatus, KlasifikasiDIS, KategoriTemuan } from './enums';
+import type { FindingReviewStatus, FindingSourceType, FindingStatus, KlasifikasiDIS, KategoriTemuan } from './enums';
 export interface Finding {
-  id: string; instruction_row_id: string; kode_audit: string; kode_temuan: string;
+  id: string; instruction_row_id: string; kode_audit: string; kode_temuan: string | null; draft_reference: string | null;
   nomor_urut_temuan: number; source_type: FindingSourceType; source_item_id: string;
   kategori: KategoriTemuan; klasifikasi_dis: KlasifikasiDIS | null;
   problem: string | null; location: string | null; objective_evidence: string | null;
   reference: string | null; saran_perbaikan: string | null; auditor_penemu_id: string | null;
-  auditee_area: string | null; tanggal_temuan: string; status: FindingStatus; car_id: string | null;
+  auditee_area: string | null; tanggal_temuan: string; status: FindingStatus; review_status: FindingReviewStatus; car_id: string | null; revision_version:number;
   created_at: string; updated_at: string; auditor_penemu?: Auditor | null;
 }
+export interface FindingReviewEvent { id:string;finding_id:string;event_type:string;actor_user_id:string;actor_identity_type:string;comment:string|null;changed_fields:Record<string,unknown>|null;before_values:Record<string,unknown>|null;after_values:Record<string,unknown>|null;created_at:string; }
+export interface FindingSourceDisposition { finding_id:string;source_type:FindingSourceType;source_item_id:string;initial_judgement:string;effective_judgement:string;reason:string;actor_display_name:string;created_at:string; }
+export interface FindingCapabilities { is_team_member:boolean;is_team_leader:boolean;is_lead_auditor:boolean;is_admin:boolean; }
+export interface FindingNotification { id:string;finding_id:string|null;notification_type:string;title:string;message:string;read_at:string|null;created_at:string; }
 export interface ClauseKeywordMap { id: string; keyword: string; klausul: string; status: 'Aktif'|'Nonaktif'; prioritas: number; created_at: string; updated_at: string; }
 export interface FindingContext {
   finding: Finding; row: AuditInstructionRow; instruction: AuditInstruction; proses: Proses | null;
