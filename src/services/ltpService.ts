@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
-import type { LtpActionEvidence,LtpContext,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
+import type { LtpActionEvidence,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
+import type { LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
 import type { LtpEvidenceState } from '../lib/enums';
 
 const BUCKET='audit-evidence';
@@ -20,6 +21,19 @@ export async function saveLtpAuditeeDraft(payload:LtpDraftPayload):Promise<numbe
     p_system_revisions:payload.system_revisions.map(({kategori,nama_dokumen})=>({kategori,nama_dokumen})),
   });
   if(error){if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);throw new Error(`Gagal menyimpan Draft LTP: ${error.message}`);}
+  return data as number;
+}
+
+export async function submitLtpToManager(carId:string,expectedRevision:number):Promise<number>{
+  const {data,error}=await supabase.rpc('submit_ltp_to_manager',{p_car_id:carId,p_expected_revision:expectedRevision});
+  if(error){
+    if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);
+    if(error.message.includes('LTP_SUBMIT_BLOCKED:')){
+      const detail=error.message.split('LTP_SUBMIT_BLOCKED:')[1]?.trim();
+      throw new Error(detail||'LTP belum memenuhi syarat untuk dikirim ke Section Manager.');
+    }
+    throw new Error(`Gagal mengirim LTP ke Section Manager: ${error.message}`);
+  }
   return data as number;
 }
 
@@ -48,10 +62,10 @@ export async function getLtpEvidenceSignedUrl(path:string):Promise<string>{
   return data.signedUrl;
 }
 
-export async function getLtpContext(carId:string):Promise<LtpContext>{
+export async function getLtpContext(carId:string):Promise<LtpWorkflowContext>{
   if(!carId)throw new Error('ID LTP wajib diisi');
   const {data,error}=await supabase.rpc('get_ltp_context',{p_car_id:carId});
   if(error)throw new Error(`Gagal memuat konteks LTP: ${error.message}`);
   if(!data)throw new Error('LTP tidak ditemukan atau tidak dapat diakses');
-  return data as LtpContext;
+  return data as LtpWorkflowContext;
 }
