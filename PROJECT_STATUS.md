@@ -15,7 +15,9 @@
       absent Corrective action from `finding.saran_perbaikan` only for an authorized editable Auditee;
       read-only identities see only persisted LTP responses, and the Finding is never modified.
 - [x] Added private `audit-evidence` action evidence under the isolated `ltp/<car>/<action>/<state>/`
-      namespace, controlled metadata RPCs, BEFORE/AFTER uploads, signed viewing, and editable-state delete.
+      namespace, controlled metadata RPCs, BEFORE/AFTER/BEFORE_AFTER uploads, signed viewing, and
+      editable-state delete. Browser smoke identified the missing third **Perbandingan Before vs After**
+      upload surface; source now completes the already-existing three-state evidence model.
       Storage policies expose only high-level identity-aware predicates; low-level path parsers remain
       private, and DELETE permits authorized orphan cleanup without requiring the action row to survive.
       Evidence mutations are blocked while the Auditee has unsaved Draft form changes, preventing context
@@ -28,7 +30,7 @@
 - [x] Initial Batch 7b migration was applied to CertiTrack-Staging as `20260826134353`; positive A/B
       and category-C rollback runtime checks passed, and the Storage predicate matrix passed.
 - [x] Runtime verification found that a NULL `expected_revision` bypassed the original nullable
-      comparison. Additive migration `20260826140000_fix_ltp_draft_revision_guard.sql` replaces only
+      comparison. Additive migration `20260826140536_fix_ltp_draft_revision_guard.sql` replaces only
       that comparison with fail-closed `IS DISTINCT FROM` optimistic concurrency.
 - [ ] The additive concurrency correction still requires Staging apply and runtime re-verification;
       Batch 7b remains implementation-unverified.
@@ -37,8 +39,9 @@
 
 Changed files: `PROJECT_STATUS.md`, `src/components/pages/LtpPage.tsx`,
 `src/components/pages/ltp/LtpAuditeeForm.tsx`, `src/services/ltpService.ts`, `src/lib/enums.ts`,
-`src/lib/types.ts`, `supabase/migrations/20260826134353_add_ltp_auditee_authoring.sql`, and
-`supabase/migrations/20260826140000_fix_ltp_draft_revision_guard.sql`.
+`src/lib/types.ts`, `supabase/migrations/20260826134353_add_ltp_auditee_authoring.sql`,
+`supabase/migrations/20260826140536_fix_ltp_draft_revision_guard.sql`, and
+`supabase/migrations/20260827090000_enable_ltp_before_after_evidence.sql`.
 
 ## Batch 7a — LTP Foundation — 26 Aug 2026
 

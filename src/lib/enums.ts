@@ -73,8 +73,11 @@ export const LTP_STATUS_LABEL:Record<LtpStatus,string> = {
 export const LTP_ACTION_TYPE = { TEMPORARY:'TEMPORARY', CORRECTIVE:'CORRECTIVE', PREVENTIVE:'PREVENTIVE' } as const;
 export type LtpActionType = (typeof LTP_ACTION_TYPE)[keyof typeof LTP_ACTION_TYPE];
 export const LTP_ACTION_TYPE_LABEL:Record<LtpActionType,string> = { TEMPORARY:'Tindakan Sementara', CORRECTIVE:'Tindakan Korektif', PREVENTIVE:'Tindakan Pencegahan' };
-export const LTP_EVIDENCE_STATE = { BEFORE:'BEFORE', AFTER:'AFTER' } as const;
+export const LTP_EVIDENCE_STATE = { BEFORE:'BEFORE', AFTER:'AFTER', BEFORE_AFTER:'BEFORE_AFTER' } as const;
 export type LtpEvidenceState = (typeof LTP_EVIDENCE_STATE)[keyof typeof LTP_EVIDENCE_STATE];
+export const LTP_EVIDENCE_STATE_LABEL:Record<LtpEvidenceState,string> = {
+  BEFORE:'Bukti Sebelum', AFTER:'Bukti Sesudah', BEFORE_AFTER:'Perbandingan Before vs After',
+};
 export const LTP_SYSTEM_REVISION_CATEGORY = { ISE:'Peraturan ISE', STANDARD:'Dokumen Standard', OTHER:'Dokumen Lainnya' } as const;
 export type LtpSystemRevisionCategory = (typeof LTP_SYSTEM_REVISION_CATEGORY)[keyof typeof LTP_SYSTEM_REVISION_CATEGORY];
 export const KLASIFIKASI_DIS = { DOKUMEN: 'Dokumen', IMPLEMENTASI: 'Implementasi', SISTEM: 'Sistem' } as const;
