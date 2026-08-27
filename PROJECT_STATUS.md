@@ -2,7 +2,7 @@
 
 ## Batch 7b — Auditee LTP Authoring — 26 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
 - [x] Added authorized Auditee Draft authoring for `AUDITEE_DRAFT` / `AUDITEE_RETURNED`, with
       database-derived edit authority and read-only response views for other authorized identities.
@@ -16,32 +16,56 @@
       read-only identities see only persisted LTP responses, and the Finding is never modified.
 - [x] Added private `audit-evidence` action evidence under the isolated `ltp/<car>/<action>/<state>/`
       namespace, controlled metadata RPCs, BEFORE/AFTER/BEFORE_AFTER uploads, signed viewing, and
-      editable-state delete. Browser smoke identified the missing third **Perbandingan Before vs After**
-      upload surface; source now completes the already-existing three-state evidence model.
+      editable-state delete. The aligned migration
+      `20260827031020_enable_ltp_before_after_evidence.sql` was applied to CertiTrack-Staging.
+      Runtime verification confirmed that BEFORE, AFTER, and BEFORE_AFTER parse correctly; malformed or
+      unsupported states fail closed; and authorized scoped Auditee BEFORE_AFTER read, insert, and delete
+      predicates pass. Storage remains private and the existing authorization/path matching remains intact.
       Storage policies expose only high-level identity-aware predicates; low-level path parsers remain
       private, and DELETE permits authorized orphan cleanup without requiring the action row to survive.
-      Evidence mutations are blocked while the Auditee has unsaved Draft form changes, preventing context
-      refresh from silently replacing local authoring data.
+- [x] Browser smoke identified confusing dirty evidence UX. Final verified behavior disables evidence Upload
+      and Delete while the Auditee has unsaved Draft changes and displays: “Simpan Draft terlebih dahulu
+      sebelum mengubah bukti agar perubahan form tidak hilang.” Evidence View/Open and Simpan Draft remain
+      available. The service/handler dirty guard remains as defense-in-depth. This correction is UI-only,
+      with no migration, RLS, Storage policy, or service change; the latest Vercel deployment succeeded and
+      the user confirmed the browser behavior matches expectation.
 - [x] Added editable system revisions using the three existing categories.
 - [x] Hardened Batch 7a LTP target-section parsing with a safe UUID helper in the new additive migration;
       the applied Batch 7a migration remains unchanged.
 - [x] Source validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
-      `git diff --check`. The build reported only the existing bundle-size/Browserslist advisories.
+      `git diff --check`. The build reported only the existing bundle-size/Browserslist advisories. No new
+      test run is claimed for the final UI-only dirty-state refinement; its latest Vercel deployment succeeded.
 - [x] Initial Batch 7b migration was applied to CertiTrack-Staging as `20260826134353`; positive A/B
       and category-C rollback runtime checks passed, and the Storage predicate matrix passed.
 - [x] Runtime verification found that a NULL `expected_revision` bypassed the original nullable
       comparison. Additive migration `20260826140536_fix_ltp_draft_revision_guard.sql` replaces only
       that comparison with fail-closed `IS DISTINCT FROM` optimistic concurrency.
-- [ ] The additive concurrency correction still requires Staging apply and runtime re-verification;
-      Batch 7b remains implementation-unverified.
-- [ ] Browser smoke remains pending.
-- [ ] Submit, Manager review, Auditor verification, and Admin/QMS approval remain pending controlled slices.
+- [x] The additive concurrency correction was applied successfully to CertiTrack-Staging. Runtime verification
+      rejected both NULL and stale numeric `expected_revision` values with `LTP_STALE_REVISION`; a matching
+      revision saved successfully and incremented exactly once; and Admin/non-Auditee mutation was rejected.
+      No LTP status or Finding lifecycle change occurred.
+- [x] Real deployed-browser Auditee smoke passed for the editable Draft form; Dampak Temuan / Manfaat
+      Perbaikan; A/B Why-Why authoring; Temporary, Corrective, and Preventive actions; PIC and Due Date;
+      system revision entry; Save Draft persistence; and the three separate Bukti Sebelum, Bukti Sesudah,
+      and Perbandingan Before vs After evidence surfaces. Real uploads to all three states appeared in the
+      correct group; signed evidence open/view and delete worked; and refresh confirmed deleted evidence
+      stayed deleted.
+- [x] Post-browser database verification confirmed evidence metadata paths matched their states, uploaded
+      Storage objects existed, deleted metadata and its Storage object were removed, no orphan LTP Storage
+      object remained, and remaining evidence stayed intact. The LTP remained `AUDITEE_DRAFT`, Finding
+      operational status remained Open, `findings.car_id` remained NULL, and zero `car_workflow_events` were
+      created. Database-side read verification also confirmed Admin can read the authored LTP context while
+      receiving `can_edit_auditee = false`; no Admin browser smoke is claimed.
+- [ ] Submit ke Section Manager, Manager approve/reject, Auditor verification, Admin/QMS final approve/reject,
+      notifications, LTP Closed transition, and any later-approved Finding compatibility/status synchronization
+      remain pending future controlled slices. This `VERIFIED_COMPLETE` status is limited deliberately to
+      Batch 7b Auditee Draft authoring and does not mark those later workflow stages complete.
 
 Changed files: `PROJECT_STATUS.md`, `src/components/pages/LtpPage.tsx`,
 `src/components/pages/ltp/LtpAuditeeForm.tsx`, `src/services/ltpService.ts`, `src/lib/enums.ts`,
 `src/lib/types.ts`, `supabase/migrations/20260826134353_add_ltp_auditee_authoring.sql`,
 `supabase/migrations/20260826140536_fix_ltp_draft_revision_guard.sql`, and
-`supabase/migrations/20260827090000_enable_ltp_before_after_evidence.sql`.
+`supabase/migrations/20260827031020_enable_ltp_before_after_evidence.sql`.
 
 ## Batch 7a — LTP Foundation — 26 Aug 2026
 
