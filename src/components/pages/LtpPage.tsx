@@ -5,6 +5,7 @@ import { LTP_STATUS_LABEL } from '../../lib/enums';
 import { getLtpContext,listLtpWorklist } from '../../services/ltpService';
 import { Badge,Button,Card,EmptyState,LoadingSpinner } from '../ui';
 import { Input,Select } from '../ui/Field';
+import { LtpAuditeeForm } from './ltp/LtpAuditeeForm';
 
 const date=(value:string)=>new Date(`${value}T00:00:00`).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
 
@@ -24,14 +25,15 @@ export function LtpPage(){
 
 function LtpDetail({carId,onBack}:{carId:string;onBack:()=>void}){
   const [context,setContext]=useState<LtpContext|null>(null),[error,setError]=useState<string|null>(null),[loading,setLoading]=useState(true);
-  useEffect(()=>{getLtpContext(carId).then(setContext).catch(e=>setError(e instanceof Error?e.message:'Gagal memuat detail LTP')).finally(()=>setLoading(false));},[carId]);
+  const refresh=useCallback(async()=>{setContext(await getLtpContext(carId));},[carId]);
+  useEffect(()=>{refresh().catch(e=>setError(e instanceof Error?e.message:'Gagal memuat detail LTP')).finally(()=>setLoading(false));},[refresh]);
   if(loading)return <LoadingSpinner message="Memuat detail LTP..."/>;
   if(error||!context)return <div><Button variant="secondary" className="mb-4" onClick={onBack}><ArrowLeft size={14}/> Kembali</Button><div className="p-3 bg-red-50 text-red-700">{error??'Detail LTP tidak tersedia.'}</div></div>;
   const {ltp,finding,section,process,team,team_leader}=context;
-  return <div><Button variant="secondary" className="mb-4" onClick={onBack}><ArrowLeft size={14}/> Kembali</Button><h1 className="text-2xl font-bold mb-6">Detail LTP</h1><div className="space-y-4">
+  return <div><Button variant="secondary" className="mb-4" onClick={onBack}><ArrowLeft size={14}/> Kembali</Button><div className="flex items-center gap-3 mb-6"><h1 className="text-2xl font-bold">Detail LTP</h1><Badge variant="blue">{LTP_STATUS_LABEL[ltp.status]}</Badge></div><div className="space-y-4">
     <Card className="p-5"><h2 className="font-semibold mb-4">1. Identitas LTP — Read-only</h2><div className="grid md:grid-cols-4 gap-4 text-sm"><Info label="No. LTP" value={ltp.kode_ltp}/><Info label="No. Audit" value={finding.kode_audit}/><Info label="Kategori" value={finding.kategori}/><Info label="Tanggal Temuan" value={date(finding.tanggal_temuan)}/><Info label="Seksi Auditee" value={section?.nama}/><Info label="Proses" value={process?.nama}/><Info label="Tim Audit" value={team?`${team.kode} — ${team.nama}`:null}/><Info label="Team Leader" value={team_leader?.nama}/></div></Card>
     <Card className="p-5"><h2 className="font-semibold mb-4">2. PLOR / Temuan — Read-only</h2><div className="grid md:grid-cols-2 gap-4 text-sm">{finding.kategori==='C'?<><Info label="Kondisi / Peluang Peningkatan" value={finding.problem}/><Info label="Location" value={finding.location}/><Info label="Objective Evidence" value={finding.objective_evidence}/><Info label="Saran Perbaikan" value={finding.saran_perbaikan}/>{finding.reference&&<Info label="Reference / Acuan" value={finding.reference}/>}</>:<><Info label="Problem" value={finding.problem}/><Info label="Location" value={finding.location}/><Info label="Objective Evidence" value={finding.objective_evidence}/><Info label="Reference" value={finding.reference}/></>}<Info label="Auditee Area" value={finding.auditee_area}/></div></Card>
-    <Card className="p-5 border-l-4 border-blue-400"><h2 className="font-semibold">3. Respon & Workflow LTP</h2><Badge variant="blue">Foundation</Badge><p className="mt-3 text-sm text-gray-600">Editor Auditee, Why-Why, bukti tindakan, serta workflow Manager → Auditor → Admin akan diaktifkan pada slice terkontrol berikutnya.</p><p className="mt-2 text-sm">Status saat ini: <b>{LTP_STATUS_LABEL[ltp.status]}</b></p></Card>
+    <LtpAuditeeForm context={context} onRefresh={refresh}/>
   </div></div>;
 }
 
