@@ -12,10 +12,13 @@ export interface LtpWorkflowEvent {
   created_at: string;
 }
 
+export type LtpNotificationType = 'LTP_MANAGER_REVIEW' | 'LTP_AUDITEE_RETURNED' | 'LTP_AUDITOR_REVIEW';
+export type LtpManagerDecision = 'APPROVE' | 'RETURN';
+
 export interface LtpNotification {
   id: string;
   finding_id: string | null;
-  notification_type: 'LTP_MANAGER_REVIEW';
+  notification_type: LtpNotificationType;
   title: string;
   message: string;
   read_at: string | null;
@@ -28,5 +31,7 @@ export type LtpWorkflowContext = Omit<LtpContext, 'permissions'> & {
     can_review_manager: boolean;
   };
   submit_blockers: string[];
+  manager_approve_blockers: string[];
+  manager_return_blockers: string[];
   workflow_events: LtpWorkflowEvent[];
 };
