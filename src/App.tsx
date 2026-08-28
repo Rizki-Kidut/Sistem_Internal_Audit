@@ -14,6 +14,7 @@ import { AgendaAuditPage } from './components/pages/AgendaAuditPage';
 import { TemuanPage } from './components/pages/TemuanPage';
 import { PelaksanaanAuditPage } from './components/pages/PelaksanaanAuditPage';
 import { LtpPage } from './components/pages/LtpPage';
+import { UserManagementPage } from './components/pages/UserManagementPage';
 import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
@@ -72,6 +73,8 @@ function App() {
         return <AuditTeamMasterPage />;
       case 'plant-admin':
         return <PlantAdminPage />;
+      case 'user-management':
+        return <UserManagementPage />;
       case 'kalibrasi':
       case 'training':
         return <ConstructionPlaceholder pageId={currentPage} />;
