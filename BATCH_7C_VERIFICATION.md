@@ -1,6 +1,6 @@
 # Batch 7c — Auditee Submit → Section Manager Review Foundation
 
-Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
+Status: `IMPLEMENTED_PENDING_NOTIFICATION_BROWSER_VERIFICATION`
 
 ## Scope implemented
 
@@ -9,7 +9,9 @@ Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
 - Successful submit increments the LTP revision exactly once and appends immutable `AUDITEE_SUBMITTED_TO_MANAGER` workflow history.
 - Section Manager access remains section-scoped through active `SECTION_MANAGER` assignment.
 - `MANAGER_REVIEW` is read-only in this slice; Manager Setujui/Kembalikan is deliberately deferred.
-- Finding lifecycle/status, `findings.car_id`, notifications, Auditor review, Admin/QMS final approval, and LTP Closed are not changed.
+- Submit now creates an actionable `LTP_MANAGER_REVIEW` notification for every active matching Section Manager, reusing the existing recipient-scoped `notifications` infrastructure used by Finding review.
+- The LTP worklist shows unread notifications in a `Notifikasi LTP` card. Clicking an item marks it read and opens the matching LTP detail.
+- Finding lifecycle/status, `findings.car_id`, Auditor review, Admin/QMS final approval, and LTP Closed are not changed.
 
 ## Submit gate
 
@@ -24,13 +26,18 @@ Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
   - one BEFORE_AFTER evidence.
 - An active Section Manager identity and matching active section assignment must exist.
 
-## Staging verification completed
+## Staging migrations
 
-Applied migration:
+Applied migrations:
 
-`20260827090527_add_ltp_submit_manager_review_foundation.sql`
+- `20260827090527_add_ltp_submit_manager_review_foundation.sql`
+- `20260828004515_notify_section_manager_on_ltp_submit.sql`
 
-Rollback-only runtime assertions passed for:
+Both applied migrations are immutable. Any later correction must be additive.
+
+## Runtime verification completed
+
+Rollback-only Staging assertions passed for:
 
 - current blocker derivation;
 - stale `expected_revision` rejection;
@@ -45,22 +52,47 @@ Rollback-only runtime assertions passed for:
 - outsider Section Manager denial;
 - rollback fixture cleanup.
 
+Notification refinement verification passed for:
+
+- a pending `MANAGER_REVIEW` LTP submitted before the notification refinement was backfilled exactly once for its active matching Section Manager;
+- the real smoke-test Section Manager received unread `LTP_MANAGER_REVIEW` notification `LTP menunggu review` for `QA-9910 · QA-9910/MFG/2099/001`;
+- a rollback-only future submit created exactly one Section Manager notification atomically together with the `MANAGER_REVIEW` transition;
+- notification ownership remains protected by the existing `notifications` RLS and only `read_at` is mutable through the existing notification update guard.
+
 ACL verification:
 
 - `authenticated` may execute `submit_ltp_to_manager`;
 - `anon` may not execute submit;
 - internal blocker/manager helper functions are not directly executable by `authenticated`.
 
-Supabase Security Advisor was reviewed after the DDL. The submit RPC appears in the expected authenticated-callable `SECURITY DEFINER` warning class; its authority checks were verified by the runtime matrix. Existing unrelated advisor warnings remain unchanged.
+Supabase Security Advisor was reviewed after the initial Batch 7c DDL. The submit RPC is in the expected authenticated-callable `SECURITY DEFINER` warning class; its authority checks were verified by the runtime matrix. Existing unrelated advisor warnings remain unchanged.
+
+## Browser verification completed
+
+Real deployed-browser smoke passed for the core Batch 7c transition:
+
+- Auditee successfully submitted `QA-9910/MFG/2099/001`.
+- The LTP status became `MANAGER_REVIEW` / `Menunggu Section Manager`.
+- The Auditee response became read-only immediately after submit.
+- A real active Section Manager identity scoped to `Quality Assurance System` could see the submitted LTP in its worklist.
+- The Section Manager detail displayed `7. Review Section Manager`, submission actor/time, and remained intentionally read-only.
+
+The real Section Manager smoke identity is now provisioned and assigned to the same section. No password or credential is stored in this repository or verification document.
 
 ## Source/deployment verification
 
-- Vercel production-style branch build/deployment: PASS on branch head after implementation.
-- Net diff is scoped to Batch 7c LTP files and the one additive migration; `/project` is untouched.
-- `npm run typecheck` is still pending because the current execution environment cannot run the repository locally and Vercel `build` is `vite build` only.
+- Vercel production-style branch deployment passed on the pre-notification Batch 7c implementation head.
+- The notification refinement adds only the additive notification migration and LTP notification UI/service/type changes; `/project` remains untouched.
+- Final notification-refinement deployment status must be rechecked on the latest branch head.
+- `npm run typecheck` is not claimed from the tool environment because repository `build` is `vite build`; a Codespace typecheck remains the independent compiler gate.
 
 ## Browser verification still required
 
-Negative-path browser smoke can verify blocker display and disabled submit immediately.
+Final notification UX smoke remains:
 
-Positive submit/review browser smoke requires a real active Section Manager Auth identity with a matching `SECTION_MANAGER` assignment for the Auditee section. CertiTrack-Staging currently has no persisted active Section Manager identity, so no real credentials are created as part of this implementation.
+1. Log in as the scoped Section Manager and open the LTP worklist.
+2. Confirm the `Notifikasi LTP` card shows `LTP menunggu review` and `QA-9910 · QA-9910/MFG/2099/001`.
+3. Click the notification and confirm it opens the matching LTP detail.
+4. Return to the worklist and confirm the notification is no longer shown as unread.
+
+Manager Setujui/Kembalikan remains deliberately deferred to the next controlled workflow slice.
