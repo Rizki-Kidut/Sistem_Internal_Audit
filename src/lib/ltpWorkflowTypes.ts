@@ -12,6 +12,16 @@ export interface LtpWorkflowEvent {
   created_at: string;
 }
 
+export interface LtpNotification {
+  id: string;
+  finding_id: string | null;
+  notification_type: 'LTP_MANAGER_REVIEW';
+  title: string;
+  message: string;
+  read_at: string | null;
+  created_at: string;
+}
+
 export type LtpWorkflowContext = Omit<LtpContext, 'permissions'> & {
   permissions: LtpContext['permissions'] & {
     can_submit_auditee: boolean;
