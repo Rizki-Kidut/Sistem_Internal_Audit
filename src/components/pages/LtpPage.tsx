@@ -25,7 +25,7 @@ export function LtpPage(){
       setSelected(row.car_id);
     }catch(e){setError(e instanceof Error?e.message:'Gagal membuka notifikasi LTP');}
   };
-  if(selected)return <LtpDetail carId={selected} onBack={()=>setSelected(null)}/>;
+  if(selected)return <LtpDetail carId={selected} onBack={()=>{setSelected(null);void load();}}/>;
   if(loading)return <LoadingSpinner message="Memuat worklist LTP..."/>;
   return <div>
     <h1 className="text-2xl font-bold">LTP — Laporan Tindakan Perbaikan</h1>
