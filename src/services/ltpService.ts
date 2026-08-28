@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import type { LtpActionEvidence,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
-import type { LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
+import type { LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
 import type { LtpEvidenceState } from '../lib/enums';
 
 const BUCKET='audit-evidence';
@@ -10,6 +10,17 @@ export async function listLtpWorklist():Promise<LtpWorklistRow[]>{
   const {data,error}=await supabase.rpc('list_ltp_worklist');
   if(error)throw new Error(`Gagal memuat worklist LTP: ${error.message}`);
   return(data??[]) as LtpWorklistRow[];
+}
+
+export async function listOwnLtpNotifications():Promise<LtpNotification[]>{
+  const {data,error}=await supabase.from('notifications').select('*').eq('notification_type','LTP_MANAGER_REVIEW').order('created_at',{ascending:false}).limit(20);
+  if(error)throw new Error(`Gagal memuat notifikasi LTP: ${error.message}`);
+  return(data??[]) as LtpNotification[];
+}
+
+export async function markLtpNotificationRead(id:string):Promise<void>{
+  const {error}=await supabase.from('notifications').update({read_at:new Date().toISOString()}).eq('id',id);
+  if(error)throw new Error(`Gagal menandai notifikasi LTP: ${error.message}`);
 }
 
 export async function saveLtpAuditeeDraft(payload:LtpDraftPayload):Promise<number>{
