@@ -21,7 +21,8 @@ export type PageId =
   | 'seksi'
   | 'proses'
   | 'bank-checklist'
-  | 'team-master';
+  | 'team-master'
+  | 'user-management';
 
 interface NavItem {
   id: PageId;
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
   { id: 'proses', label: 'Kelola Proses', icon: <Workflow size={18} />, group: 'Master Data' },
   { id: 'team-master', label: 'Kelola Tim Audit', icon: <Users size={18} />, group: 'Master Data' },
   { id: 'plant-admin', label: 'Plant, Model & Shift', icon: <Factory size={18} />, group: 'Master Data' },
+  { id: 'user-management', label: 'Manage User', icon: <Users size={18} />, group: 'Administrasi' },
 ];
 
 interface SidebarProps {
