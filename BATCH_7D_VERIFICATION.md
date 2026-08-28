@@ -110,6 +110,26 @@ https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticate
 - Manager decision controls remain limited to `MANAGER_REVIEW`; no notification, service, RPC, migration, or schema behavior changed.
 - Browser reverification of the corrected post-decision card is pending. Browser verification is not marked PASS.
 
+## Browser-review refinement — cumulative workflow history
+
+- Browser review identified a UX consistency requirement: LTP Section 7 must preserve cumulative approval and revision history, consistent with the permanent audit-trail principle used by PLOR Review & Approval.
+- Section 7 now renders recognized `workflow_events` chronologically beneath the unchanged current-state summary/action area. Labels are derived from event type plus authoritative `from_status` / `to_status`, so initial Auditee Submit and Auditee Resubmit are distinct.
+- Actor, localized timestamp, and non-empty multi-line comments are shown without exposing raw event names. Unknown future events are ignored safely.
+- No notification, authorization, decision, service, schema, RLS, or migration behavior changed.
+
+Required browser reverification sequence:
+
+`AUDITEE_DRAFT → Auditee Submit → MANAGER_REVIEW → Manager Return → AUDITEE_RETURNED → Auditee Resubmit → MANAGER_REVIEW → Manager Approve → AUDITOR_REVIEW`
+
+At the end, Section 7 must retain all four chronological events:
+
+1. initial Auditee submit;
+2. Manager return with its comment;
+3. Auditee resubmit;
+4. Manager approval.
+
+Browser reverification is pending and is not marked PASS.
+
 ## Real browser verification still required
 
 Current Staging has a real active Auditee and Section Manager for the smoke section, but no persisted active `AUDITOR` user profile / `user_auditor_links` mapping.

@@ -8,6 +8,8 @@
 - [x] `AUDITEE_RETURNED` now shows the latest `MANAGER_RETURNED_TO_AUDITEE` actor, timestamp, and Manager comment as read-only workflow history.
 - [x] `AUDITOR_REVIEW` now shows the latest `MANAGER_APPROVED_TO_AUDITOR` actor, timestamp, and optional Manager comment as read-only workflow history.
 - [x] Interactive Manager controls remain restricted to `MANAGER_REVIEW`; workflow events remain database-authoritative and no notification, service, schema, or migration behavior changed.
+- [x] Added a cumulative chronological `Riwayat Review & Persetujuan` timeline beneath the unchanged current-state area. It distinguishes initial Auditee Submit from Resubmit through authoritative status transitions and shows actor, timestamp, and only non-empty comments.
+- [x] Unknown future workflow events fail gracefully without exposing raw internal event names or breaking Section 7.
 - [x] Source validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`; the build reported only the existing Browserslist-data and bundle-size advisories.
 - [ ] Real-browser reverification remains pending and is not claimed as PASS.
 
