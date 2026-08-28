@@ -15,7 +15,7 @@ export interface UserProfile {
 }
 
 const permissions: Record<IdentityType, readonly PageId[]> = {
-  ADMIN: ['kalibrasi','training','rencana-audit','program-audit','instruksi-audit','plant-admin','checklist','agenda','pelaksanaan','temuan','car','ketidaksesuaian','laporan','analisa','seksi','proses','bank-checklist','team-master'],
+  ADMIN: ['kalibrasi','training','rencana-audit','program-audit','instruksi-audit','plant-admin','checklist','agenda','pelaksanaan','temuan','car','ketidaksesuaian','laporan','analisa','seksi','proses','bank-checklist','team-master','user-management'],
   AUDITOR: ['checklist', 'agenda', 'pelaksanaan', 'temuan', 'car'],
   AUDITEE: ['car'],
   SECTION_MANAGER: ['agenda', 'car'],
