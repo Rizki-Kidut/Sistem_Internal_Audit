@@ -65,7 +65,7 @@ ACL verification:
 - `anon` may not execute submit;
 - internal blocker/manager helper functions are not directly executable by `authenticated`.
 
-Supabase Security Advisor was reviewed after the initial Batch 7c DDL. The submit RPC is in the expected authenticated-callable `SECURITY DEFINER` warning class; its authority checks were verified by the runtime matrix. Existing unrelated advisor warnings remain unchanged.
+Supabase Security Advisor was rechecked after the notification DDL. No new notification-specific RLS or schema advisory appeared. The submit RPC remains in the expected authenticated-callable `SECURITY DEFINER` warning class, with its role and section authorization verified by the runtime matrix. Existing unrelated warnings, including leaked-password protection configuration, remain outside this Batch 7c scope.
 
 ## Browser verification completed
 
@@ -81,9 +81,9 @@ The real Section Manager smoke identity is now provisioned and assigned to the s
 
 ## Source/deployment verification
 
-- Vercel production-style branch deployment passed on the pre-notification Batch 7c implementation head.
+- Final Vercel production-style branch deployment passed on the notification-refinement head before this documentation-only update.
 - The notification refinement adds only the additive notification migration and LTP notification UI/service/type changes; `/project` remains untouched.
-- Final notification-refinement deployment status must be rechecked on the latest branch head.
+- The final documentation-only head must receive the same Vercel deployment recheck before merge readiness is evaluated.
 - `npm run typecheck` is not claimed from the tool environment because repository `build` is `vite build`; a Codespace typecheck remains the independent compiler gate.
 
 ## Browser verification still required
