@@ -1,9 +1,9 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import { ArrowLeft,FileCheck } from 'lucide-react';
-import type { LtpWorkflowContext } from '../../lib/ltpWorkflowTypes';
+import type { LtpNotification,LtpWorkflowContext } from '../../lib/ltpWorkflowTypes';
 import type { LtpWorklistRow } from '../../lib/types';
 import { LTP_STATUS_LABEL } from '../../lib/enums';
-import { getLtpContext,listLtpWorklist } from '../../services/ltpService';
+import { getLtpContext,listLtpWorklist,listOwnLtpNotifications,markLtpNotificationRead } from '../../services/ltpService';
 import { Badge,Button,Card,EmptyState,LoadingSpinner } from '../ui';
 import { Input,Select } from '../ui/Field';
 import { LtpAuditeeForm } from './ltp/LtpAuditeeForm';
@@ -12,16 +12,32 @@ import { LtpManagerReview } from './ltp/LtpManagerReview';
 const date=(value:string)=>new Date(`${value}T00:00:00`).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
 
 export function LtpPage(){
-  const [rows,setRows]=useState<LtpWorklistRow[]>([]),[selected,setSelected]=useState<string|null>(null),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
-  const load=useCallback(async()=>{setLoading(true);try{setRows(await listLtpWorklist());setError(null);}catch(e){setError(e instanceof Error?e.message:'Gagal memuat LTP');}finally{setLoading(false);}},[]);
+  const [rows,setRows]=useState<LtpWorklistRow[]>([]),[notifications,setNotifications]=useState<LtpNotification[]>([]),[selected,setSelected]=useState<string|null>(null),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
+  const load=useCallback(async()=>{setLoading(true);try{const[r,n]=await Promise.all([listLtpWorklist(),listOwnLtpNotifications()]);setRows(r);setNotifications(n);setError(null);}catch(e){setError(e instanceof Error?e.message:'Gagal memuat LTP');}finally{setLoading(false);}},[]);
   useEffect(()=>{void load();},[load]);
   const filtered=useMemo(()=>rows.filter(row=>(!status||row.status===status)&&(!search||`${row.kode_ltp} ${row.kode_audit} ${row.seksi_nama??''} ${row.proses_nama??''}`.toLowerCase().includes(search.toLowerCase()))),[rows,search,status]);
+  const openNotification=async(notification:LtpNotification)=>{
+    const row=rows.find(item=>item.finding_id===notification.finding_id);
+    if(!row){setError('LTP dari notifikasi ini tidak ditemukan atau tidak dapat diakses.');return;}
+    try{
+      await markLtpNotificationRead(notification.id);
+      setNotifications(items=>items.map(item=>item.id===notification.id?{...item,read_at:new Date().toISOString()}:item));
+      setSelected(row.car_id);
+    }catch(e){setError(e instanceof Error?e.message:'Gagal membuka notifikasi LTP');}
+  };
   if(selected)return <LtpDetail carId={selected} onBack={()=>setSelected(null)}/>;
   if(loading)return <LoadingSpinner message="Memuat worklist LTP..."/>;
   return <div>
     <h1 className="text-2xl font-bold">LTP — Laporan Tindakan Perbaikan</h1>
     <p className="text-sm text-gray-500 mb-6">Satu Finding memiliki maksimal satu LTP. No. LTP mengikuti No. Temuan.</p>
     {error&&<div className="p-3 mb-4 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+    {notifications.some(notification=>!notification.read_at)&&<Card className="p-4 mb-4">
+      <h2 className="font-semibold mb-2">Notifikasi LTP</h2>
+      {notifications.filter(notification=>!notification.read_at).map(notification=><button key={notification.id} className="block w-full text-left border-t py-2" onClick={()=>void openNotification(notification)}>
+        <b>{notification.title}</b>
+        <div className="text-sm text-gray-600 whitespace-pre-wrap">{notification.message}</div>
+      </button>)}
+    </Card>}
     <Card className="p-4 mb-4">
       <div className="grid md:grid-cols-2 gap-3">
         <Input placeholder="Cari No. LTP, audit, seksi, atau proses" value={search} onChange={e=>setSearch(e.target.value)}/>
