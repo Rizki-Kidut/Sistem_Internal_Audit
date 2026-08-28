@@ -93,7 +93,7 @@ function LtpDetail({carId,onBack}:{carId:string;onBack:()=>void}){
         </div>
       </Card>
       <LtpAuditeeForm context={context} onRefresh={refresh}/>
-      <LtpManagerReview context={context}/>
+      <LtpManagerReview context={context} onRefresh={refresh}/>
     </div>
   </div>;
 }
