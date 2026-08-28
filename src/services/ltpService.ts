@@ -1,9 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
 import type { LtpActionEvidence,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
-import type { LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
+import type { LtpManagerDecision,LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
 import type { LtpEvidenceState } from '../lib/enums';
 
 const BUCKET='audit-evidence';
+const LTP_NOTIFICATION_TYPES=['LTP_MANAGER_REVIEW','LTP_AUDITEE_RETURNED','LTP_AUDITOR_REVIEW'] as const;
 export const LTP_STALE_MESSAGE='LTP telah berubah di sesi lain. Muat ulang data sebelum menyimpan kembali.';
 
 export async function listLtpWorklist():Promise<LtpWorklistRow[]>{
@@ -13,7 +14,7 @@ export async function listLtpWorklist():Promise<LtpWorklistRow[]>{
 }
 
 export async function listOwnLtpNotifications():Promise<LtpNotification[]>{
-  const {data,error}=await supabase.from('notifications').select('*').eq('notification_type','LTP_MANAGER_REVIEW').order('created_at',{ascending:false}).limit(20);
+  const {data,error}=await supabase.from('notifications').select('*').in('notification_type',[...LTP_NOTIFICATION_TYPES]).order('created_at',{ascending:false}).limit(20);
   if(error)throw new Error(`Gagal memuat notifikasi LTP: ${error.message}`);
   return(data??[]) as LtpNotification[];
 }
@@ -44,6 +45,29 @@ export async function submitLtpToManager(carId:string,expectedRevision:number):P
       throw new Error(detail||'LTP belum memenuhi syarat untuk dikirim ke Section Manager.');
     }
     throw new Error(`Gagal mengirim LTP ke Section Manager: ${error.message}`);
+  }
+  return data as number;
+}
+
+export async function managerDecideLtp(carId:string,expectedRevision:number,decision:LtpManagerDecision,comment:string):Promise<number>{
+  const {data,error}=await supabase.rpc('manager_decide_ltp',{
+    p_car_id:carId,
+    p_expected_revision:expectedRevision,
+    p_decision:decision,
+    p_comment:comment.trim()||null,
+  });
+  if(error){
+    if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);
+    if(error.message.includes('LTP_MANAGER_RETURN_COMMENT_REQUIRED'))throw new Error('Catatan Section Manager wajib diisi ketika LTP dikembalikan ke Auditee.');
+    if(error.message.includes('LTP_MANAGER_APPROVE_BLOCKED:')){
+      const detail=error.message.split('LTP_MANAGER_APPROVE_BLOCKED:')[1]?.trim();
+      throw new Error(detail||'LTP belum dapat dikirim ke tahap verifikasi Auditor.');
+    }
+    if(error.message.includes('LTP_MANAGER_RETURN_BLOCKED:')){
+      const detail=error.message.split('LTP_MANAGER_RETURN_BLOCKED:')[1]?.trim();
+      throw new Error(detail||'LTP belum dapat dikembalikan ke Auditee.');
+    }
+    throw new Error(`Gagal memproses keputusan Section Manager: ${error.message}`);
   }
   return data as number;
 }
