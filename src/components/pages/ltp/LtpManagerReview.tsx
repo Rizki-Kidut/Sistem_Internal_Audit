@@ -11,9 +11,13 @@ const dateTime=(value:string)=>new Date(value).toLocaleString('id-ID',{day:'2-di
 
 export function LtpManagerReview({context,onRefresh}:{context:LtpWorkflowContext;onRefresh:()=>Promise<void>}){
   const [comment,setComment]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[confirm,setConfirm]=useState<LtpManagerDecision|null>(null);
-  if(context.ltp.status!==LTP_STATUS.MANAGER_REVIEW)return null;
+  const isManagerReview=context.ltp.status===LTP_STATUS.MANAGER_REVIEW;
+  const isManagerReturned=context.ltp.status===LTP_STATUS.AUDITEE_RETURNED;
+  const isManagerApproved=context.ltp.status===LTP_STATUS.AUDITOR_REVIEW;
+  if(!isManagerReview&&!isManagerReturned&&!isManagerApproved)return null;
   const submission=[...context.workflow_events].reverse().find(event=>event.event_type==='AUDITEE_SUBMITTED_TO_MANAGER');
-  const manager=context.permissions.can_review_manager;
+  const decision=[...context.workflow_events].reverse().find(event=>event.event_type===(isManagerReturned?'MANAGER_RETURNED_TO_AUDITEE':'MANAGER_APPROVED_TO_AUDITOR'));
+  const manager=isManagerReview&&context.permissions.can_review_manager;
   const approveBlocked=context.manager_approve_blockers.length>0;
   const returnBlocked=context.manager_return_blockers.length>0;
 
@@ -33,13 +37,22 @@ export function LtpManagerReview({context,onRefresh}:{context:LtpWorkflowContext
         <div className="flex-1">
           <h2 className="font-semibold">7. Review Section Manager</h2>
           <p className="text-sm text-gray-600 mt-1">
-            {manager
-              ?'LTP ini telah dikirim oleh Auditee dan sekarang berada pada antrean review Anda.'
-              :'LTP telah dikirim dan sedang menunggu review Section Manager.'}
+            {isManagerReview
+              ?'LTP telah dikirim dan sedang menunggu review Section Manager.'
+              :isManagerReturned
+                ?'LTP telah dikembalikan ke Auditee untuk direvisi.'
+                :'LTP telah disetujui Section Manager dan diteruskan ke Auditor untuk verifikasi.'}
           </p>
-          {submission&&<div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
+          {isManagerReview&&submission&&<div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
             <span>Dikirim oleh: <strong className="text-gray-700">{submission.actor_name??'Auditee'}</strong></span>
             <span className="inline-flex items-center gap-1"><Clock3 size={12}/>{dateTime(submission.created_at)}</span>
+          </div>}
+          {!isManagerReview&&decision&&<div className="mt-3 text-xs text-gray-500 space-y-2">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>{isManagerReturned?'Dikembalikan':'Disetujui'} oleh: <strong className="text-gray-700">{decision.actor_name??'Section Manager'}</strong></span>
+              <span className="inline-flex items-center gap-1"><Clock3 size={12}/>{dateTime(decision.created_at)}</span>
+            </div>
+            {decision.comment?.trim()&&<div><span>Catatan Manager:</span> <strong className="text-gray-700 whitespace-pre-wrap">{decision.comment}</strong></div>}
           </div>}
 
           {manager&&<div className="mt-4 space-y-3">

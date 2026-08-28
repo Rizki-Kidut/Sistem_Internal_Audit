@@ -100,8 +100,15 @@ https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticate
 
 - `/project` is untouched.
 - Batch 7d changes are limited to one additive migration, LTP workflow types/service/UI, and this verification note.
-- Local `npm ci` / TypeScript / build / ESLint verification could not run in the current execution container because DNS resolution for `github.com` failed during clone. These checks are therefore not claimed.
+- Browser-smoke correction validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`. The build reported only the existing Browserslist-data and bundle-size advisories.
 - Vercel branch deployment is checked separately on the latest head.
+
+## Browser-smoke correction — Manager decision status card
+
+- Real browser smoke found that `7. Review Section Manager` disappeared immediately after Return or Approve because the component rendered only for `MANAGER_REVIEW`.
+- The card now remains visible as database-authoritative, read-only workflow status for `AUDITEE_RETURNED` and `AUDITOR_REVIEW`, using the latest corresponding Manager workflow event for actor, timestamp, and optional comment.
+- Manager decision controls remain limited to `MANAGER_REVIEW`; no notification, service, RPC, migration, or schema behavior changed.
+- Browser reverification of the corrected post-decision card is pending. Browser verification is not marked PASS.
 
 ## Real browser verification still required
 
