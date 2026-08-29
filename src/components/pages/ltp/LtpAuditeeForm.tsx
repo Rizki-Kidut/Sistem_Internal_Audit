@@ -15,6 +15,7 @@ const DIRTY_SUBMIT_MESSAGE='Simpan Draft terlebih dahulu sebelum mengirim LTP ke
 export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;onRefresh:()=>Promise<void>}){
   const editable=context.permissions.can_edit_auditee;
   const canSubmit=context.permissions.can_submit_auditee;
+  const managerReturn=[...context.workflow_events].reverse().find(event=>event.event_type==='MANAGER_RETURNED_TO_AUDITEE');
   const [dampak,setDampak]=useState(''),[manfaat,setManfaat]=useState('');
   const [why,setWhy]=useState<LtpWhyAnalysis[]>([]),[actions,setActions]=useState<LtpAction[]>([]),[revisions,setRevisions]=useState<LtpSystemRevision[]>([]);
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false),[message,setMessage]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
@@ -169,6 +170,11 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
 
     <Card className="p-5 border-l-4 border-blue-400">
       {editable&&<>
+        {context.ltp.status===LTP_STATUS.AUDITEE_RETURNED&&<div className="mb-4 p-3 rounded-md bg-amber-50 text-amber-800 text-sm">
+          <p className="font-semibold">LTP dikembalikan oleh Section Manager untuk direvisi.</p>
+          {managerReturn?.comment&&<p className="mt-1 whitespace-pre-wrap"><strong>Catatan Manager:</strong> {managerReturn.comment}</p>}
+          <p className="mt-1 text-xs">Perbaiki isian yang diperlukan, Simpan Draft, lalu kirim kembali ke Section Manager.</p>
+        </div>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" disabled={busy} onClick={()=>void save()}><Save size={16}/> {busy?'Memproses...':'Simpan Draft'}</Button>
           {canSubmit&&<Button disabled={submitDisabled} onClick={()=>void submit()}><Send size={16}/> Kirim ke Section Manager</Button>}
@@ -181,6 +187,7 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
         {!dirty&&context.submit_blockers.length===0&&<p className="text-xs text-green-700 mt-3">Draft tersimpan dan memenuhi gate submit ke Section Manager.</p>}
       </>}
       {!editable&&context.ltp.status===LTP_STATUS.MANAGER_REVIEW&&<p className="text-sm text-gray-600">LTP sudah dikirim ke Section Manager. Isian Auditee sekarang read-only.</p>}
+      {!editable&&context.ltp.status===LTP_STATUS.AUDITOR_REVIEW&&<p className="text-sm text-gray-600">LTP telah disetujui Section Manager dan sekarang menunggu verifikasi Auditor. Isian Auditee tetap read-only.</p>}
     </Card>
   </>;
 }

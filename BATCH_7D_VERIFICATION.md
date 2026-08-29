@@ -1,97 +1,153 @@
-# Batch 7d — Admin Manage User + Annual Auditor Access
+# Batch 7d — Section Manager LTP Decision
 
-Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
+Status: `VERIFIED_STAGING — READY_FOR_MERGE`
 
-## Scope
+## Scope implemented
 
-- Added Admin-only **Manage User** navigation and page.
-- Added invite-user flow through an authenticated Supabase Edge Function; no service-role/secret key is exposed to the React client.
-- Added business roles shown to Admin: Admin, Lead Auditor, Auditor, Auditee, Section Manager.
-- Kept the persisted identity architecture compatible:
-  - Lead Auditor remains `identity_type = AUDITOR` + `user_auditor_links.is_lead_auditor = true`.
-  - Team Leader remains a Team Audit roster responsibility (`audit_team_master_members.is_team_leader`), not a new Auth identity.
-- Added annual normal-Auditor access assignment through `user_audit_plan_assignments` linking User + Annual Audit Plan + Team Audit.
-- Team dropdown is derived from existing Team Audit masters and only offers teams whose roster already contains the selected Auditor Master.
-- Normal Auditor access requires both Team roster membership and an active annual assignment for that exact plan/team.
-- Admin and company Lead Auditor remain global and do not require annual reassignment.
-- Existing normal-Auditor access was backfilled once during migration to prevent breaking the current staging workflow. Future Annual Audit Plans are not auto-assigned.
-- Auditor notification delivery and LTP Manager → Auditor availability checks now respect the same annual assignment gate.
+- Section Manager may decide an LTP only while it is in `MANAGER_REVIEW` and only for an actively assigned matching section.
+- `Setujui` transitions `MANAGER_REVIEW → AUDITOR_REVIEW`.
+- `Kembalikan` transitions `MANAGER_REVIEW → AUDITEE_RETURNED`.
+- Return requires a non-empty Section Manager comment.
+- Both decisions use row locking plus fail-closed optimistic `revision_version` checking.
+- Each successful decision increments `revision_version` exactly once and writes one immutable workflow event.
+- Auditee content stays read-only for Section Manager.
+- A returned LTP becomes editable again through the existing `auditee_can_edit_ltp` rule and displays the latest Manager comment.
+- Returning to the worklist reloads LTP rows and LTP notifications so status/unread state does not stay stale in the browser.
 
-## Smoke Team Leader mapping
+## Decision routing and fail-closed recipient gates
 
-Staging Auth user:
+### Return to Auditee
 
-`88cdc09d-4add-4be8-a93f-d34fbaff68c3`
+Requires an active `AUDITEE` profile with active matching `AUDIT_PIC` section assignment.
 
-is configured for browser smoke as:
+Successful return:
 
-- profile identity: `AUDITOR`
-- linked Auditor Master: `f075a744-b125-418c-b185-d64a1f1b5d74` (`B6B Smoke Auditor Lead`)
-- company Lead Auditor flag: `false`
-- Annual Audit Plan: year 2099, plan `75c79c1e-5bd9-40de-b4e3-0f6eecb04089`
-- Team Audit: `B6B-SMOKE-TEAM` / `B6B Browser Smoke Team`
-- Team responsibility: `is_team_leader = true`
-- annual assignment status: `Aktif`
+- event: `MANAGER_RETURNED_TO_AUDITEE`;
+- status: `AUDITEE_RETURNED`;
+- closes unread `LTP_MANAGER_REVIEW` notifications;
+- creates `LTP_AUDITEE_RETURNED` for the active Auditee;
+- stores the Manager comment in immutable workflow history and in the notification message.
 
-This deliberately grants Team Leader responsibility without company Lead Auditor authority.
+### Approve to Auditor
+
+Requires at least one active authenticated Auditor recipient whose active auditor master is either:
+
+- the company Lead Auditor; or
+- a member of the Team Audit assigned to the related Finding / Instruction row.
+
+Successful approval:
+
+- event: `MANAGER_APPROVED_TO_AUDITOR`;
+- status: `AUDITOR_REVIEW`;
+- closes unread `LTP_MANAGER_REVIEW` notifications;
+- creates `LTP_AUDITOR_REVIEW` for eligible Auditor identities.
+
+This gate deliberately prevents an LTP from entering `AUDITOR_REVIEW` when no authenticated Auditor can receive and access it.
+
+## Auditee resubmit behavior
+
+When an `AUDITEE_RETURNED` LTP is corrected and resubmitted through the existing submit RPC:
+
+- old unread `LTP_AUDITEE_RETURNED` notifications are closed;
+- the LTP returns to `MANAGER_REVIEW`;
+- a fresh `LTP_MANAGER_REVIEW` notification is created for the active matching Section Manager.
 
 ## Applied Staging migration
 
-`20260828055425_add_admin_user_management_and_annual_auditor_access.sql`
+`20260828005908_add_ltp_manager_decision.sql`
 
-The applied migration is immutable. Any correction must be additive.
+This migration has been applied to CertiTrack-Staging and is now immutable. Any correction must use a new additive migration.
 
-## Deployed Edge Function
+## Runtime verification — PASS
 
-`admin-invite-user`
+All mutation assertions below were executed inside transactions and rolled back.
 
-- status: ACTIVE
-- JWT verification: enabled
-- verifies the caller is an active Admin before using the backend Auth Admin API
-- role authorization is not derived from editable user metadata
+- non-Section-Manager decision attempt rejected;
+- stale `expected_revision` rejected with `LTP_STALE_REVISION`;
+- Return without comment rejected with `LTP_MANAGER_RETURN_COMMENT_REQUIRED`;
+- valid Return changed `MANAGER_REVIEW → AUDITEE_RETURNED`;
+- Return incremented revision exactly once;
+- Return wrote exactly the expected workflow event/comment;
+- Return created an unread Auditee notification;
+- Return closed the Manager notification;
+- Approve with no eligible Auditor recipient failed closed with `LTP_MANAGER_APPROVE_BLOCKED`;
+- rollback-only Auditor fixture removed the blocker;
+- valid Approve changed `MANAGER_REVIEW → AUDITOR_REVIEW`;
+- Approve incremented revision exactly once;
+- Approve wrote the expected workflow event/comment;
+- Approve created an unread Auditor review notification;
+- Approve closed the Manager notification;
+- Return followed by Auditee resubmit returned the LTP to `MANAGER_REVIEW`, closed the obsolete Auditee-return notification, and created a fresh Manager-review notification.
 
-## Runtime verification
+After rollback verification, the real smoke LTP remains `MANAGER_REVIEW`, revision `5`. No Auditor fixture or `user_auditor_links` row persisted.
 
-Passed rollback-only assertions:
+## ACL verification — PASS
 
-- smoke UUID resolves as normal `AUDITOR`, not company Lead Auditor;
-- active year-2099 assignment permits access to the matching Team-owned audit rows;
-- Team Leader capability is available while the annual assignment is active;
-- deactivating the annual assignment removes normal Auditor and Team Leader workflow access;
-- company Lead Auditor capability remains global when tested without an annual assignment;
-- new-year proof: adding the Auditor to a Team roster in another Annual Audit Plan does **not** grant access automatically; access becomes true only after an explicit new annual assignment is added;
-- Admin RPC can configure a normal Auditor and create the matching annual Plan/Team assignment;
-- configured Auditor gains scoped audit access;
-- non-Admin use of the Admin save RPC is rejected;
-- changing a configured Auditor to Admin removes/inactivates incompatible Auditor mappings;
-- Lead Auditor can be configured without an annual assignment;
-- Admin list RPC exposes users to Admin and returns no user list to normal Auditor;
-- rollback fixtures were removed.
+- `authenticated` may execute `manager_decide_ltp`;
+- `anon` may not execute `manager_decide_ltp`;
+- `authenticated` may not directly execute `ltp_manager_decision_blockers`.
 
-Privilege verification:
+The callable decision RPC performs its own identity, section, state, revision, comment, and downstream-recipient checks before mutation.
 
-- `authenticated` has SELECT only on `user_audit_plan_assignments`;
-- direct INSERT / UPDATE / DELETE are denied;
-- Admin mutation RPC is callable by authenticated sessions but fail-closed inside the function unless the caller is Admin;
-- anon cannot execute the Admin mutation RPC;
-- internal annual-access helper is not directly executable by authenticated clients.
+## Security Advisor
 
-Supabase Security Advisor was reviewed after DDL. The new Admin RPCs appear in the expected authenticated-callable `SECURITY DEFINER` warning class; runtime authorization checks above verify their intended fail-closed boundaries. Existing unrelated advisor warnings remain outside this batch.
+Supabase Security Advisor was rechecked after the DDL. `manager_decide_ltp` appears in the expected authenticated-callable `SECURITY DEFINER` warning class. Its authorization boundary is covered by the runtime matrix above. No new notification-specific RLS/schema warning appeared. Existing unrelated warnings remain outside Batch 7d scope.
 
-## Source/deployment verification
+Remediation reference for this advisor class:
+https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
 
-- Vercel branch build/deployment: PASS on implementation head before this documentation-only commit.
-- Diff is scoped to Admin user management, annual Auditor access, one Edge Function, and one additive migration.
+## Source verification
+
 - `/project` is untouched.
-- Local `npm ci` / `npm run typecheck` / `npm run build` could not be executed because the available container could not resolve `github.com`; no local typecheck claim is made.
+- Batch 7d changes are limited to one additive migration, LTP workflow types/service/UI, and this verification note.
+- Latest implementation head: `39834fa31874d285a32306f08d91f01fbb2568bd` (`39834fa Add LTP Manager workflow history`).
+- Static validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`. The build reported only the existing Browserslist-data and bundle-size advisories.
+- Vercel Preview deployment for the latest implementation head completed successfully.
 
-## Browser verification required before merge recommendation
+## Browser-smoke correction — Manager decision status card
 
-1. Login as Admin and confirm **Administrasi → Manage User** appears only for Admin.
-2. Confirm the existing smoke user shows Auditor + year 2099 + `B6B-SMOKE-TEAM` + `Team Leader` and does not show Lead Auditor.
-3. Open/Edit a normal Auditor and confirm Annual Plan and Team Audit selectors are shown.
-4. Confirm changing Annual Plan limits the Team Audit dropdown to Team masters from that Plan containing the selected Auditor Master.
-5. Confirm Admin and Lead Auditor do not require Annual Plan/Team assignment.
-6. Confirm Auditee and Section Manager use Section assignment instead of Auditor/Team fields.
-7. Invite a disposable test user and verify the invite reaches Auth and the user appears as Invited until email confirmation.
-8. Confirm an Auditor cannot access a new-year Team merely from roster membership until Admin creates the new annual assignment.
+- Real browser smoke found that `7. Review Section Manager` disappeared immediately after Return or Approve because the component rendered only for `MANAGER_REVIEW`.
+- The card now remains visible as database-authoritative, read-only workflow status for `AUDITEE_RETURNED` and `AUDITOR_REVIEW`, using the latest corresponding Manager workflow event for actor, timestamp, and optional comment.
+- Manager decision controls remain limited to `MANAGER_REVIEW`; no notification, service, RPC, migration, or schema behavior changed.
+- Real-browser reverification passed: Section 7 remained visible after both Return and Approve and displayed the authoritative post-decision status, actor, timestamp, and applicable comment.
+
+## Browser-review refinement — cumulative workflow history
+
+- Browser review identified a UX consistency requirement: LTP Section 7 must preserve cumulative approval and revision history, consistent with the permanent audit-trail principle used by PLOR Review & Approval.
+- Section 7 now renders recognized `workflow_events` chronologically beneath the unchanged current-state summary/action area. Labels are derived from event type plus authoritative `from_status` / `to_status`, so initial Auditee Submit and Auditee Resubmit are distinct.
+- Actor, localized timestamp, and non-empty multi-line comments are shown without exposing raw event names. Unknown future events are ignored safely.
+- No notification, authorization, decision, service, schema, RLS, or migration behavior changed.
+
+Verified real-browser sequence:
+
+`AUDITEE_DRAFT → Auditee Submit → MANAGER_REVIEW → Manager Return → AUDITEE_RETURNED → Auditee Resubmit → MANAGER_REVIEW → Manager Approve → AUDITOR_REVIEW`
+
+At the end, Section 7 must retain all four chronological events:
+
+1. initial Auditee submit;
+2. Manager return with its comment;
+3. Auditee resubmit;
+4. Manager approval.
+
+Browser verification passed with all four events retained in chronological oldest-to-newest order. The timeline showed user-friendly Indonesian labels, actor names, Indonesian timestamps, the multi-line Return comment, and no raw internal event enum. Initial submit and resubmit were distinguished through authoritative `from_status` / `to_status` values.
+
+## Real browser verification — PASS
+
+Real-browser verification ran on the PR #13 Vercel Preview using the existing Batch 7 smoke LTP `QA-9910/MFG/2099/001`.
+
+- In `MANAGER_REVIEW`, `7. Review Section Manager` was visible with the Manager comment field and Return/Approve controls. Return was blocked until a Manager comment was supplied.
+- Manager Return passed: `MANAGER_REVIEW → AUDITEE_RETURNED`. Section 7 remained visible and displayed “LTP telah dikembalikan ke Auditee untuk direvisi.” with the Manager actor, timestamp, and Return comment: “Lakukan revisi pada tindakan perbaikan dan evidence”.
+- Auditee Return handling passed: the Auditee received the Return notification, opened the LTP, saw the Manager feedback, and could edit the returned LTP again.
+- Auditee Resubmit passed: `AUDITEE_RETURNED → MANAGER_REVIEW`, including a fresh Manager-review state and notification.
+- Manager Approve passed: `MANAGER_REVIEW → AUDITOR_REVIEW`. Section 7 remained visible and displayed “LTP telah disetujui Section Manager dan diteruskan ke Auditor untuk verifikasi.” with the Manager actor and decision timestamp.
+- Auditor delivery passed: the existing authenticated smoke Auditor / Team Leader satisfied the annual Auditor assignment gate, the LTP entered `AUDITOR_REVIEW`, and the Auditor-review notification was generated.
+- Cumulative `Riwayat Review & Persetujuan` passed and retained initial Auditee submit, Manager return, Auditee resubmit, and Manager approval after the workflow advanced to `AUDITOR_REVIEW`.
+
+No Auditor verification or decision action was exercised or implemented by Batch 7d.
+
+## Deferred
+
+- Auditor verification / Return / approval / close.
+- Admin/QMS final approval/rejection.
+- Finding operational status synchronization.
+- LTP `CLOSED` transition.

@@ -1,5 +1,27 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Batch 7d — Section Manager LTP Decision — 29 Aug 2026
+
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+
+- [x] Corrected `7. Review Section Manager` so it remains visible after a Manager Return or Approve decision.
+- [x] `AUDITEE_RETURNED` now shows the latest `MANAGER_RETURNED_TO_AUDITEE` actor, timestamp, and Manager comment as read-only workflow history.
+- [x] `AUDITOR_REVIEW` now shows the latest `MANAGER_APPROVED_TO_AUDITOR` actor, timestamp, and optional Manager comment as read-only workflow history.
+- [x] Interactive Manager controls remain restricted to `MANAGER_REVIEW`; workflow events remain database-authoritative and no notification, service, schema, or migration behavior changed.
+- [x] Added a cumulative chronological `Riwayat Review & Persetujuan` timeline beneath the unchanged current-state area. It distinguishes initial Auditee Submit from Resubmit through authoritative status transitions and shows actor, timestamp, and only non-empty comments.
+- [x] Unknown future workflow events fail gracefully without exposing raw internal event names or breaking Section 7.
+- [x] Real-browser Manager Return passed for `QA-9910/MFG/2099/001`: mandatory comment enforcement, `MANAGER_REVIEW → AUDITEE_RETURNED`, retained post-decision Section 7 status, authoritative Manager actor/timestamp/comment, Auditee Return notification, visible feedback, and restored Auditee editing all passed.
+- [x] Real-browser Auditee Resubmit passed: `AUDITEE_RETURNED → MANAGER_REVIEW` produced a fresh Manager-review state and notification.
+- [x] Real-browser Manager Approve passed: `MANAGER_REVIEW → AUDITOR_REVIEW`; retained post-decision Section 7 status and the Manager actor/timestamp passed. The existing authenticated smoke Auditor / Team Leader satisfied the annual assignment gate and received the Auditor-review notification.
+- [x] Cumulative `Riwayat Review & Persetujuan` passed at `AUDITOR_REVIEW`, retaining all four authoritative events oldest-to-newest with Indonesian labels/timestamps, actors, the multi-line Return comment, and no raw internal enums. Initial submit and resubmit were correctly distinguished from `from_status` / `to_status`.
+- [x] Latest implementation head `39834fa31874d285a32306f08d91f01fbb2568bd` passed `npm run typecheck`, `npm run build`, and `git diff --check`; Vercel Preview deployment completed successfully. The build reported only the existing Browserslist-data and bundle-size advisories.
+- [x] Runtime/database rollback and ACL/security verification remain valid, including fail-closed missing-Auditor approval and the expected authenticated-callable `SECURITY DEFINER` Security Advisor warning class; Security Advisor is not claimed completely clean.
+- [ ] Auditor verification / Return / approval / close, Admin/QMS final LTP approval/rejection, Finding operational-status synchronization, and final LTP `CLOSED` transition remain deferred.
+- [ ] Merge still requires explicit user approval; PR #13 remains unmerged at documentation closeout.
+
+Changed files: `PROJECT_STATUS.md`, `BATCH_7D_VERIFICATION.md`, and
+`src/components/pages/ltp/LtpManagerReview.tsx`. No migration added or changed.
+
 ## Batch 7b — Auditee LTP Authoring — 26 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE`
