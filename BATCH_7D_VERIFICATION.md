@@ -1,6 +1,6 @@
 # Batch 7d — Section Manager LTP Decision
 
-Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
+Status: `VERIFIED_STAGING — READY_FOR_MERGE`
 
 ## Scope implemented
 
@@ -100,15 +100,16 @@ https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticate
 
 - `/project` is untouched.
 - Batch 7d changes are limited to one additive migration, LTP workflow types/service/UI, and this verification note.
-- Browser-smoke correction validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`. The build reported only the existing Browserslist-data and bundle-size advisories.
-- Vercel branch deployment is checked separately on the latest head.
+- Latest implementation head: `39834fa31874d285a32306f08d91f01fbb2568bd` (`39834fa Add LTP Manager workflow history`).
+- Static validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`. The build reported only the existing Browserslist-data and bundle-size advisories.
+- Vercel Preview deployment for the latest implementation head completed successfully.
 
 ## Browser-smoke correction — Manager decision status card
 
 - Real browser smoke found that `7. Review Section Manager` disappeared immediately after Return or Approve because the component rendered only for `MANAGER_REVIEW`.
 - The card now remains visible as database-authoritative, read-only workflow status for `AUDITEE_RETURNED` and `AUDITOR_REVIEW`, using the latest corresponding Manager workflow event for actor, timestamp, and optional comment.
 - Manager decision controls remain limited to `MANAGER_REVIEW`; no notification, service, RPC, migration, or schema behavior changed.
-- Browser reverification of the corrected post-decision card is pending. Browser verification is not marked PASS.
+- Real-browser reverification passed: Section 7 remained visible after both Return and Approve and displayed the authoritative post-decision status, actor, timestamp, and applicable comment.
 
 ## Browser-review refinement — cumulative workflow history
 
@@ -117,7 +118,7 @@ https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticate
 - Actor, localized timestamp, and non-empty multi-line comments are shown without exposing raw event names. Unknown future events are ignored safely.
 - No notification, authorization, decision, service, schema, RLS, or migration behavior changed.
 
-Required browser reverification sequence:
+Verified real-browser sequence:
 
 `AUDITEE_DRAFT → Auditee Submit → MANAGER_REVIEW → Manager Return → AUDITEE_RETURNED → Auditee Resubmit → MANAGER_REVIEW → Manager Approve → AUDITOR_REVIEW`
 
@@ -128,26 +129,25 @@ At the end, Section 7 must retain all four chronological events:
 3. Auditee resubmit;
 4. Manager approval.
 
-Browser reverification is pending and is not marked PASS.
+Browser verification passed with all four events retained in chronological oldest-to-newest order. The timeline showed user-friendly Indonesian labels, actor names, Indonesian timestamps, the multi-line Return comment, and no raw internal event enum. Initial submit and resubmit were distinguished through authoritative `from_status` / `to_status` values.
 
-## Real browser verification still required
+## Real browser verification — PASS
 
-Current Staging has a real active Auditee and Section Manager for the smoke section, but no persisted active `AUDITOR` user profile / `user_auditor_links` mapping.
+Real-browser verification ran on the PR #13 Vercel Preview using the existing Batch 7 smoke LTP `QA-9910/MFG/2099/001`.
 
-The immediately testable real-browser path is therefore:
+- In `MANAGER_REVIEW`, `7. Review Section Manager` was visible with the Manager comment field and Return/Approve controls. Return was blocked until a Manager comment was supplied.
+- Manager Return passed: `MANAGER_REVIEW → AUDITEE_RETURNED`. Section 7 remained visible and displayed “LTP telah dikembalikan ke Auditee untuk direvisi.” with the Manager actor, timestamp, and Return comment: “Lakukan revisi pada tindakan perbaikan dan evidence”.
+- Auditee Return handling passed: the Auditee received the Return notification, opened the LTP, saw the Manager feedback, and could edit the returned LTP again.
+- Auditee Resubmit passed: `AUDITEE_RETURNED → MANAGER_REVIEW`, including a fresh Manager-review state and notification.
+- Manager Approve passed: `MANAGER_REVIEW → AUDITOR_REVIEW`. Section 7 remained visible and displayed “LTP telah disetujui Section Manager dan diteruskan ke Auditor untuk verifikasi.” with the Manager actor and decision timestamp.
+- Auditor delivery passed: the existing authenticated smoke Auditor / Team Leader satisfied the annual Auditor assignment gate, the LTP entered `AUDITOR_REVIEW`, and the Auditor-review notification was generated.
+- Cumulative `Riwayat Review & Persetujuan` passed and retained initial Auditee submit, Manager return, Auditee resubmit, and Manager approval after the workflow advanced to `AUDITOR_REVIEW`.
 
-1. Manager sees the decision controls.
-2. `Setujui & Kirim ke Auditor` is disabled with the explicit missing-Auditor blocker.
-3. `Kembalikan ke Auditee` stays disabled until a Manager comment is entered.
-4. Manager returns the LTP and the status becomes `Dikembalikan ke Auditee`.
-5. Auditee receives `LTP dikembalikan untuk revisi`, opens the LTP, sees the Manager comment, and can edit again.
-6. Auditee saves and resubmits; the LTP returns to `Menunggu Section Manager` and a fresh Manager notification appears.
-
-Positive real-browser `Setujui → AUDITOR_REVIEW` requires provisioning a real authenticated Auditor identity linked to an eligible active auditor master. No real credentials are created implicitly by this batch.
+No Auditor verification or decision action was exercised or implemented by Batch 7d.
 
 ## Deferred
 
-- Auditor verification / return / close decision UI and RPC.
+- Auditor verification / Return / approval / close.
 - Admin/QMS final approval/rejection.
 - Finding operational status synchronization.
 - LTP `CLOSED` transition.
