@@ -1,11 +1,23 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## Documentation Policy and Current Snapshot
+
+`PROJECT_STATUS.md` is the canonical source of truth for project history, current implementation
+state, PR/merge lineage, runtime and browser verification, migration/security evidence, known issues,
+and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGENTS.md` contains
+engineering-agent operating rules, and `Readme.md` remains the repository landing page.
+
+This documentation snapshot starts from `main` commit
+`5727f32acac35f4e973b799bf1b7aa590181bf46`, the squash merge of PR #14. Root-level standalone setup,
+static-review, and batch-verification notes have been reconciled into this canonical record and removed.
+
 ## PR #14 — Admin User Management and Annual Auditor Access — 30 Aug 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+**Status:** `VERIFIED_COMPLETE — MERGED`
 
-**PR state:** `OPEN` / `UNMERGED`. No known blocking browser issue remains for the implemented PR
-scope. Merge still requires explicit user approval.
+Merged into `main` through PR #14. Approved PR head before merge:
+`7faffcf06795c81a9d9843192642943b6849799d`; squash merge commit:
+`5727f32acac35f4e973b799bf1b7aa590181bf46`.
 
 ### Direct user provisioning — PASS
 
@@ -86,10 +98,11 @@ scope. Merge still requires explicit user approval.
       `15f53adb08a90ef3d3bdc3107a95d6fb581f4752ccd8ed4d428493c3a6d2b02d`.
 - [x] The nested `/project` snapshot remains untouched.
 
-Implementation files in PR #14 remain the previously recorded Manage User UI/types/service,
+Implementation files in PR #14 are the previously recorded Manage User UI/types/service,
 `admin-create-user` Edge Function, authorization/annual-access integration, and the single immutable
-migration. This final closeout changes documentation and PR metadata only; no application, service,
-Edge Function, migration, Supabase configuration, or `/project` file is changed.
+migration. The PR is merged and its implementation/runtime evidence above is final; this later
+documentation consolidation changes no application, service, Edge Function, migration, Supabase
+configuration, or `/project` file.
 
 ## Batch 7d — Section Manager LTP Decision — 29 Aug 2026
 
@@ -113,8 +126,33 @@ Merged through PR #13 with merge commit `5d46218c4f1625d7dc628b49a0eae4c18d3f5eb
 - [x] PR #13 was merged after explicit approval; its verified implementation and evidence are now on
       `main` at merge commit `5d46218c4f1625d7dc628b49a0eae4c18d3f5ebd`.
 
-Changed files: `PROJECT_STATUS.md`, `BATCH_7D_VERIFICATION.md`, and
-`src/components/pages/ltp/LtpManagerReview.tsx`. No migration added or changed.
+Historical PR #13 implementation changed the Manager review component and its consolidated status
+record; no migration was added or changed by the final browser-history refinement.
+
+## Batch 7c — Auditee Submit to Section Manager Review — 28 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE`
+
+- [x] Auditee Submit moves a complete `AUDITEE_DRAFT` / `AUDITEE_RETURNED` LTP to
+      `MANAGER_REVIEW` with row locking, fail-closed `revision_version` concurrency, exactly one
+      revision increment, and one immutable `AUDITEE_SUBMITTED_TO_MANAGER` event.
+- [x] Database-authoritative submit gates require Dampak Temuan, Manfaat Perbaikan, at least three
+      persisted Why levels for A/B (none for C), Tindakan Korektif, PIC and Due Date for every action,
+      required BEFORE/AFTER or BEFORE_AFTER evidence, and an active matching Section Manager.
+- [x] Submit creates recipient-scoped `LTP_MANAGER_REVIEW` notifications; the Manager worklist can
+      mark a notification read and open the matching LTP. Auditee content becomes read-only after
+      submission, while Manager access remains section-scoped.
+- [x] Applied Staging migrations
+      `20260827090527_add_ltp_submit_manager_review_foundation.sql` and
+      `20260828004515_notify_section_manager_on_ltp_submit.sql` are immutable; later corrections must
+      be additive.
+- [x] Rollback runtime verification passed blocker derivation, stale-revision and double-submit
+      rejection, single revision/event mutation, Finding lifecycle preservation, scoped Manager
+      access, outsider denial, notification backfill/creation, recipient RLS, and read-at-only
+      notification mutation.
+- [x] Browser verification passed with `QA-9910/MFG/2099/001`: the LTP reached
+      `MANAGER_REVIEW`, became read-only for the Auditee, appeared for the matching Manager, displayed
+      submission actor/time, and opened correctly from the LTP notification.
 
 ## Batch 7b — Auditee LTP Authoring — 26 Aug 2026
 
@@ -243,8 +281,14 @@ Merged through PR #9 on 26 Aug 2026.
       PLOR isolation, read-only Agenda access, and private Product evidence scoping.
 - [x] Existing Finding synchronization, final execution lock, and public completion/reopen/blocker RPC
       architecture are retained; the three Batch 6b RPCs are explicitly kept `SECURITY INVOKER`.
-- [x] Added `AUTH_IDENTITY_SETUP.md` with trusted bootstrap, separate-persona provisioning, mappings,
-      future LTP contract, and a runtime/RLS verification plan. No credentials or Auth users are included.
+- [x] Identity architecture uses one active CertiTrack identity per Auth account; multi-responsibility
+      people use separate accounts rather than an in-session role switch. The first Admin is bootstrapped
+      through trusted Supabase administration; subsequent identity/profile/mapping administration is
+      Admin-only. The browser uses only the publishable/anon key and a normal Auth session.
+- [x] Auditor ownership resolves `auth.uid()` → `user_auditor_links` → existing `auditors` proxy →
+      Annual Team membership → Instruction row. Auditee and Section Manager scope resolves through active,
+      type-compatible `section_identity_assignments`; incompatible mappings must be deactivated before a
+      role transition so history is retained rather than silently deleted.
 - [x] CertiTrack-Staging migration-chain, RLS/RPC authorization, Team isolation, Finding workflow,
       transactional Product annulment, notification isolation, Storage RLS boundary, concurrency stale-version,
       and fail-closed missing-company-Lead verification passed using rollback-only runtime fixtures.
@@ -1269,10 +1313,13 @@ is therefore `VERIFIED_COMPLETE`.
 
 ## Batch 6b — Pelaksanaan
 
-**Status:** `IMPLEMENTED_UNVERIFIED`
+**Status:** `VERIFIED_COMPLETE`
 
+Closed through PR #8, merged into `main` on 22 Aug 2026 at
+`540c79dc151af87e89f55b7f6b04e4021367cb67` (verified implementation head before final
+documentation: `6599fc4f07e762172c4081cd6446202792aab715`).
 
-### Checklist/Pelaksanaan separation refinement (PR #8 working state)
+### Implemented architecture and historical refinement
 
 Checklist Audit is now preparation-only for System questions and uses the existing `checklist_items`
 rows: editable fields are limited to header and question structure. Its two-level Sub Proses → Elemen
@@ -1306,14 +1353,14 @@ execution, and PLOR until reopen succeeds.
 Additive migration `20260822120000_align_preparation_ready_execution_guards.sql` replaces only the
 Product and Manufacturing/Shift checklist-status item guards. In ready state it permits the documented
 execution fields, `finding_id`, and `updated_at`, but blocks structural updates plus insert/delete. It
-does not replace the SECURITY INVOKER completion RPCs or blocker and has not been applied to Staging.
+does not replace the `SECURITY INVOKER` completion RPCs or blocker. It was applied to Staging as
+`20260822085141 align_preparation_ready_execution_guards` and is immutable.
 
 Additive migration `20260822110000_refine_batch6b_checklist_execution_separation.sql` expands the
 Elemen Proses constraints, makes retained method columns optional, and replaces the database completion
 blocker with per-item observation/judgement messages for System, Product, and Manufacturing/Shift. It
-explicitly preserves `SECURITY INVOKER` for the blocker and complete/reopen RPCs. This migration is
-applied on Staging and is now immutable. The new 12:00 guard correction still requires Staging runtime,
-security, and browser verification; therefore Batch 6b remains `IMPLEMENTED_UNVERIFIED`.
+explicitly preserves `SECURITY INVOKER` for the blocker and complete/reopen RPCs. This migration was
+applied on Staging as `20260822061814 refine_batch6b_checklist_execution_separation` and is immutable.
 
 Pelaksanaan kini berupa worklist QA pusat dan detail responsif/mobile dengan panel eksekusi khusus
 untuk Checklist Sistem, Produk, dan Manufaktur/Shift atas record sumber yang sama. Counter O/A/B/C
@@ -1335,9 +1382,27 @@ Final pre-Staging hardening juga memeriksa kepemilikan QA lama dan baru pada set
 mengunci field formal PLOR pada database dan UI selama pelaksanaan selesai, serta mencabut hak
 eksekusi helper Batch 6b secara eksplisit dari `PUBLIC`, `anon`, dan `authenticated`.
 
-Implementasi dan static checks lokal telah dilakukan, tetapi status tetap
-`IMPLEMENTED_UNVERIFIED` sampai migration diterapkan ke Staging, runtime suite 22 skenario,
-Security Advisor, Vercel Preview/browser smoke desktop-mobile, serta cleanup fixture selesai.
+### Final verification — PASS
+
+- [x] Applied Staging migrations are immutable:
+      `20260822004154 create_batch6b_audit_execution`,
+      `20260822004455 harden_batch6b_execution_rpc_security`,
+      `20260822061814 refine_batch6b_checklist_execution_separation` (repository file
+      `20260822110000_refine_batch6b_checklist_execution_separation.sql`), and
+      `20260822085141 align_preparation_ready_execution_guards` (repository file
+      `20260822120000_align_preparation_ready_execution_guards.sql`).
+- [x] Security Advisor reported 0 security lints after the final migration. The blocker, completion,
+      and reopen functions remain `SECURITY INVOKER`; intended trigger helpers remain private.
+- [x] Runtime verification passed for System, Product, and Manufacturing/Shift preparation/execution
+      separation, required observation/judgement pairs, Draft/Siap Pelaksanaan guards, O/OK versus
+      A/B/C Finding synchronization, completion locks, reopen, and source/Finding-link preservation.
+- [x] Temporary runtime fixtures `QA-9911` and `QA-9912` were removed with zero residual Instruction,
+      Product/Manufacturing checklist, or Finding rows.
+- [x] Manual real-browser smoke passed all three checklist types and their execution-only panels,
+      conscious empty judgement defaults, preparation locking, final completion/read-only behavior,
+      and reopen without data loss.
+- [x] Staging fixtures `QA-9907` (System A/B), `QA-9908` (System C/OFI), `QA-9909` (Product), and
+      `QA-9910` (Manufacturing) were intentionally retained for later Batch 7 verification.
 
 ---
 
@@ -1395,8 +1460,9 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and implemented audit-execution batches through Batch 6a have
-completed their required verification gates. Batch 6a is now `VERIFIED_COMPLETE`.
+The stabilization database foundation and implemented audit-execution batches through Batch 6b have
+completed their required verification gates. PR #14 is merged and the next controlled LTP slice is
+Auditor verification/return/approval/close.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -1410,12 +1476,14 @@ Batch 5b    VERIFIED_COMPLETE (CertiTrack-Staging database/security/browser veri
 Batch 5c    VERIFIED_COMPLETE
 Batch 5d    VERIFIED_COMPLETE
 Batch 6a    VERIFIED_COMPLETE
-Batch 6b    IMPLEMENTED_UNVERIFIED
+Batch 6b    VERIFIED_COMPLETE (PR #8; runtime/security/browser verification passed)
 Batch 7.0   VERIFIED_COMPLETE (Identity & Access foundation; merged through PR #9)
 Batch 7a    VERIFIED_COMPLETE (controlled LTP foundation slice)
 Batch 7b    VERIFIED_COMPLETE (controlled Auditee LTP authoring slice)
+Batch 7c    VERIFIED_COMPLETE (Auditee Submit → Section Manager Review)
 Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
-PR #14      VERIFIED_STAGING — READY_FOR_MERGE (Admin user management + annual Auditor access)
+PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
+            squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8+    NOT_STARTED
 ```
 
