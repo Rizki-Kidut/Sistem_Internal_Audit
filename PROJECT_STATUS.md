@@ -57,9 +57,10 @@ static-review, and batch-verification notes have been reconciled into this canon
       `AUDITOR_REVIEW`, revision `9`, with NULL Auditor result; its Finding remains `Open` /
       `LEGACY_ESTABLISHED` with NULL compatibility `car_id`. `tl@gmail.com` remains a normal active
       `AUDITOR`, company Lead false, active on Plan 2099 / `B6B-SMOKE-TEAM`, and Team Leader true.
-- [ ] Vercel Preview deployment and user-driven real-browser OPEN → Auditee resubmit → Manager
-      reapproval → Auditor CLOSE → Admin notification smoke remain pending. Do not mark this slice
-      `VERIFIED_COMPLETE` until that browser sequence passes.
+- [x] Vercel Preview deployment for the implementation commit completed successfully.
+- [ ] User-driven real-browser OPEN → Auditee resubmit → Manager reapproval → Auditor CLOSE → Admin
+      notification smoke remains pending. Do not mark this slice `VERIFIED_COMPLETE` until that browser
+      sequence passes.
 - [ ] Admin/QMS final decision, Admin return to `AUDITOR_RETURNED`, final LTP `CLOSED`, and Finding/LTP
       operational synchronization remain deferred to Batch 7f or later controlled scope.
 
