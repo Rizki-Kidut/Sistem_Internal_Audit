@@ -56,8 +56,8 @@ export function LtpAuditorReview({context,onRefresh}:{context:LtpWorkflowContext
               <Textarea rows={3} value={comment} disabled={busy} placeholder="Wajib untuk hasil Open; opsional untuk Close." onChange={event=>setComment(event.target.value)}/>
             </Field>
             {error&&<div className="p-3 rounded-lg text-sm bg-red-50 text-red-700">{error}</div>}
-            {openBlocked&&<Blockers title="Open belum dapat diproses" items={context.auditor_open_blockers}/>} 
-            {closeBlocked&&<Blockers title="Close belum dapat diproses" items={context.auditor_close_blockers}/>} 
+            {openBlocked&&<Blockers title="Open belum dapat diproses" items={context.auditor_open_blockers}/>}
+            {closeBlocked&&<Blockers title="Close belum dapat diproses" items={context.auditor_close_blockers}/>}
             <div className="flex flex-wrap gap-2">
               <Button variant="danger" disabled={busy||openBlocked||!comment.trim()} onClick={()=>setConfirm('OPEN')}><RotateCcw size={16}/> Open — Kembalikan ke Auditee</Button>
               <Button disabled={busy||closeBlocked} onClick={()=>setConfirm('CLOSE')}><CheckCircle2 size={16}/> Close — Kirim ke Admin/QMS</Button>
