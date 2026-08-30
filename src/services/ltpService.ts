@@ -1,10 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
 import type { LtpActionEvidence,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
-import type { LtpManagerDecision,LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
+import type { LtpAuditorVerificationResult,LtpManagerDecision,LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
 import type { LtpEvidenceState } from '../lib/enums';
 
 const BUCKET='audit-evidence';
-const LTP_NOTIFICATION_TYPES=['LTP_MANAGER_REVIEW','LTP_AUDITEE_RETURNED','LTP_AUDITOR_REVIEW'] as const;
+const LTP_NOTIFICATION_TYPES=['LTP_MANAGER_REVIEW','LTP_AUDITEE_RETURNED','LTP_AUDITOR_REVIEW','LTP_ADMIN_REVIEW'] as const;
 export const LTP_STALE_MESSAGE='LTP telah berubah di sesi lain. Muat ulang data sebelum menyimpan kembali.';
 
 export async function listLtpWorklist():Promise<LtpWorklistRow[]>{
@@ -68,6 +68,29 @@ export async function managerDecideLtp(carId:string,expectedRevision:number,deci
       throw new Error(detail||'LTP belum dapat dikembalikan ke Auditee.');
     }
     throw new Error(`Gagal memproses keputusan Section Manager: ${error.message}`);
+  }
+  return data as number;
+}
+
+export async function auditorVerifyLtp(carId:string,expectedRevision:number,result:LtpAuditorVerificationResult,comment:string):Promise<number>{
+  const {data,error}=await supabase.rpc('auditor_verify_ltp',{
+    p_car_id:carId,
+    p_expected_revision:expectedRevision,
+    p_result:result,
+    p_comment:comment.trim()||null,
+  });
+  if(error){
+    if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);
+    if(error.message.includes('LTP_AUDITOR_OPEN_COMMENT_REQUIRED'))throw new Error('Catatan Auditor wajib diisi ketika hasil verifikasi Open.');
+    if(error.message.includes('LTP_AUDITOR_OPEN_BLOCKED:')){
+      const detail=error.message.split('LTP_AUDITOR_OPEN_BLOCKED:')[1]?.trim();
+      throw new Error(detail||'LTP belum dapat dikembalikan ke Auditee.');
+    }
+    if(error.message.includes('LTP_AUDITOR_CLOSE_BLOCKED:')){
+      const detail=error.message.split('LTP_AUDITOR_CLOSE_BLOCKED:')[1]?.trim();
+      throw new Error(detail||'LTP belum dapat dikirim ke Admin/QMS.');
+    }
+    throw new Error(`Gagal memproses verifikasi Auditor: ${error.message}`);
   }
   return data as number;
 }

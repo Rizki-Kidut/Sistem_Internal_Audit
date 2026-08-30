@@ -8,8 +8,128 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from `main` commit
-`5727f32acac35f4e973b799bf1b7aa590181bf46`, the squash merge of PR #14. Root-level standalone setup,
+`65d677719326e41e93f29897c75cf61fa99aa618`, the squash merge of documentation-consolidation PR #15.
+The PR #14 implementation and merge history remains recorded below. Root-level standalone setup,
 static-review, and batch-verification notes have been reconciled into this canonical record and removed.
+
+## Batch 7e — LTP Auditor Verification — 30 Aug 2026
+
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (PR #16 remains OPEN and UNMERGED; merge requires
+explicit user approval.)
+
+- [x] Added controlled Auditor verification using the existing annual-access authority
+      `auditor_user_can_receive_finding(auth.uid(), finding_id)`. Normal Team Auditors require an
+      active annual Plan/Team assignment; the company Lead Auditor retains global authority. Admin,
+      Auditee, Section Manager, inactive-assignment Auditors, and outsider Auditors fail closed.
+- [x] `OPEN` requires a non-empty Auditor comment and atomically transitions
+      `AUDITOR_REVIEW → AUDITEE_RETURNED`, stores latest result `OPEN`, increments the revision once,
+      appends `AUDITOR_VERIFIED_OPEN_TO_AUDITEE`, closes every pending Auditor-review notification,
+      and notifies the active matching Auditee with an explicit `Catatan Auditor`. Revised content
+      continues through Auditee → Section Manager → Auditor; `AUDITOR_RETURNED` is not used.
+- [x] `CLOSE` atomically transitions `AUDITOR_REVIEW → ADMIN_REVIEW`, stores latest result `CLOSE`,
+      increments the revision once, appends `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, closes every pending
+      Auditor-review notification, and creates `LTP_ADMIN_REVIEW` for every active Admin identity.
+      It does not set LTP `CLOSED` or alter the Finding lifecycle.
+- [x] Added Section 8 Auditor controls/history. Extracted `Riwayat Review & Persetujuan` into one
+      global cumulative component rendered after the workflow-stage cards, with oldest-to-newest
+      multi-cycle Manager/Auditor history and graceful omission of unknown future events.
+- [x] Section 7 now derives its read-only historical result from the latest authoritative Manager
+      workflow event rather than the current global LTP status. It remains visible after Manager
+      participation, including Auditor return and Admin-review stages; controls remain limited to an
+      authorized current `MANAGER_REVIEW`.
+- [x] The immutable repository migration is
+      `20260830010000_add_ltp_auditor_verification.sql`, SHA-256
+      `5b2dbfa000dfb002db2518f2263b755d2217c8cb718b89ee3c09e43c7ac68a5b`.
+      The independently verified Staging migration ledger records the applied migration separately as
+      `20260830150924 · add_ltp_auditor_verification`; the repository filename is not represented as an
+      identical ledger version.
+- [x] Rollback-only runtime verification passed: active annual normal Auditor; inactive annual denial;
+      outsider denial; global company Lead; Admin/Auditee/Manager denial; mandatory OPEN comment;
+      stale revision; OPEN/CLOSE transitions; exactly one revision/event; next-recipient notification;
+      all-Auditor notification cleanup; second-decision rejection; missing Auditee/Admin blockers;
+      immutable event UPDATE/DELETE; and unchanged Finding status/review/link state. Cleanup checks
+      found zero `B7E-RUNTIME` Findings and zero rollback identity profiles.
+- [x] Function ACL verification passed: the blocker helper is unavailable to `anon` and
+      `authenticated`; the mutation RPC is unavailable to `anon` and intentionally executable by
+      `authenticated`, with identity/annual ownership checks enforced internally.
+- [x] Security Advisor reports the existing authenticated-callable `SECURITY DEFINER` warning class,
+      including the intentionally exposed `auditor_verify_ltp` RPC, plus the existing leaked-password
+      protection warning. Complete Security Advisor cleanliness is not claimed. Remediation reference:
+      https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. Build
+      output contained only the existing Browserslist-data and bundle-size advisories.
+- [x] Final real-browser fixture `QA-9910/MFG/2099/001` (car
+      `0d59f75f-04b8-4dfe-bf0f-5d43f0943afe`) is at `ADMIN_REVIEW`, revision `14`, latest Auditor
+      result `CLOSE`, with eight workflow events and latest event
+      `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`. Its Finding remains `Open / LEGACY_ESTABLISHED`.
+      `tl@gmail.com` remains a normal active `AUDITOR`, company Lead false, active on Plan 2099 /
+      `B6B-SMOKE-TEAM`, and Team Leader true.
+- [x] Vercel Preview deployment for the implementation commit completed successfully.
+
+### Real-browser workflow — PASS
+
+The controlled browser sequence used normal annual Auditor `tl@gmail.com`, Auditee
+`auditee@gmail.com`, Section Manager `manager@gmail.com`, and Admin `rizkihidayat1994@gmail.com`.
+
+- [x] **Initial Auditor review:** at `AUDITOR_REVIEW`, revision `9`, result `NULL`, Section 7 retained
+      the latest Manager approval, Section 8 exposed the eligible Auditor controls, OPEN enforced a
+      comment, CLOSE was available, and the global history showed the existing four events in order.
+- [x] **Auditor OPEN:** comment `Bukti tindakan korektif perlu diperjelas dan diverifikasi kembali.`
+      produced `AUDITOR_REVIEW → AUDITEE_RETURNED`, revision `9 → 10`, result `OPEN`, and exactly one
+      `AUDITOR_VERIFIED_OPEN_TO_AUDITEE` event. Section 7 retained the prior Manager approval, Section 8
+      became historical/read-only, all earlier history remained visible, the Finding was unchanged,
+      and the Auditee notification identified `Catatan Auditor` with the exact comment.
+- [x] **Browser-found return-banner correction:** the initial Auditee banner incorrectly selected only
+      `MANAGER_RETURNED_TO_AUDITEE`, so it displayed the old Manager return and comment after Auditor
+      OPEN. The correction in PR #16 selects the newest authoritative return event from
+      `MANAGER_RETURNED_TO_AUDITEE` or `AUDITOR_VERIFIED_OPEN_TO_AUDITEE`. Browser re-test passed:
+      Auditor return displays `LTP dikembalikan oleh Auditor untuk diperbaiki kembali.`, `Catatan
+      Auditor`, and the correct comment; Manager return retains Section Manager wording and `Catatan
+      Manager`; unknown/legacy return data uses neutral wording without inventing an actor.
+- [x] **Auditee rework/resubmit:** Draft save incremented revision `10 → 11`; submit produced
+      `AUDITEE_RETURNED → MANAGER_REVIEW`, revision `11 → 12`, retained result `OPEN`, and event count
+      six with latest `AUDITEE_SUBMITTED_TO_MANAGER`. The form became read-only, Section 7 returned to
+      active Manager review, the prior Auditor OPEN remained visible in Section 8/history, a new Manager
+      notification was created, and the Auditee return notification became read.
+- [x] **Manager reapproval:** `MANAGER_REVIEW → AUDITOR_REVIEW` incremented revision `12 → 13`, retained
+      result `OPEN`, and produced event count seven with latest `MANAGER_APPROVED_TO_AUDITOR`. Section 7
+      returned to historical Approved state, Section 8 became active, the prior OPEN remained visible,
+      and a fresh `LTP_AUDITOR_REVIEW` notification was created for `tl@gmail.com`.
+- [x] **Auditor CLOSE:** comment `Sudah sesuai` produced `AUDITOR_REVIEW → ADMIN_REVIEW`, revision
+      `13 → 14`, result `CLOSE`, event count eight, and latest event
+      `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`. The prior OPEN remained permanently in history, Section 8
+      showed Close/actor/timestamp/comment and `Dikirim ke Admin/QMS`, obsolete Auditor notifications
+      became read, active Admins received `LTP_ADMIN_REVIEW`, and the Finding remained
+      `Open / LEGACY_ESTABLISHED`.
+- [x] **Admin receive/read-only:** `rizkihidayat1994@gmail.com` opened the Admin/QMS notification and
+      read the LTP at `ADMIN_REVIEW`. Section 7 showed the latest Manager approval; Section 8 showed
+      Close, Auditor `B6B Smoke Auditor Lead`, comment `Sudah sesuai`, and `Dikirim ke Admin/QMS`;
+      cumulative history remained visible; no Admin decision controls existed; and the notification
+      became read.
+
+The real workflow retained all eight events oldest-to-newest:
+
+1. Auditee mengirim LTP ke Section Manager
+2. Section Manager mengembalikan LTP ke Auditee
+3. Auditee mengirim ulang LTP ke Section Manager
+4. Section Manager menyetujui LTP dan mengirim ke Auditor
+5. Auditor memverifikasi Open dan mengembalikan LTP ke Auditee
+6. Auditee mengirim ulang LTP ke Section Manager
+7. Section Manager menyetujui LTP dan mengirim ke Auditor
+8. Auditor memverifikasi Close dan mengirim LTP ke Admin/QMS
+
+This confirms that Manager and Auditor history remains cumulative across repeated rework cycles;
+the earlier Auditor OPEN remains preserved after the later CLOSE.
+
+- [ ] **Batch 7f deferred:** Admin/QMS final decision, Admin/QMS return to Auditor using reserved status
+      `AUDITOR_RETURNED`, and final Admin approval.
+- [ ] **Later final synchronization deferred:** LTP `CLOSED` and Finding operational-status/final-close
+      synchronization as appropriate.
+
+Changed files: `PROJECT_STATUS.md`, `src/lib/ltpWorkflowTypes.ts`, `src/services/ltpService.ts`,
+`src/components/pages/LtpPage.tsx`, `src/components/pages/ltp/LtpManagerReview.tsx`, new
+`src/components/pages/ltp/LtpAuditorReview.tsx`, new
+`src/components/pages/ltp/LtpWorkflowHistory.tsx`, and the single additive migration above.
 
 ## PR #14 — Admin User Management and Annual Auditor Access — 30 Aug 2026
 
@@ -1461,8 +1581,10 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation and implemented audit-execution batches through Batch 6b have
-completed their required verification gates. PR #14 is merged and the next controlled LTP slice is
-Auditor verification/return/approval/close.
+completed their required verification gates. Batch 7e Auditor verification has completed runtime,
+security, static, deployment, and real-browser verification and is ready for merge. PR #16 remains
+OPEN and UNMERGED; merge requires explicit user approval. The next controlled feature is Batch 7f —
+Admin/QMS LTP final decision.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -1482,6 +1604,7 @@ Batch 7a    VERIFIED_COMPLETE (controlled LTP foundation slice)
 Batch 7b    VERIFIED_COMPLETE (controlled Auditee LTP authoring slice)
 Batch 7c    VERIFIED_COMPLETE (Auditee Submit → Section Manager Review)
 Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
+Batch 7e    VERIFIED_STAGING — READY_FOR_MERGE (Auditor verification; PR #16 OPEN/UNMERGED)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8+    NOT_STARTED
