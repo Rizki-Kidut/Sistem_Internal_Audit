@@ -59,4 +59,4 @@ export interface SaveManagedUserAccessInput {
   seksi_id:string|null;
 }
 
-export interface InvitedUser { id:string;email:string; }
+export interface ProvisionedUser { id:string;email:string; }

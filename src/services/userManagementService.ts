@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import type { InvitedUser,ManagedUser,SaveManagedUserAccessInput } from '../lib/userManagementTypes';
+import type { ManagedUser,ProvisionedUser,SaveManagedUserAccessInput } from '../lib/userManagementTypes';
 import type { IdentityStatus } from '../lib/auth';
 
 export async function listManagedUsers():Promise<ManagedUser[]>{
@@ -8,12 +8,19 @@ export async function listManagedUsers():Promise<ManagedUser[]>{
   return (data??[]) as ManagedUser[];
 }
 
-export async function inviteManagedUser(email:string,displayName:string):Promise<InvitedUser>{
-  const {data,error}=await supabase.functions.invoke('admin-invite-user',{body:{email,display_name:displayName}});
-  if(error)throw new Error(`Gagal mengundang user: ${error.message}`);
-  if(data?.error)throw new Error(`Gagal mengundang user: ${data.error}`);
-  if(!data?.user?.id)throw new Error('User hasil invite tidak tersedia');
-  return data.user as InvitedUser;
+export async function createManagedUser(email:string,displayName:string):Promise<ProvisionedUser>{
+  const {data,error}=await supabase.functions.invoke('admin-create-user',{body:{email,display_name:displayName}});
+  if(data?.error)throw new Error(`Gagal membuat user: ${data.error}`);
+  if(error){
+    let detail=error.message;
+    if('context' in error&&error.context instanceof Response){
+      const body=await error.context.clone().json().catch(()=>null) as {error?:string}|null;
+      if(body?.error)detail=body.error;
+    }
+    throw new Error(`Gagal membuat user: ${detail}`);
+  }
+  if(!data?.user?.id)throw new Error('User Auth hasil provisioning tidak tersedia');
+  return data.user as ProvisionedUser;
 }
 
 export async function saveManagedUserAccess(input:SaveManagedUserAccessInput):Promise<void>{

@@ -7,7 +7,7 @@ import { getAuditPlans } from '../../services/auditPlanService';
 import { getActiveAuditors } from '../../services/auditorService';
 import { getAuditTeamMasters } from '../../services/auditTeamMasterService';
 import { getSeksiList } from '../../services/seksiService';
-import { inviteManagedUser,listManagedUsers,saveManagedUserAccess,setManagedAnnualAssignmentStatus } from '../../services/userManagementService';
+import { createManagedUser,listManagedUsers,saveManagedUserAccess,setManagedAnnualAssignmentStatus } from '../../services/userManagementService';
 import { Badge,Button,Card,EmptyState,LoadingSpinner } from '../ui';
 import { Field,Input,Select } from '../ui/Field';
 import { Modal } from '../ui/Modal';
@@ -95,13 +95,13 @@ export function UserManagementPage(){
   async function save(){
     if(!form)return;
     setBusy(true);setError(null);setMessage(null);
-    let invited=false;
+    let provisioned=false;
     try{
       let userId=form.user_id;
       if(!userId){
-        const result=await inviteManagedUser(form.email,form.display_name);
+        const result=await createManagedUser(form.email,form.display_name);
         userId=result.id;
-        invited=true;
+        provisioned=true;
       }
       await saveManagedUserAccess({
         user_id:userId,
@@ -116,11 +116,11 @@ export function UserManagementPage(){
       });
       setForm(null);
       await load();
-      setMessage(invited?'Undangan user dikirim dan akses berhasil dikonfigurasi.':'Akses user berhasil diperbarui.');
+      setMessage(provisioned?'User berhasil dibuat dan akses berhasil dikonfigurasi.':'Akses user berhasil diperbarui.');
     }catch(e){
       const text=e instanceof Error?e.message:'Gagal menyimpan user';
-      setError(invited?`Undangan Auth sudah dibuat, tetapi konfigurasi akses gagal. Buka user tersebut dari daftar lalu coba lagi. ${text}`:text);
-      if(invited){await load();setForm(null);}
+      setError(provisioned?`User Auth sudah dibuat, tetapi konfigurasi akses gagal. Buka user tersebut dari daftar lalu konfigurasi kembali. ${text}`:text);
+      if(provisioned){await load();setForm(null);}
     }finally{setBusy(false);}
   }
 
@@ -145,7 +145,7 @@ export function UserManagementPage(){
     {error&&<div className="p-3 mb-4 bg-red-50 text-red-700 rounded-lg">{error}</div>}
     {message&&<div className="p-3 mb-4 bg-green-50 text-green-700 rounded-lg">{message}</div>}
     <Card className="p-4 mb-4"><div className="grid md:grid-cols-2 gap-3"><Input placeholder="Cari email, nama, NIK, atau role" value={search} onChange={e=>setSearch(e.target.value)}/><Select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}><option value="">Semua Role</option>{MANAGE_USER_ROLES.map(role=><option key={role} value={role}>{MANAGE_USER_ROLE_LABEL[role]}</option>)}</Select></div></Card>
-    {!filtered.length?<Card className="p-12"><EmptyState icon={<Users/>} title="Belum ada user" message="Invite user baru atau periksa filter pencarian."/></Card>:<Card className="overflow-x-auto"><table className="min-w-[1100px] w-full text-sm"><thead><tr className="bg-gray-50 text-left">{['Email','Nama','NIK','Role','Status','Assignment / Scope','Auth','Aksi'].map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{filtered.map(user=><tr key={user.user_id} className="border-t"><td className="p-3">{user.email??'-'}</td><td>{user.display_name??<span className="text-amber-700">Belum dikonfigurasi</span>}</td><td>{user.nik??'-'}</td><td>{user.role?<Badge variant={user.role==='LEAD_AUDITOR'?'blue':'gray'}>{MANAGE_USER_ROLE_LABEL[user.role]}</Badge>:<Badge variant="amber">Unconfigured</Badge>}</td><td><Badge variant={user.status==='Aktif'?'green':'gray'}>{user.status??'-'}</Badge></td><td className="max-w-[360px] text-xs">{accessSummary(user)}</td><td><Badge variant={user.email_confirmed_at?'green':'amber'}>{user.email_confirmed_at?'Confirmed':'Invited'}</Badge></td><td><button className="text-blue-600 inline-flex items-center gap-1" onClick={()=>openEdit(user)}><Pencil size={14}/> Edit</button></td></tr>)}</tbody></table></Card>}
+    {!filtered.length?<Card className="p-12"><EmptyState icon={<Users/>} title="Belum ada user" message="Tambah user baru atau periksa filter pencarian."/></Card>:<Card className="overflow-x-auto"><table className="min-w-[1100px] w-full text-sm"><thead><tr className="bg-gray-50 text-left">{['Email','Nama','NIK','Role','Status','Assignment / Scope','Auth','Aksi'].map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{filtered.map(user=><tr key={user.user_id} className="border-t"><td className="p-3">{user.email??'-'}</td><td>{user.display_name??<span className="text-amber-700">Belum dikonfigurasi</span>}</td><td>{user.nik??'-'}</td><td>{user.role?<Badge variant={user.role==='LEAD_AUDITOR'?'blue':'gray'}>{MANAGE_USER_ROLE_LABEL[user.role]}</Badge>:<Badge variant="amber">Unconfigured</Badge>}</td><td><Badge variant={user.status==='Aktif'?'green':'gray'}>{user.status??'-'}</Badge></td><td className="max-w-[360px] text-xs">{accessSummary(user)}</td><td><Badge variant="green">Terdaftar</Badge></td><td><button className="text-blue-600 inline-flex items-center gap-1" onClick={()=>openEdit(user)}><Pencil size={14}/> Edit</button></td></tr>)}</tbody></table></Card>}
     <Modal open={!!form} onClose={()=>!busy&&setForm(null)} title={form?.user_id?'Edit User':'Tambah User'} size="lg" footer={<><Button variant="secondary" disabled={busy} onClick={()=>setForm(null)}>Batal</Button><Button disabled={busy} onClick={()=>void save()}>{busy?'Memproses...':'Simpan'}</Button></>}>{form&&<UserForm form={form} plans={plans} teams={teams} auditorOptions={auditorOptions} sectionOptions={sectionOptions} busy={busy} onChange={setForm} onToggleAssignment={toggleAssignment}/>}</Modal>
   </div>;
 }

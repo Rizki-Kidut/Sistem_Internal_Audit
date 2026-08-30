@@ -5,7 +5,9 @@ Status: `IMPLEMENTED_PENDING_BROWSER_VERIFICATION`
 ## Scope
 
 - Added Admin-only **Manage User** navigation and page.
-- Added invite-user flow through an authenticated Supabase Edge Function; no service-role/secret key is exposed to the React client.
+- Added direct Admin provisioning through an authenticated Supabase Edge Function; no service-role/secret key is exposed to the React client.
+- The Auth identity is created server-side with its email already confirmed. No invitation, confirmation request, verification link, or temporary credential is sent or displayed.
+- Admin configures the role and required application mapping immediately in **Manage User**. Corporate email/SSO authentication remains future scope.
 - Added business roles shown to Admin: Admin, Lead Auditor, Auditor, Auditee, Section Manager.
 - Kept the persisted identity architecture compatible:
   - Lead Auditor remains `identity_type = AUDITOR` + `user_auditor_links.is_lead_auditor = true`.
@@ -41,14 +43,33 @@ This deliberately grants Team Leader responsibility without company Lead Auditor
 
 The applied migration is immutable. Any correction must be additive.
 
+## Direct provisioning decision
+
+The original invitation + email-verification onboarding was replaced by direct Admin provisioning because the production target will use corporate email authentication. **Manage User → Tambah User → Simpan** now creates the Supabase Auth identity server-side and then configures its CertiTrack role/mapping through the existing Admin RPC.
+
+`admin-create-user`:
+
+- requires a valid caller JWT and revalidates the caller against the active Admin application profile;
+- uses the server-only Auth Admin API with `email_confirm: true`;
+- generates a cryptographically random password server-side only as an Auth implementation detail;
+- never returns, displays, logs, stores, or emails that password;
+- returns only the new Auth user ID and normalized email;
+- does not call an invitation or verification-email API;
+- rejects an existing Auth email and directs Admin to edit that user from **Manage User**;
+- does not derive authorization from user-editable Auth metadata.
+
+The former deployed `admin-invite-user` is deprecated and no longer called by the React application. It may remain temporarily deployed until replacement verification is complete, but it is not part of the application flow.
+
 ## Deployed Edge Function
 
-`admin-invite-user`
+`admin-create-user`
 
-- status: ACTIVE
+- deployment/status: ACTIVE on CertiTrack-Staging (version 1)
 - JWT verification: enabled
 - verifies the caller is an active Admin before using the backend Auth Admin API
 - role authorization is not derived from editable user metadata
+
+Deployment inspection confirmed both the replacement and deprecated function are ACTIVE with JWT verification enabled. A direct unauthenticated POST to `admin-create-user` returned HTTP 401 and created no data. Authenticated non-Admin rejection, active-Admin creation, confirmed-email state, duplicate-email handling, and role/Section mapping remain part of the pending authenticated/browser reverification; no PASS is claimed for those runtime cases yet.
 
 ## Runtime verification
 
@@ -99,5 +120,7 @@ Supabase Security Advisor was reviewed after DDL. The new Admin RPCs appear in t
 4. Confirm changing Annual Plan limits the Team Audit dropdown to Team masters from that Plan containing the selected Auditor Master.
 5. Confirm Admin and Lead Auditor do not require Annual Plan/Team assignment.
 6. Confirm Auditee and Section Manager use Section assignment instead of Auditor/Team fields.
-7. Invite a disposable test user and verify the invite reaches Auth and the user appears as Invited until email confirmation.
+7. Provision a disposable corporate-style test email as Auditee with a Section. Verify it appears immediately with Auth status **Terdaftar**, its role and Section mapping are present, and there is no invitation/verification waiting step.
 8. Confirm an Auditor cannot access a new-year Team merely from roster membership until Admin creates the new annual assignment.
+
+Browser reverification of direct provisioning remains pending and is not marked PASS in this document.

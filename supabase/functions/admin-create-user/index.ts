@@ -13,6 +13,19 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function generatePassword(): string {
+  const bytes = new Uint8Array(48);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function isDuplicateAuthError(error: { code?: string; message: string; status?: number }): boolean {
+  const code = error.code?.toLowerCase();
+  const message = error.message.toLowerCase();
+  return code === "email_exists" || code === "user_already_exists" ||
+    (error.status === 422 && (message.includes("already") || message.includes("registered")));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method tidak didukung" }, 405);
@@ -43,7 +56,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (profileError) return json({ error: "Gagal memverifikasi Admin" }, 500);
   if (!profile || profile.identity_type !== "ADMIN" || profile.status !== "Aktif") {
-    return json({ error: "Hanya Admin aktif yang dapat mengundang user" }, 403);
+    return json({ error: "Hanya Admin aktif yang dapat membuat user" }, 403);
   }
 
   let payload: { email?: string; display_name?: string };
@@ -55,13 +68,22 @@ Deno.serve(async (req) => {
 
   const email = payload.email?.trim().toLowerCase();
   const displayName = payload.display_name?.trim();
-  if (!email || !displayName) return json({ error: "Email dan nama wajib diisi" }, 400);
+  const validEmail = !!email && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!validEmail) return json({ error: "Format email tidak valid" }, 400);
+  if (!displayName || displayName.length > 200) return json({ error: "Nama wajib diisi dan maksimal 200 karakter" }, 400);
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { display_name: displayName },
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: generatePassword(),
+    email_confirm: true,
   });
-  if (error) return json({ error: error.message }, 400);
-  if (!data.user) return json({ error: "User hasil invite tidak tersedia" }, 500);
+  if (error) {
+    if (isDuplicateAuthError(error)) {
+      return json({ error: "Email sudah terdaftar di Auth. Cari dan edit user tersebut dari Manage User." }, 409);
+    }
+    return json({ error: "Gagal membuat identitas Auth" }, 400);
+  }
+  if (!data.user) return json({ error: "User Auth hasil provisioning tidak tersedia" }, 500);
 
-  return json({ user: { id: data.user.id, email: data.user.email ?? email } });
+  return json({ user: { id: data.user.id, email: data.user.email ?? email } }, 201);
 });

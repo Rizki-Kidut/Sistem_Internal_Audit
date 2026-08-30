@@ -1,5 +1,26 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
+## PR #14 — Direct Admin User Provisioning Correction — 30 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`
+
+- [x] Replaced the React invitation flow with direct Auth provisioning through `admin-create-user`.
+- [x] The server validates a current JWT, revalidates the active Admin profile, normalizes/validates email and name, and creates Auth users with `email_confirm: true`.
+- [x] Any required password is generated cryptographically server-side and is never returned, logged, stored in application tables, displayed, or emailed.
+- [x] Manage User now uses **Tambah User / Simpan**, reports successful creation without invitation language, and displays Auth identity presence as **Terdaftar** rather than Invited/Confirmed.
+- [x] Existing role/mapping rules and annual Auditor authorization architecture remain unchanged; application authorization is not derived from Auth user metadata.
+- [x] Duplicate Auth email creation fails safely and directs Admin to locate/edit the existing user.
+- [x] The former remote `admin-invite-user` is deprecated and no longer callable from the React application; it may temporarily remain remotely deployed during replacement verification.
+- [x] Deployed `admin-create-user` version 1 to CertiTrack-Staging; deployment is ACTIVE with JWT verification enabled. An unauthenticated POST returned HTTP 401 and created no data.
+- [ ] Authenticated non-Admin/Admin, confirmed-email, duplicate-email, and mapping runtime checks remain pending authenticated/browser reverification.
+- [ ] Browser reverification remains pending and is not claimed PASS.
+
+Changed files: `PROJECT_STATUS.md`, `BATCH_7D_ADMIN_USER_VERIFICATION.md`,
+`src/components/pages/UserManagementPage.tsx`, `src/lib/userManagementTypes.ts`,
+`src/services/userManagementService.ts`, and Edge Function source replacement from
+`supabase/functions/admin-invite-user/index.ts` to `supabase/functions/admin-create-user/index.ts`.
+No database migration added or changed.
+
 ## Batch 7d — Section Manager LTP Decision — 29 Aug 2026
 
 **Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
