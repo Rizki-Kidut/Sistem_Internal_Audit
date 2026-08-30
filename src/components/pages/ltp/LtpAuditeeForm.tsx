@@ -15,7 +15,11 @@ const DIRTY_SUBMIT_MESSAGE='Simpan Draft terlebih dahulu sebelum mengirim LTP ke
 export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;onRefresh:()=>Promise<void>}){
   const editable=context.permissions.can_edit_auditee;
   const canSubmit=context.permissions.can_submit_auditee;
-  const managerReturn=[...context.workflow_events].reverse().find(event=>event.event_type==='MANAGER_RETURNED_TO_AUDITEE');
+  const latestAuditeeReturn=[...context.workflow_events].reverse().find(event=>
+    event.event_type==='MANAGER_RETURNED_TO_AUDITEE'||event.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'
+  );
+  const returnedByManager=latestAuditeeReturn?.event_type==='MANAGER_RETURNED_TO_AUDITEE';
+  const returnedByAuditor=latestAuditeeReturn?.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE';
   const [dampak,setDampak]=useState(''),[manfaat,setManfaat]=useState('');
   const [why,setWhy]=useState<LtpWhyAnalysis[]>([]),[actions,setActions]=useState<LtpAction[]>([]),[revisions,setRevisions]=useState<LtpSystemRevision[]>([]);
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false),[message,setMessage]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
@@ -171,8 +175,16 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
     <Card className="p-5 border-l-4 border-blue-400">
       {editable&&<>
         {context.ltp.status===LTP_STATUS.AUDITEE_RETURNED&&<div className="mb-4 p-3 rounded-md bg-amber-50 text-amber-800 text-sm">
-          <p className="font-semibold">LTP dikembalikan oleh Section Manager untuk direvisi.</p>
-          {managerReturn?.comment&&<p className="mt-1 whitespace-pre-wrap"><strong>Catatan Manager:</strong> {managerReturn.comment}</p>}
+          <p className="font-semibold">
+            {returnedByManager
+              ?'LTP dikembalikan oleh Section Manager untuk direvisi.'
+              :returnedByAuditor
+                ?'LTP dikembalikan oleh Auditor untuk diperbaiki kembali.'
+                :'LTP dikembalikan untuk direvisi.'}
+          </p>
+          {(returnedByManager||returnedByAuditor)&&latestAuditeeReturn?.comment&&<p className="mt-1 whitespace-pre-wrap">
+            <strong>{returnedByManager?'Catatan Manager:':'Catatan Auditor:'}</strong> {latestAuditeeReturn.comment}
+          </p>}
           <p className="mt-1 text-xs">Perbaiki isian yang diperlukan, Simpan Draft, lalu kirim kembali ke Section Manager.</p>
         </div>}
         <div className="flex flex-wrap gap-2">

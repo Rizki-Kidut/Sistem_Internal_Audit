@@ -53,11 +53,19 @@ static-review, and batch-verification notes have been reconciled into this canon
       https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
 - [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. Build
       output contained only the existing Browserslist-data and bundle-size advisories.
-- [x] Post-runtime verification confirms reserved browser fixture `QA-9910/MFG/2099/001` remains
-      `AUDITOR_REVIEW`, revision `9`, with NULL Auditor result; its Finding remains `Open` /
-      `LEGACY_ESTABLISHED` with NULL compatibility `car_id`. `tl@gmail.com` remains a normal active
+- [x] The reserved browser fixture `QA-9910/MFG/2099/001` is preserved in its post-OPEN state:
+      `AUDITEE_RETURNED`, revision `10`, latest Auditor result `OPEN`, with the authoritative
+      `AUDITOR_VERIFIED_OPEN_TO_AUDITEE` event/comment available for browser re-verification. Its
+      Finding remains unchanged. `tl@gmail.com` remains a normal active
       `AUDITOR`, company Lead false, active on Plan 2099 / `B6B-SMOKE-TEAM`, and Team Leader true.
 - [x] Vercel Preview deployment for the implementation commit completed successfully.
+- [x] Initial real-browser verification passed the Auditor-review UI and the `OPEN` transition to
+      `AUDITEE_RETURNED`, including Section 8, cumulative history, and the Auditor-authored backend
+      notification. Browser smoke then found that the editable Auditee banner still selected only an
+      older `MANAGER_RETURNED_TO_AUDITEE` event and therefore mislabeled the current Auditor return as
+      a Manager return. The same PR now selects the newest authoritative return-to-Auditee event across
+      Manager Return and Auditor OPEN, renders the matching actor/comment label, and uses neutral wording
+      if legacy data has no recognized return event. Browser re-verification is pending.
 - [ ] User-driven real-browser OPEN → Auditee resubmit → Manager reapproval → Auditor CLOSE → Admin
       notification smoke remains pending. Do not mark this slice `VERIFIED_COMPLETE` until that browser
       sequence passes.
