@@ -51,8 +51,7 @@ The original invitation + email-verification onboarding was replaced by direct A
 
 - requires a valid caller JWT and revalidates the caller against the active Admin application profile;
 - uses the server-only Auth Admin API with `email_confirm: true`;
-- generates a cryptographically random password server-side only as an Auth implementation detail;
-- never returns, displays, logs, stores, or emails that password;
+- creates no password or password hash; only the email identity and confirmed-email state are provisioned;
 - returns only the new Auth user ID and normalized email;
 - does not call an invitation or verification-email API;
 - rejects an existing Auth email and directs Admin to edit that user from **Manage User**;
@@ -64,12 +63,29 @@ The former deployed `admin-invite-user` is deprecated and no longer called by th
 
 `admin-create-user`
 
-- deployment/status: ACTIVE on CertiTrack-Staging (version 1)
+- deployment/status: ACTIVE on CertiTrack-Staging (version 2)
 - JWT verification: enabled
 - verifies the caller is an active Admin before using the backend Auth Admin API
 - role authorization is not derived from editable user metadata
 
 Deployment inspection confirmed both the replacement and deprecated function are ACTIVE with JWT verification enabled. A direct unauthenticated POST to `admin-create-user` returned HTTP 401 and created no data. Authenticated non-Admin rejection, active-Admin creation, confirmed-email state, duplicate-email handling, and role/Section mapping remain part of the pending authenticated/browser reverification; no PASS is claimed for those runtime cases yet.
+
+## Browser failure correction — 30 Aug 2026
+
+The first real-browser **Tambah User** attempt reached `admin-create-user` but failed with `Gagal membuat identitas Auth`. Supabase Auth logs identified the authoritative cause: `bcrypt: password length exceeds 72 bytes`. The function had converted 48 random bytes into a 96-character hexadecimal password, exceeding bcrypt's 72-byte input limit.
+
+Password generation has now been removed completely. Direct provisioning uses only:
+
+```ts
+admin.auth.admin.createUser({
+  email,
+  email_confirm: true,
+})
+```
+
+No password, password hash, invitation, confirmation request, verification email, or reset email is created by this provisioning flow. Future corporate email/SSO authentication remains separate scope. Static and post-deployment runtime results are recorded below; real-browser reverification remains pending unless separately completed by the user.
+
+The corrected function was deployed as version 2 and is ACTIVE with JWT verification enabled. A v2 unauthenticated POST returned HTTP 401; a database check confirmed zero Auth users for its unique fixture email. Auth logs retain the authoritative pre-correction bcrypt panic. No authenticated Admin/non-Admin test credentials are available in this workspace, so Admin creation, confirmed-email, duplicate-email, and post-correction email-log assertions remain pending real-browser/authenticated reverification rather than being marked PASS.
 
 ## Runtime verification
 

@@ -13,12 +13,6 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function generatePassword(): string {
-  const bytes = new Uint8Array(48);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function isDuplicateAuthError(error: { code?: string; message: string; status?: number }): boolean {
   const code = error.code?.toLowerCase();
   const message = error.message.toLowerCase();
@@ -74,7 +68,6 @@ Deno.serve(async (req) => {
 
   const { data, error } = await admin.auth.admin.createUser({
     email,
-    password: generatePassword(),
     email_confirm: true,
   });
   if (error) {

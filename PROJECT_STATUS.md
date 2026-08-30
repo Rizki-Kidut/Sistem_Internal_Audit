@@ -6,13 +6,14 @@
 
 - [x] Replaced the React invitation flow with direct Auth provisioning through `admin-create-user`.
 - [x] The server validates a current JWT, revalidates the active Admin profile, normalizes/validates email and name, and creates Auth users with `email_confirm: true`.
-- [x] Any required password is generated cryptographically server-side and is never returned, logged, stored in application tables, displayed, or emailed.
+- [x] Real-browser failure was diagnosed from Supabase Auth logs: the previous 48-byte random value became a 96-character hexadecimal password and bcrypt rejected it for exceeding 72 bytes.
+- [x] Password and password-hash generation were removed completely. Direct provisioning now supplies only `email` and `email_confirm: true`; corporate email/SSO remains future scope.
 - [x] Manage User now uses **Tambah User / Simpan**, reports successful creation without invitation language, and displays Auth identity presence as **Terdaftar** rather than Invited/Confirmed.
 - [x] Existing role/mapping rules and annual Auditor authorization architecture remain unchanged; application authorization is not derived from Auth user metadata.
 - [x] Duplicate Auth email creation fails safely and directs Admin to locate/edit the existing user.
 - [x] The former remote `admin-invite-user` is deprecated and no longer callable from the React application; it may temporarily remain remotely deployed during replacement verification.
-- [x] Deployed `admin-create-user` version 1 to CertiTrack-Staging; deployment is ACTIVE with JWT verification enabled. An unauthenticated POST returned HTTP 401 and created no data.
-- [ ] Authenticated non-Admin/Admin, confirmed-email, duplicate-email, and mapping runtime checks remain pending authenticated/browser reverification.
+- [x] Deployed the password-free correction as `admin-create-user` version 2; it is ACTIVE with JWT verification enabled. A v2 unauthenticated POST returned HTTP 401 and a database check confirmed zero matching Auth users.
+- [ ] Authenticated non-Admin/Admin, confirmed-email, duplicate-email, post-correction Auth email-log, and mapping checks remain pending because no authenticated test credentials are available in this workspace.
 - [ ] Browser reverification remains pending and is not claimed PASS.
 
 Changed files: `PROJECT_STATUS.md`, `BATCH_7D_ADMIN_USER_VERIFICATION.md`,
