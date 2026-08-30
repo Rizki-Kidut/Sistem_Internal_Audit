@@ -8,6 +8,8 @@ import { Badge,Button,Card,EmptyState,LoadingSpinner } from '../ui';
 import { Input,Select } from '../ui/Field';
 import { LtpAuditeeForm } from './ltp/LtpAuditeeForm';
 import { LtpManagerReview } from './ltp/LtpManagerReview';
+import { LtpAuditorReview } from './ltp/LtpAuditorReview';
+import { LtpWorkflowHistory } from './ltp/LtpWorkflowHistory';
 
 const date=(value:string)=>new Date(`${value}T00:00:00`).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
 
@@ -94,6 +96,8 @@ function LtpDetail({carId,onBack}:{carId:string;onBack:()=>void}){
       </Card>
       <LtpAuditeeForm context={context} onRefresh={refresh}/>
       <LtpManagerReview context={context} onRefresh={refresh}/>
+      <LtpAuditorReview context={context} onRefresh={refresh}/>
+      <LtpWorkflowHistory context={context}/>
     </div>
   </div>;
 }

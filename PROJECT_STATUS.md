@@ -11,6 +11,63 @@ This documentation snapshot starts from `main` commit
 `5727f32acac35f4e973b799bf1b7aa590181bf46`, the squash merge of PR #14. Root-level standalone setup,
 static-review, and batch-verification notes have been reconciled into this canonical record and removed.
 
+## Batch 7e — LTP Auditor Verification — 30 Aug 2026
+
+**Status:** `IMPLEMENTED — STAGING VERIFIED — BROWSER PENDING`
+
+- [x] Added controlled Auditor verification using the existing annual-access authority
+      `auditor_user_can_receive_finding(auth.uid(), finding_id)`. Normal Team Auditors require an
+      active annual Plan/Team assignment; the company Lead Auditor retains global authority. Admin,
+      Auditee, Section Manager, inactive-assignment Auditors, and outsider Auditors fail closed.
+- [x] `OPEN` requires a non-empty Auditor comment and atomically transitions
+      `AUDITOR_REVIEW → AUDITEE_RETURNED`, stores latest result `OPEN`, increments the revision once,
+      appends `AUDITOR_VERIFIED_OPEN_TO_AUDITEE`, closes every pending Auditor-review notification,
+      and notifies the active matching Auditee with an explicit `Catatan Auditor`. Revised content
+      continues through Auditee → Section Manager → Auditor; `AUDITOR_RETURNED` is not used.
+- [x] `CLOSE` atomically transitions `AUDITOR_REVIEW → ADMIN_REVIEW`, stores latest result `CLOSE`,
+      increments the revision once, appends `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, closes every pending
+      Auditor-review notification, and creates `LTP_ADMIN_REVIEW` for every active Admin identity.
+      It does not set LTP `CLOSED` or alter the Finding lifecycle.
+- [x] Added Section 8 Auditor controls/history. Extracted `Riwayat Review & Persetujuan` into one
+      global cumulative component rendered after the workflow-stage cards, with oldest-to-newest
+      multi-cycle Manager/Auditor history and graceful omission of unknown future events.
+- [x] Section 7 now derives its read-only historical result from the latest authoritative Manager
+      workflow event rather than the current global LTP status. It remains visible after Manager
+      participation, including Auditor return and Admin-review stages; controls remain limited to an
+      authorized current `MANAGER_REVIEW`.
+- [x] Additive Staging migration
+      `20260830010000_add_ltp_auditor_verification.sql` applied successfully and is now immutable.
+      SHA-256: `5b2dbfa000dfb002db2518f2263b755d2217c8cb718b89ee3c09e43c7ac68a5b`.
+- [x] Rollback-only runtime verification passed: active annual normal Auditor; inactive annual denial;
+      outsider denial; global company Lead; Admin/Auditee/Manager denial; mandatory OPEN comment;
+      stale revision; OPEN/CLOSE transitions; exactly one revision/event; next-recipient notification;
+      all-Auditor notification cleanup; second-decision rejection; missing Auditee/Admin blockers;
+      immutable event UPDATE/DELETE; and unchanged Finding status/review/link state. Cleanup checks
+      found zero `B7E-RUNTIME` Findings and zero rollback identity profiles.
+- [x] Function ACL verification passed: the blocker helper is unavailable to `anon` and
+      `authenticated`; the mutation RPC is unavailable to `anon` and intentionally executable by
+      `authenticated`, with identity/annual ownership checks enforced internally.
+- [x] Security Advisor reports the existing authenticated-callable `SECURITY DEFINER` warning class,
+      including the intentionally exposed `auditor_verify_ltp` RPC, plus the existing leaked-password
+      protection warning. Complete Security Advisor cleanliness is not claimed. Remediation reference:
+      https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. Build
+      output contained only the existing Browserslist-data and bundle-size advisories.
+- [x] Post-runtime verification confirms reserved browser fixture `QA-9910/MFG/2099/001` remains
+      `AUDITOR_REVIEW`, revision `9`, with NULL Auditor result; its Finding remains `Open` /
+      `LEGACY_ESTABLISHED` with NULL compatibility `car_id`. `tl@gmail.com` remains a normal active
+      `AUDITOR`, company Lead false, active on Plan 2099 / `B6B-SMOKE-TEAM`, and Team Leader true.
+- [ ] Vercel Preview deployment and user-driven real-browser OPEN → Auditee resubmit → Manager
+      reapproval → Auditor CLOSE → Admin notification smoke remain pending. Do not mark this slice
+      `VERIFIED_COMPLETE` until that browser sequence passes.
+- [ ] Admin/QMS final decision, Admin return to `AUDITOR_RETURNED`, final LTP `CLOSED`, and Finding/LTP
+      operational synchronization remain deferred to Batch 7f or later controlled scope.
+
+Changed files: `PROJECT_STATUS.md`, `src/lib/ltpWorkflowTypes.ts`, `src/services/ltpService.ts`,
+`src/components/pages/LtpPage.tsx`, `src/components/pages/ltp/LtpManagerReview.tsx`, new
+`src/components/pages/ltp/LtpAuditorReview.tsx`, new
+`src/components/pages/ltp/LtpWorkflowHistory.tsx`, and the single additive migration above.
+
 ## PR #14 — Admin User Management and Annual Auditor Access — 30 Aug 2026
 
 **Status:** `VERIFIED_COMPLETE — MERGED`
@@ -1461,8 +1518,8 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation and implemented audit-execution batches through Batch 6b have
-completed their required verification gates. PR #14 is merged and the next controlled LTP slice is
-Auditor verification/return/approval/close.
+completed their required verification gates. Batch 7e Auditor verification is implemented and
+Staging-verified, with real-browser verification still pending before completion.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -1482,6 +1539,7 @@ Batch 7a    VERIFIED_COMPLETE (controlled LTP foundation slice)
 Batch 7b    VERIFIED_COMPLETE (controlled Auditee LTP authoring slice)
 Batch 7c    VERIFIED_COMPLETE (Auditee Submit → Section Manager Review)
 Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
+Batch 7e    IMPLEMENTED — STAGING VERIFIED — BROWSER PENDING (Auditor verification)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8+    NOT_STARTED
