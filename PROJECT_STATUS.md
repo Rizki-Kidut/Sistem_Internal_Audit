@@ -1,8 +1,101 @@
 # PROJECT_STATUS.md — CertiTrack Internal Audit Module
 
-## Batch 7d — Section Manager LTP Decision — 29 Aug 2026
+## PR #14 — Admin User Management and Annual Auditor Access — 30 Aug 2026
 
 **Status:** `VERIFIED_STAGING — READY_FOR_MERGE`
+
+**PR state:** `OPEN` / `UNMERGED`. No known blocking browser issue remains for the implemented PR
+scope. Merge still requires explicit user approval.
+
+### Direct user provisioning — PASS
+
+- [x] The active flow is **Admin → Manage User → Tambah User → email/name/NIK → role + mapping →
+      Simpan**. `admin-create-user` creates the Supabase Auth user server-side with confirmed email,
+      after which the CertiTrack role/mapping is active immediately.
+- [x] CertiTrack-Staging runs `admin-create-user` version 2 as ACTIVE with JWT verification enabled.
+      Its Auth Admin call is `admin.auth.admin.createUser({ email, email_confirm: true })`.
+- [x] No password or `password_hash` is created, and no invitation or email-verification workflow is
+      used. Current provisioning creates an Auth UUID, confirmed email identity, and CertiTrack
+      role/mapping only. Corporate email/SSO authentication remains separate future scope and is not
+      implemented by this PR.
+- [x] The original invitation flow was removed from the React application. The remotely deployed
+      `admin-invite-user` remains temporarily available but is deprecated and unused; the active
+      application function is `admin-create-user`.
+
+### Real-browser provisioning and duplicate rejection — PASS
+
+- [x] Real-browser provisioning created `auditee2@gmail.com` as Rizki / NIK `9999`, role Auditee,
+      Section Quality Control. Manage User displayed Auditee, Aktif, Quality Control, and Auth
+      **Terdaftar**.
+- [x] Supabase Auth UUID is `7db7f3e8-5cf0-44b5-931c-ab87ac20c2d3` and
+      `email_confirmed_at` is populated. Auth logged `user_signedup` through `POST /admin/users`; the
+      v2 Edge Function returned HTTP 201. No new `invite` / `mail.send` event accompanied this
+      successful creation.
+- [x] This successful direct-provisioning record is distinct from the older invited Auth fixture for
+      the same email. The deprecated-flow fixture was deleted; the current UUID above was created
+      through `/admin/users`.
+- [x] A second creation attempt for `auditee2@gmail.com` was rejected with HTTP 409 and the expected
+      browser guidance: **Email sudah terdaftar di Auth. Cari dan edit user tersebut dari Manage
+      User.** Exactly one Auth user remained and no duplicate identity was created.
+
+### Real-browser role-transition matrix — PASS
+
+- [x] **AUDITEE → SECTION_MANAGER:** Section Manager / Quality Control became active with no Auditor
+      mapping or annual Auditor assignment.
+- [x] **SECTION_MANAGER → AUDITOR:** Auditor Master was linked with `is_lead_auditor = false`; active
+      assignment became Plan 2099 / `B6B-SMOKE-PLAN-2099`, Team `B6B-SMOKE-TEAM`; the Section
+      assignment was removed/inactivated. The selected Auditor Master was not Team Leader, and Manage
+      User correctly displayed `2099 · B6B-SMOKE-TEAM` without a Team Leader suffix.
+- [x] **AUDITOR → LEAD_AUDITOR:** persisted identity remained `AUDITOR`,
+      `is_lead_auditor = true`, Auditor Master remained linked, effective scope became Global, and
+      annual and Section assignments became Nonaktif. Annual Plan/Team are not required for company
+      Lead Auditor.
+- [x] **LEAD_AUDITOR → ADMIN:** `identity_type = ADMIN`, scope Global, `auditor_id = null`, and
+      `is_lead_auditor = null`; prior annual and Section assignments remain historical but Nonaktif.
+      Role-transition cleanup therefore passed.
+- [x] Team Leader (`audit_team_master_members.is_team_leader`) and company Lead Auditor
+      (`user_auditor_links.is_lead_auditor`) remained independent concepts throughout.
+
+### Authorization and annual Auditor access — PASS
+
+- [x] A real-browser non-Admin login did not show Manage User. Source-level page authorization also
+      places `user-management` only in the Admin allowed-page list, and `App.tsx` calls
+      `canAccessPage(identityType, currentPage)` before rendering. The UI/page authorization gate
+      passed and is not sidebar-hiding only.
+- [x] The Edge Function retains its server-side active-Admin check. An authenticated non-Admin direct
+      POST to `admin-create-user` was **not separately browser-tested** and is not claimed PASS.
+      Previously verified Admin RPC denial/runtime checks remain valid.
+- [x] Normal Auditor access requires a linked Auditor Master plus an active annual Plan/Team
+      assignment. Team roster alone does not grant new-year access; explicit annual assignment does,
+      and deactivation removes scoped access. Company Lead Auditor remains global; Team Leader remains
+      roster-derived. Notification delivery and LTP Manager → Auditor recipient availability use the
+      same annual access gate.
+- [x] Existing smoke Team Leader `tl@gmail.com` remains a normal `AUDITOR`, Team Leader on
+      `B6B-SMOKE-TEAM`, active on Annual Plan 2099, and `is_lead_auditor = false`. This fixture was
+      not changed by the PR #14 closeout.
+
+### Static, deployment, and migration verification — PASS
+
+- [x] `npm run typecheck`, `npm run build`, and `git diff --check` passed. Only the non-blocking
+      Browserslist/caniuse-lite and bundle-size advisories remain.
+- [x] Vercel implementation deployment passed. `admin-create-user` version 2 is ACTIVE with JWT
+      verification enabled.
+- [x] Applied staging migration
+      `20260828055425_add_admin_user_management_and_annual_auditor_access.sql` remains immutable and
+      unchanged. Verified SHA-256:
+      `15f53adb08a90ef3d3bdc3107a95d6fb581f4752ccd8ed4d428493c3a6d2b02d`.
+- [x] The nested `/project` snapshot remains untouched.
+
+Implementation files in PR #14 remain the previously recorded Manage User UI/types/service,
+`admin-create-user` Edge Function, authorization/annual-access integration, and the single immutable
+migration. This final closeout changes documentation and PR metadata only; no application, service,
+Edge Function, migration, Supabase configuration, or `/project` file is changed.
+
+## Batch 7d — Section Manager LTP Decision — 29 Aug 2026
+
+**Status:** `VERIFIED_COMPLETE — MERGED`
+
+Merged through PR #13 with merge commit `5d46218c4f1625d7dc628b49a0eae4c18d3f5ebd`.
 
 - [x] Corrected `7. Review Section Manager` so it remains visible after a Manager Return or Approve decision.
 - [x] `AUDITEE_RETURNED` now shows the latest `MANAGER_RETURNED_TO_AUDITEE` actor, timestamp, and Manager comment as read-only workflow history.
@@ -17,7 +110,8 @@
 - [x] Latest implementation head `39834fa31874d285a32306f08d91f01fbb2568bd` passed `npm run typecheck`, `npm run build`, and `git diff --check`; Vercel Preview deployment completed successfully. The build reported only the existing Browserslist-data and bundle-size advisories.
 - [x] Runtime/database rollback and ACL/security verification remain valid, including fail-closed missing-Auditor approval and the expected authenticated-callable `SECURITY DEFINER` Security Advisor warning class; Security Advisor is not claimed completely clean.
 - [ ] Auditor verification / Return / approval / close, Admin/QMS final LTP approval/rejection, Finding operational-status synchronization, and final LTP `CLOSED` transition remain deferred.
-- [ ] Merge still requires explicit user approval; PR #13 remains unmerged at documentation closeout.
+- [x] PR #13 was merged after explicit approval; its verified implementation and evidence are now on
+      `main` at merge commit `5d46218c4f1625d7dc628b49a0eae4c18d3f5ebd`.
 
 Changed files: `PROJECT_STATUS.md`, `BATCH_7D_VERIFICATION.md`, and
 `src/components/pages/ltp/LtpManagerReview.tsx`. No migration added or changed.
@@ -563,6 +657,8 @@ PROJECT_STATUS.md
 - `BLOCKED` — completion depends on a concrete missing external dependency or unresolved prerequisite
 - `IMPLEMENTED_UNVERIFIED` — implementation exists and available checks may pass, but one or more
   required runtime, integration, concurrency, or browser verifications remain pending
+- `VERIFIED_STAGING — READY_FOR_MERGE` — implementation and required staging/browser/static checks
+  passed, but the active PR remains open until explicit merge approval
 - `VERIFIED_COMPLETE` — specification and available technical verification both passed
 
 ---
@@ -1315,7 +1411,12 @@ Batch 5c    VERIFIED_COMPLETE
 Batch 5d    VERIFIED_COMPLETE
 Batch 6a    VERIFIED_COMPLETE
 Batch 6b    IMPLEMENTED_UNVERIFIED
-Batch 7+    NOT_STARTED
+Batch 7.0   VERIFIED_COMPLETE (Identity & Access foundation; merged through PR #9)
+Batch 7a    VERIFIED_COMPLETE (controlled LTP foundation slice)
+Batch 7b    VERIFIED_COMPLETE (controlled Auditee LTP authoring slice)
+Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
+PR #14      VERIFIED_STAGING — READY_FOR_MERGE (Admin user management + annual Auditor access)
+Batch 8+    NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
