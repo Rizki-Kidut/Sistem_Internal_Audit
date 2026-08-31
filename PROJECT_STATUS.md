@@ -13,24 +13,111 @@ The next active slice is Batch 7f — Admin/QMS LTP final decision.
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/RUNTIME/BROWSER PENDING`
+**Status:** `IMPLEMENTED — STAGING VERIFIED — BROWSER PENDING` (PR #17 is OPEN and UNMERGED.)
 
-- [x] Added the hardened Admin/QMS decision design: `ADMIN_REVIEW → AUDITOR_RETURNED` for mandatory-comment Return and `ADMIN_REVIEW → CLOSED` for final Approve after Auditor `CLOSE`. No new LTP status was introduced.
-- [x] Extended the authoritative Auditor RPC and blockers for both `AUDITOR_REVIEW` and `AUDITOR_RETURNED`. Eligible annual/global Auditors retain the existing OPEN/CLOSE semantics, and both Auditor notification types are closed after a successful decision.
-- [x] Added immutable cumulative Admin workflow events, Auditor-return and terminal LTP notifications, Admin permissions/blockers in the LTP context, Section 8 returned-state feedback, Section 9 Admin controls/read-only history, and Indonesian timeline/worklist labels.
-- [x] Admin authority remains database-enforced as authenticated + active `ADMIN`; Auditor authority remains active `AUDITOR` plus `auditor_user_can_receive_finding`. Direct table-write/RLS policy behavior is unchanged.
-- [x] Repository migration: `20260831010000_add_ltp_admin_final_decision.sql`; SHA-256 `8433c355ddf6c6d6c6a2fde5c8b18b1135f29403c76e3a12a82aae3575d79bdc`.
-- [ ] Staging migration ledger version/name and applied status are pending because no authenticated Supabase/Staging connection is available in this workspace.
-- [ ] The rollback-only 21-case runtime matrix, notification fan-out verification, event immutability re-check, and Security Advisor run are pending Staging access. Security Advisor cleanliness is not claimed.
-- [x] Static validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check`. Build retained only the existing Browserslist and bundle-size advisories.
-- [ ] Vercel deployment and user-driven browser smoke are pending. The reserved fixture must remain `ADMIN_REVIEW`, revision 14, Auditor result `CLOSE`, eight events, latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, while its Finding remains `Open / LEGACY_ESTABLISHED` until the user performs the browser route.
-- [x] Finding synchronization is intentionally deferred to Batch 7g. Batch 7f never mutates `findings.status`, `findings.review_status`, or `findings.car_id`, including when the LTP reaches `CLOSED`.
-- [x] Existing applied migrations and the nested `/project` snapshot remain untouched.
+PR #17, **Batch 7f: Admin/QMS LTP final decision**, targets `main` at base SHA
+`9e4f0eadf01dcf1412b19b45a789bfb0d3d314dc`. Its actual branch is
+`codex/implement-batch-7f-admin/qms-final-decision`; the pre-closeout remote head was
+`e2d376df36ce8f55e912b2225069cb1cf2257118`.
 
-Changed files: `PROJECT_STATUS.md`, `src/lib/ltpWorkflowTypes.ts`, `src/lib/enums.ts`,
-`src/services/ltpService.ts`, `src/components/pages/LtpPage.tsx`,
-`src/components/pages/ltp/LtpAuditorReview.tsx`, `src/components/pages/ltp/LtpWorkflowHistory.tsx`, new
-`src/components/pages/ltp/LtpAdminReview.tsx`, and the single additive migration above.
+### Implementation and migration — VERIFIED
+
+- [x] Admin/QMS RETURN atomically transitions `ADMIN_REVIEW → AUDITOR_RETURNED`, requires a non-empty
+      Admin comment, increments the revision exactly once, appends one
+      `ADMIN_RETURNED_TO_AUDITOR` event, closes obsolete `LTP_ADMIN_REVIEW` notifications, and notifies
+      every currently eligible Auditor under the existing annual/global authority model.
+- [x] The existing Auditor mutation supports both `AUDITOR_REVIEW` and `AUDITOR_RETURNED`. OPEN moves
+      to `AUDITEE_RETURNED` with a mandatory comment; CLOSE moves to `ADMIN_REVIEW`. Authorization
+      remains active `AUDITOR` plus `auditor_user_can_receive_finding(auth.uid(), finding_id)`.
+- [x] Admin/QMS APPROVE atomically transitions `ADMIN_REVIEW → CLOSED` only when
+      `auditor_verification_result = CLOSE`, increments the revision exactly once, appends one
+      `ADMIN_APPROVED_LTP` event, closes obsolete Admin-review notifications, and sends deduplicated
+      `LTP_CLOSED` notifications. `CLOSED` closes only the LTP workflow.
+- [x] Admin mutation authority remains database-enforced as authenticated plus active identity
+      `ADMIN`. No new status or QMS identity was introduced. Workflow events remain the authoritative,
+      cumulative Manager/Auditor/Admin history; Section 8 supports Admin-returned re-verification and
+      Section 9 remains readable after Return, re-review, and final Close.
+- [x] Repository migration filename:
+      `20260831010000_add_ltp_admin_final_decision.sql`. Preserved repository SHA-256:
+      `8433c355ddf6c6d6c6a2fde5c8b18b1135f29403c76e3a12a82aae3575d79bdc`.
+- [x] CertiTrack-Staging applied the migration under the distinct ledger entry
+      `20260831042009 · add_ltp_admin_final_decision`. The repository timestamp and Staging ledger
+      timestamp are intentionally recorded as separate facts. The applied migration is immutable.
+
+### Function ACL and runtime verification — PASS
+
+- [x] Function ACLs passed after migration:
+      `ltp_admin_decision_blockers(uuid,text)` has anon `EXECUTE=false` and authenticated
+      `EXECUTE=false`; `admin_decide_ltp(uuid,integer,text,text)` has anon `EXECUTE=false` and
+      authenticated `EXECUTE=true`; `auditor_verify_ltp(uuid,integer,text,text)` has anon
+      `EXECUTE=false` and authenticated `EXECUTE=true`. The mutation RPCs remain `SECURITY DEFINER`
+      with identity/authority enforced internally.
+- [x] All **21/21 rollback-only runtime cases passed**:
+  1. Active Admin can RETURN.
+  2. Auditor is denied the Admin mutation.
+  3. Auditee is denied the Admin mutation.
+  4. Section Manager is denied the Admin mutation.
+  5. Admin RETURN without comment is rejected with `LTP_ADMIN_RETURN_COMMENT_REQUIRED`.
+  6. Admin RETURN without an eligible Auditor is blocked with `LTP_ADMIN_RETURN_BLOCKED`.
+  7. RETURN produces exactly `ADMIN_REVIEW → AUDITOR_RETURNED`, one revision increment, one
+     `ADMIN_RETURNED_TO_AUDITOR` event, an eligible-Auditor notification, and closes the prior
+     `LTP_ADMIN_REVIEW` notification.
+  8. A stale Admin revision is rejected with `LTP_STALE_REVISION`.
+  9. A second Admin decision after the first transition is rejected.
+  10. A normal Auditor with an active annual assignment can act from `AUDITOR_RETURNED`.
+  11. The same normal Auditor is denied after the annual assignment is inactive.
+  12. The company Lead Auditor can act globally from `AUDITOR_RETURNED` without annual assignment.
+  13. Auditor OPEN produces `AUDITOR_RETURNED → AUDITEE_RETURNED`, revision +1, result `OPEN`, exactly
+      one `AUDITOR_VERIFIED_OPEN_TO_AUDITEE` event, and an Auditee notification.
+  14. Auditor CLOSE produces `AUDITOR_RETURNED → ADMIN_REVIEW`, revision +1, result `CLOSE`, exactly
+      one `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` event, and an Admin notification.
+  15. Pending `LTP_AUDITOR_RETURNED` notifications become read after the Auditor decision.
+  16. Admin APPROVE is rejected unless `auditor_verification_result = CLOSE`.
+  17. APPROVE produces `ADMIN_REVIEW → CLOSED`, revision +1, exactly one `ADMIN_APPROVED_LTP` event,
+      and closes the pending Admin-review notification.
+  18. `LTP_CLOSED` fan-out reached the matching Auditee, matching Section Manager, and eligible
+      Auditor with three notifications for three distinct recipients. A separate fixture lacking
+      Auditee/Manager recipient classes still approved and reached `CLOSED`; missing notification
+      recipients do not block approval.
+  19. No further Admin or Auditor decision is possible after `CLOSED`.
+  20. `car_workflow_events` UPDATE and DELETE remain rejected; history remains immutable.
+  21. Finding lifecycle fields remained unchanged for every runtime fixture.
+- [x] Rollback cleanup passed: zero `B7F-RUNTIME` Findings and zero `B7F-RUNTIME` LTPs remain.
+
+### Reserved browser fixture and Admin context — VERIFIED READY
+
+- [x] Rollback verification did not mutate `QA-9910/MFG/2099/001` (car
+      `0d59f75f-04b8-4dfe-bf0f-5d43f0943afe`). It remains at `ADMIN_REVIEW`, revision `14`, Auditor
+      result `CLOSE`, with eight workflow events and latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`. Its
+      Finding remains `Open / LEGACY_ESTABLISHED`. Normal browser Auditor `tl@gmail.com` retains an
+      active annual assignment and `is_lead_auditor=false`.
+- [x] Authenticated Admin context passed for the reserved fixture: `can_review_admin=true`, while
+      `can_review_auditor=false`, `can_review_manager=false`, `can_edit_auditee=false`, and
+      `can_submit_auditee=false`; both `admin_return_blockers` and `admin_approve_blockers` are empty.
+      The fixture is ready for Admin/QMS browser smoke.
+
+### Security, deployment, static validation, and remaining boundary
+
+- [x] Security Advisor was run after migration and is **not clean**. The expected
+      `authenticated_security_definer_function_executable` warning remains for the intentionally
+      authenticated `public.admin_decide_ltp(...)`, existing `auditor_verify_ltp(...)`,
+      `manager_decide_ltp(...)`, and other guarded RPC/helper functions. Runtime/internal authority
+      checks passed despite this intentional exposure. The existing **Leaked Password Protection
+      Disabled** Auth warning also remains. Remediation reference:
+      https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- [x] Vercel reported **SUCCESS** for actual remote PR head
+      `e2d376df36ce8f55e912b2225069cb1cf2257118`.
+- [x] Static validation remains PASS: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. Build emitted only the existing non-blocking Browserslist and bundle-size
+      advisories.
+- [x] Batch 7f does not update `findings.status`, `findings.review_status`, or `findings.car_id`.
+      Finding/LTP synchronization remains explicitly deferred to Batch 7g, even after Admin APPROVE
+      closes the LTP.
+- [ ] **Browser smoke remains PENDING and USER-DRIVEN.** The expected route remains Admin initial
+      review → Admin RETURN → Auditor re-verification CLOSE → Admin final APPROVE → `CLOSED` terminal
+      read-only. Automated tooling must not mutate the reserved fixture.
+- [x] Existing applied migrations, application/source files, and nested `/project` remain untouched by
+      this documentation-only closeout. PR #17 remains OPEN and UNMERGED.
 
 ## Batch 7e — LTP Auditor Verification — 30 Aug 2026
 
