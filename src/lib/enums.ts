@@ -68,7 +68,7 @@ export const LTP_STATUS = {
 export type LtpStatus = (typeof LTP_STATUS)[keyof typeof LTP_STATUS];
 export const LTP_STATUS_LABEL:Record<LtpStatus,string> = {
   AUDITEE_DRAFT:'Draft Auditee', MANAGER_REVIEW:'Menunggu Section Manager', AUDITEE_RETURNED:'Dikembalikan ke Auditee',
-  AUDITOR_REVIEW:'Menunggu Verifikasi Auditor', AUDITOR_RETURNED:'Dikembalikan ke Auditor', ADMIN_REVIEW:'Menunggu Approval Admin/QMS', CLOSED:'Closed',
+  AUDITOR_REVIEW:'Menunggu Verifikasi Auditor', AUDITOR_RETURNED:'Dikembalikan ke Auditor', ADMIN_REVIEW:'Menunggu Keputusan Admin/QMS', CLOSED:'Ditutup',
 };
 export const LTP_ACTION_TYPE = { TEMPORARY:'TEMPORARY', CORRECTIVE:'CORRECTIVE', PREVENTIVE:'PREVENTIVE' } as const;
 export type LtpActionType = (typeof LTP_ACTION_TYPE)[keyof typeof LTP_ACTION_TYPE];

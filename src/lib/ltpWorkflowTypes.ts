@@ -12,9 +12,10 @@ export interface LtpWorkflowEvent {
   created_at: string;
 }
 
-export type LtpNotificationType = 'LTP_MANAGER_REVIEW' | 'LTP_AUDITEE_RETURNED' | 'LTP_AUDITOR_REVIEW' | 'LTP_ADMIN_REVIEW';
+export type LtpNotificationType = 'LTP_MANAGER_REVIEW' | 'LTP_AUDITEE_RETURNED' | 'LTP_AUDITOR_REVIEW' | 'LTP_ADMIN_REVIEW' | 'LTP_AUDITOR_RETURNED' | 'LTP_CLOSED';
 export type LtpManagerDecision = 'APPROVE' | 'RETURN';
 export type LtpAuditorVerificationResult = 'OPEN' | 'CLOSE';
+export type LtpAdminDecision = 'RETURN' | 'APPROVE';
 
 export interface LtpNotification {
   id: string;
@@ -31,11 +32,14 @@ export type LtpWorkflowContext = Omit<LtpContext, 'permissions'> & {
     can_submit_auditee: boolean;
     can_review_manager: boolean;
     can_review_auditor: boolean;
+    can_review_admin: boolean;
   };
   submit_blockers: string[];
   manager_approve_blockers: string[];
   manager_return_blockers: string[];
   auditor_open_blockers: string[];
   auditor_close_blockers: string[];
+  admin_return_blockers: string[];
+  admin_approve_blockers: string[];
   workflow_events: LtpWorkflowEvent[];
 };
