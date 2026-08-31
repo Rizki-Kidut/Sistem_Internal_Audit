@@ -25,6 +25,7 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false),[message,setMessage]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
   const formDisabled=!editable||busy;
   const submitDisabled=busy||dirty||context.submit_blockers.length>0;
+  const showAuditeeActionCard=editable||context.ltp.status===LTP_STATUS.MANAGER_REVIEW||context.ltp.status===LTP_STATUS.AUDITOR_REVIEW;
 
   useEffect(()=>{
     setDampak(context.ltp.dampak_temuan??'');
@@ -172,7 +173,7 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
       </div>
     </Card>
 
-    <Card className="p-5 border-l-4 border-blue-400">
+    {showAuditeeActionCard&&<Card className="p-5 border-l-4 border-blue-400">
       {editable&&<>
         {context.ltp.status===LTP_STATUS.AUDITEE_RETURNED&&<div className="mb-4 p-3 rounded-md bg-amber-50 text-amber-800 text-sm">
           <p className="font-semibold">
@@ -200,7 +201,7 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
       </>}
       {!editable&&context.ltp.status===LTP_STATUS.MANAGER_REVIEW&&<p className="text-sm text-gray-600">LTP sudah dikirim ke Section Manager. Isian Auditee sekarang read-only.</p>}
       {!editable&&context.ltp.status===LTP_STATUS.AUDITOR_REVIEW&&<p className="text-sm text-gray-600">LTP telah disetujui Section Manager dan sekarang menunggu verifikasi Auditor. Isian Auditee tetap read-only.</p>}
-    </Card>
+    </Card>}
   </>;
 }
 

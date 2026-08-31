@@ -115,7 +115,11 @@ PR #17, **Batch 7f: Admin/QMS LTP final decision**, targets `main` at base SHA
       closes the LTP.
 - [ ] **Browser smoke remains PENDING and USER-DRIVEN.** The expected route remains Admin initial
       review → Admin RETURN → Auditor re-verification CLOSE → Admin final APPROVE → `CLOSED` terminal
-      read-only. Automated tooling must not mutate the reserved fixture.
+      read-only. Automated tooling must not mutate the reserved fixture. The initial Batch 7f browser
+      review found an empty Auditee action card after Section 6 at `ADMIN_REVIEW`: its outer card was
+      unconditional while all children were status-conditional. The frontend correction now renders
+      that card only for editable Auditee states, `MANAGER_REVIEW`, or `AUDITOR_REVIEW`, preventing an
+      empty card at `AUDITOR_RETURNED`, `ADMIN_REVIEW`, and `CLOSED`; browser re-test is pending.
 - [x] Existing applied migrations, application/source files, and nested `/project` remain untouched by
       this documentation-only closeout. PR #17 remains OPEN and UNMERGED.
 
