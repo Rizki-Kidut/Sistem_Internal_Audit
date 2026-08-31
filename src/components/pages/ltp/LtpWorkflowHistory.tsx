@@ -17,8 +17,10 @@ const historyLabel=(event:LtpWorkflowEvent)=>{
   if(event.event_type==='AUDITEE_SUBMITTED_TO_MANAGER'&&event.from_status===LTP_STATUS.AUDITEE_RETURNED&&event.to_status===LTP_STATUS.MANAGER_REVIEW)return 'Auditee mengirim ulang LTP ke Section Manager';
   if(event.event_type==='MANAGER_RETURNED_TO_AUDITEE'&&event.from_status===LTP_STATUS.MANAGER_REVIEW&&event.to_status===LTP_STATUS.AUDITEE_RETURNED)return 'Section Manager mengembalikan LTP ke Auditee';
   if(event.event_type==='MANAGER_APPROVED_TO_AUDITOR'&&event.from_status===LTP_STATUS.MANAGER_REVIEW&&event.to_status===LTP_STATUS.AUDITOR_REVIEW)return 'Section Manager menyetujui LTP dan mengirim ke Auditor';
-  if(event.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'&&event.from_status===LTP_STATUS.AUDITOR_REVIEW&&event.to_status===LTP_STATUS.AUDITEE_RETURNED)return 'Auditor memverifikasi Open dan mengembalikan LTP ke Auditee';
-  if(event.event_type==='AUDITOR_VERIFIED_CLOSE_TO_ADMIN'&&event.from_status===LTP_STATUS.AUDITOR_REVIEW&&event.to_status===LTP_STATUS.ADMIN_REVIEW)return 'Auditor memverifikasi Close dan mengirim LTP ke Admin/QMS';
+  if(event.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'&&(event.from_status===LTP_STATUS.AUDITOR_REVIEW||event.from_status===LTP_STATUS.AUDITOR_RETURNED)&&event.to_status===LTP_STATUS.AUDITEE_RETURNED)return 'Auditor memverifikasi Open dan mengembalikan LTP ke Auditee';
+  if(event.event_type==='AUDITOR_VERIFIED_CLOSE_TO_ADMIN'&&(event.from_status===LTP_STATUS.AUDITOR_REVIEW||event.from_status===LTP_STATUS.AUDITOR_RETURNED)&&event.to_status===LTP_STATUS.ADMIN_REVIEW)return 'Auditor memverifikasi Close dan mengirim LTP ke Admin/QMS';
+  if(event.event_type==='ADMIN_RETURNED_TO_AUDITOR'&&event.from_status===LTP_STATUS.ADMIN_REVIEW&&event.to_status===LTP_STATUS.AUDITOR_RETURNED)return 'Admin/QMS mengembalikan LTP ke Auditor';
+  if(event.event_type==='ADMIN_APPROVED_LTP'&&event.from_status===LTP_STATUS.ADMIN_REVIEW&&event.to_status===LTP_STATUS.CLOSED)return 'Admin/QMS menyetujui dan menutup LTP';
   return null;
 };
 

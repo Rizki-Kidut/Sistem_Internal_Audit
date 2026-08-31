@@ -14,8 +14,10 @@ const dateTime=(value:string)=>{
 
 export function LtpAuditorReview({context,onRefresh}:{context:LtpWorkflowContext;onRefresh:()=>Promise<void>}){
   const [comment,setComment]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[confirm,setConfirm]=useState<LtpAuditorVerificationResult|null>(null);
-  const isReview=context.ltp.status===LTP_STATUS.AUDITOR_REVIEW;
+  const isReturned=context.ltp.status===LTP_STATUS.AUDITOR_RETURNED;
+  const isReview=context.ltp.status===LTP_STATUS.AUDITOR_REVIEW||isReturned;
   const latestDecision=[...context.workflow_events].reverse().find(event=>event.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'||event.event_type==='AUDITOR_VERIFIED_CLOSE_TO_ADMIN');
+  const latestAdminReturn=[...context.workflow_events].reverse().find(event=>event.event_type==='ADMIN_RETURNED_TO_AUDITOR');
   if(!isReview&&!latestDecision)return null;
   const canReview=isReview&&context.permissions.can_review_auditor;
   const openBlocked=context.auditor_open_blockers.length>0;
@@ -37,7 +39,7 @@ export function LtpAuditorReview({context,onRefresh}:{context:LtpWorkflowContext
         <ShieldCheck className="text-blue-600 mt-0.5" size={20}/>
         <div className="flex-1">
           <h2 className="font-semibold">8. Verifikasi Auditor</h2>
-          {isReview?<p className="text-sm text-gray-600 mt-1">Status: <strong>Menunggu Verifikasi Auditor</strong></p>:latestDecision&&<div className="mt-2 text-sm space-y-2">
+          {isReview?<p className="text-sm text-gray-600 mt-1">Status: <strong>{isReturned?'Dikembalikan Admin/QMS untuk Verifikasi Ulang':'Menunggu Verifikasi Auditor'}</strong></p>:latestDecision&&<div className="mt-2 text-sm space-y-2">
             <div>Hasil Verifikasi: <strong>{latestDecision.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'?'Open — Perlu Perbaikan Ulang':'Close'}</strong></div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
               <span>Diverifikasi oleh: <strong className="text-gray-700">{latestDecision.actor_name?.trim()||'Auditor'}</strong></span>
@@ -50,6 +52,7 @@ export function LtpAuditorReview({context,onRefresh}:{context:LtpWorkflowContext
           {isReview&&latestDecision&&<div className="mt-3 rounded-md bg-gray-50 p-3 text-xs text-gray-600">
             Verifikasi sebelumnya: <strong>{latestDecision.event_type==='AUDITOR_VERIFIED_OPEN_TO_AUDITEE'?'Open — Perlu Perbaikan Ulang':'Close'}</strong> oleh {latestDecision.actor_name?.trim()||'Auditor'} pada {dateTime(latestDecision.created_at)}.
           </div>}
+          {isReturned&&latestAdminReturn&&<div className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900"><div className="font-medium">LTP dikembalikan oleh Admin/QMS kepada Auditor.</div><div className="mt-1">Catatan Admin/QMS: <span className="whitespace-pre-wrap font-medium">{latestAdminReturn.comment||'-'}</span></div></div>}
 
           {canReview&&<div className="mt-4 space-y-3">
             <Field label="Catatan Auditor">

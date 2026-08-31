@@ -8,14 +8,36 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from `main` commit
-`65d677719326e41e93f29897c75cf61fa99aa618`, the squash merge of documentation-consolidation PR #15.
-The PR #14 implementation and merge history remains recorded below. Root-level standalone setup,
-static-review, and batch-verification notes have been reconciled into this canonical record and removed.
+`9e4f0eadf01dcf1412b19b45a789bfb0d3d314dc`, the squash merge of PR #16 (Batch 7e).
+The next active slice is Batch 7f — Admin/QMS LTP final decision.
+
+## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/RUNTIME/BROWSER PENDING`
+
+- [x] Added the hardened Admin/QMS decision design: `ADMIN_REVIEW → AUDITOR_RETURNED` for mandatory-comment Return and `ADMIN_REVIEW → CLOSED` for final Approve after Auditor `CLOSE`. No new LTP status was introduced.
+- [x] Extended the authoritative Auditor RPC and blockers for both `AUDITOR_REVIEW` and `AUDITOR_RETURNED`. Eligible annual/global Auditors retain the existing OPEN/CLOSE semantics, and both Auditor notification types are closed after a successful decision.
+- [x] Added immutable cumulative Admin workflow events, Auditor-return and terminal LTP notifications, Admin permissions/blockers in the LTP context, Section 8 returned-state feedback, Section 9 Admin controls/read-only history, and Indonesian timeline/worklist labels.
+- [x] Admin authority remains database-enforced as authenticated + active `ADMIN`; Auditor authority remains active `AUDITOR` plus `auditor_user_can_receive_finding`. Direct table-write/RLS policy behavior is unchanged.
+- [x] Repository migration: `20260831010000_add_ltp_admin_final_decision.sql`; SHA-256 `8433c355ddf6c6d6c6a2fde5c8b18b1135f29403c76e3a12a82aae3575d79bdc`.
+- [ ] Staging migration ledger version/name and applied status are pending because no authenticated Supabase/Staging connection is available in this workspace.
+- [ ] The rollback-only 21-case runtime matrix, notification fan-out verification, event immutability re-check, and Security Advisor run are pending Staging access. Security Advisor cleanliness is not claimed.
+- [x] Static validation passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check`. Build retained only the existing Browserslist and bundle-size advisories.
+- [ ] Vercel deployment and user-driven browser smoke are pending. The reserved fixture must remain `ADMIN_REVIEW`, revision 14, Auditor result `CLOSE`, eight events, latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, while its Finding remains `Open / LEGACY_ESTABLISHED` until the user performs the browser route.
+- [x] Finding synchronization is intentionally deferred to Batch 7g. Batch 7f never mutates `findings.status`, `findings.review_status`, or `findings.car_id`, including when the LTP reaches `CLOSED`.
+- [x] Existing applied migrations and the nested `/project` snapshot remain untouched.
+
+Changed files: `PROJECT_STATUS.md`, `src/lib/ltpWorkflowTypes.ts`, `src/lib/enums.ts`,
+`src/services/ltpService.ts`, `src/components/pages/LtpPage.tsx`,
+`src/components/pages/ltp/LtpAuditorReview.tsx`, `src/components/pages/ltp/LtpWorkflowHistory.tsx`, new
+`src/components/pages/ltp/LtpAdminReview.tsx`, and the single additive migration above.
 
 ## Batch 7e — LTP Auditor Verification — 30 Aug 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (PR #16 remains OPEN and UNMERGED; merge requires
-explicit user approval.)
+**Status:** `VERIFIED_COMPLETE — MERGED`
+
+Merged through PR #16. Approved PR head: `1ff6c89680654f2d5403483b1e059422fa6316b8`;
+squash merge commit: `9e4f0eadf01dcf1412b19b45a789bfb0d3d314dc`.
 
 - [x] Added controlled Auditor verification using the existing annual-access authority
       `auditor_user_can_receive_finding(auth.uid(), finding_id)`. Normal Team Auditors require an

@@ -1,10 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
 import type { LtpActionEvidence,LtpDraftPayload,LtpWorklistRow } from '../lib/types';
-import type { LtpAuditorVerificationResult,LtpManagerDecision,LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
+import type { LtpAdminDecision,LtpAuditorVerificationResult,LtpManagerDecision,LtpNotification,LtpWorkflowContext } from '../lib/ltpWorkflowTypes';
 import type { LtpEvidenceState } from '../lib/enums';
 
 const BUCKET='audit-evidence';
-const LTP_NOTIFICATION_TYPES=['LTP_MANAGER_REVIEW','LTP_AUDITEE_RETURNED','LTP_AUDITOR_REVIEW','LTP_ADMIN_REVIEW'] as const;
+const LTP_NOTIFICATION_TYPES=['LTP_MANAGER_REVIEW','LTP_AUDITEE_RETURNED','LTP_AUDITOR_REVIEW','LTP_ADMIN_REVIEW','LTP_AUDITOR_RETURNED','LTP_CLOSED'] as const;
 export const LTP_STALE_MESSAGE='LTP telah berubah di sesi lain. Muat ulang data sebelum menyimpan kembali.';
 
 export async function listLtpWorklist():Promise<LtpWorklistRow[]>{
@@ -96,6 +96,19 @@ export async function auditorVerifyLtp(carId:string,expectedRevision:number,resu
 }
 
 function sanitizeFileName(name:string):string{return name.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-')||'file';}
+
+export async function adminDecideLtp(carId:string,expectedRevision:number,decision:LtpAdminDecision,comment:string):Promise<number>{
+  const {data,error}=await supabase.rpc('admin_decide_ltp',{p_car_id:carId,p_expected_revision:expectedRevision,p_decision:decision,p_comment:comment.trim()||null});
+  if(error){
+    if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);
+    if(error.message.includes('LTP_ADMIN_RETURN_COMMENT_REQUIRED'))throw new Error('Catatan Admin/QMS wajib diisi ketika LTP dikembalikan ke Auditor.');
+    if(error.message.includes('LTP_ADMIN_RETURN_BLOCKED:'))throw new Error(error.message.split('LTP_ADMIN_RETURN_BLOCKED:')[1]?.trim()||'LTP belum dapat dikembalikan ke Auditor.');
+    if(error.message.includes('LTP_ADMIN_APPROVE_BLOCKED:'))throw new Error(error.message.split('LTP_ADMIN_APPROVE_BLOCKED:')[1]?.trim()||'LTP belum dapat ditutup.');
+    if(error.message.includes('Admin tidak diizinkan'))throw new Error('Anda tidak memiliki kewenangan untuk memutuskan LTP ini.');
+    throw new Error(`Gagal memproses keputusan Admin/QMS: ${error.message}`);
+  }
+  return data as number;
+}
 
 export async function uploadLtpActionEvidence(carId:string,actionId:string,state:LtpEvidenceState,file:File):Promise<void>{
   if(!actionId)throw new Error('Simpan Draft terlebih dahulu untuk mengaktifkan upload bukti.');
