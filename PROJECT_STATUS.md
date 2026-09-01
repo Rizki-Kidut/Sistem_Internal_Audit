@@ -118,17 +118,23 @@ PR #18, **Batch 7g: Finding/LTP final synchronization**, targets `main` at base 
 - [x] Vercel reported **SUCCESS** for pre-documentation PR head
       `25ddeff90eaadf5d0f8abda1f3ac6138fe574125`.
 - [x] Static validation remains PASS: `npm run typecheck`, `npm run build`, and `git diff --check`. Build
-      emitted only the existing non-blocking Browserslist and bundle-size advisories. No application file
-      changed in Batch 7g, so there was no changed-file application ESLint target. Repository-wide lint
+      emitted only the existing non-blocking Browserslist and bundle-size advisories. Repository-wide lint
       retains 24 pre-existing unused-symbol errors in untouched root source and `/project`; Batch 7g did
       not introduce them.
-- [ ] **Browser smoke remains PENDING and USER-DRIVEN.** QA-9910 is ready for observational cross-module
-      verification: LTP `CLOSED`, revision `17`, result `CLOSE`, 11 events; Finding `Closed /
-      LEGACY_ESTABLISHED`, revision `2`, `car_id=NULL`. The browser must confirm cross-module consistency,
-      unchanged PLOR content, no new controls, and no twelfth LTP event. Browser PASS is not claimed.
-- [x] This closeout changes only `PROJECT_STATUS.md`. Application source, SQL/RPC/RLS, the applied Batch
-      7g migration, `PROJECT_PLAN.md`, `AGENTS.md`, `Readme.md`, and nested `/project` remain untouched.
-      `main` remains untouched; PR #18 remains OPEN and UNMERGED.
+- [x] **Browser functional synchronization PASS:** QA-9910 showed Finding operational status `Closed`,
+      review status `LEGACY_ESTABLISHED`, unchanged read-only PLOR content, LTP internal state `CLOSED`,
+      and the existing 11 cumulative history events with no synchronization event #12.
+- [ ] **Browser terminology re-test remains PENDING and USER-DRIVEN.** Browser smoke found that Finding
+      correctly displayed `Closed` while the LTP worklist/detail displayed `Ditutup` / `LTP Ditutup`.
+      The product decision is to standardize the terminal user-facing status as `Closed`. The display-only
+      LTP mapping is corrected from internal `CLOSED` to label `Closed`, including worklist, detail badge,
+      filter option, and Admin terminal status display. Finding terminology and internal values remain
+      unchanged. Full browser PASS is not claimed until this terminology correction is re-tested.
+- [x] This terminology correction changes only the centralized LTP status label, the Admin terminal
+      status display, and `PROJECT_STATUS.md`. SQL/RPC/RLS, the applied Batch 7g migration, notifications,
+      workflow transitions/history wording, Finding synchronization/UI, `PROJECT_PLAN.md`, `AGENTS.md`,
+      `Readme.md`, and nested `/project` remain untouched. `main` remains untouched; PR #18 remains OPEN
+      and UNMERGED.
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 
