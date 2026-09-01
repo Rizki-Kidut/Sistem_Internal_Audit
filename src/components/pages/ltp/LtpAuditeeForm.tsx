@@ -11,6 +11,8 @@ const actionTypes=Object.values(LTP_ACTION_TYPE);
 const revisionCategories=Object.values(LTP_SYSTEM_REVISION_CATEGORY);
 const DIRTY_EVIDENCE_MESSAGE='Simpan Draft terlebih dahulu sebelum mengubah bukti agar perubahan form tidak hilang.';
 const DIRTY_SUBMIT_MESSAGE='Simpan Draft terlebih dahulu sebelum mengirim LTP ke Section Manager.';
+const actionKey=(action:LtpAction)=>action.id??action.client_key!;
+const newAction=(action_type:LtpActionType,sort_order:number,description=''):LtpAction=>({client_key:crypto.randomUUID(),action_type,sort_order,description,pic:null,due_date:null,evidence:[]});
 
 export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;onRefresh:()=>Promise<void>}){
   const editable=context.permissions.can_edit_auditee;
@@ -31,21 +33,41 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
     setDampak(context.ltp.dampak_temuan??'');
     setManfaat(context.ltp.manfaat_perbaikan??'');
     setWhy(context.finding.kategori==='C'?[]:Array.from({length:Math.max(3,context.why_analysis.length)},(_,i)=>context.why_analysis[i]??{level:i+1,teks:''}));
-    setActions(actionTypes.map(action_type=>context.actions.find(a=>a.action_type===action_type)??{
-      action_type,
-      description:editable&&action_type===LTP_ACTION_TYPE.CORRECTIVE&&context.finding.kategori==='C'?(context.finding.saran_perbaikan??''):'',
-      pic:null,
-      due_date:null,
-      evidence:[],
-    }));
+    const persisted=[...context.actions].sort((a,b)=>actionTypes.indexOf(a.action_type)-actionTypes.indexOf(b.action_type)||a.sort_order-b.sort_order||((a.id??'').localeCompare(b.id??'')));
+    if(editable){
+      for(const action_type of actionTypes){
+        if(!persisted.some(action=>action.action_type===action_type)){
+          const initialDescription=action_type===LTP_ACTION_TYPE.CORRECTIVE&&context.finding.kategori==='C'?(context.finding.saran_perbaikan??''):'';
+          persisted.push(newAction(action_type,1,initialDescription));
+        }
+      }
+      persisted.sort((a,b)=>actionTypes.indexOf(a.action_type)-actionTypes.indexOf(b.action_type)||a.sort_order-b.sort_order);
+    }
+    setActions(persisted);
     setRevisions(context.system_revisions);
     setDirty(false);
     setMessage(null);
     setError(null);
   },[context,editable]);
 
-  const changeAction=(type:LtpActionType,patch:Partial<LtpAction>)=>{
-    setActions(rows=>rows.map(row=>row.action_type===type?{...row,...patch}:row));
+  const changeAction=(key:string,patch:Partial<LtpAction>)=>{
+    setActions(rows=>rows.map(row=>actionKey(row)===key?{...row,...patch}:row));
+    setDirty(true);
+  };
+
+  const addAction=(type:LtpActionType)=>{
+    setActions(rows=>[...rows,newAction(type,rows.filter(row=>row.action_type===type).length+1)]);
+    setDirty(true);
+  };
+
+  const removeAction=(action:LtpAction)=>{
+    if(action.evidence.length>0){
+      setError('Hapus seluruh evidence pada tindakan ini terlebih dahulu sebelum menghapus tindakan.');
+      return;
+    }
+    setActions(rows=>rows.filter(row=>actionKey(row)!==actionKey(action)).map(row=>row.action_type===action.action_type
+      ?{...row,sort_order:rows.filter(candidate=>candidate.action_type===row.action_type&&actionKey(candidate)!==actionKey(action)).findIndex(candidate=>actionKey(candidate)===actionKey(row))+1}
+      :row));
     setDirty(true);
   };
 
@@ -132,30 +154,42 @@ export function LtpAuditeeForm({context,onRefresh}:{context:LtpWorkflowContext;o
     <Card className="p-5">
       <h2 className="font-semibold mb-4">5. Tindakan Perbaikan</h2>
       <div className="space-y-5">
-        {actions.map(action=><div key={action.action_type} className="border rounded-lg p-4">
-          <h3 className="font-medium mb-3">{LTP_ACTION_TYPE_LABEL[action.action_type]}</h3>
-          <div className="grid md:grid-cols-2 gap-3">
-            <Field label="Deskripsi" className="md:col-span-2"><Textarea rows={3} value={action.description} disabled={formDisabled} onChange={e=>changeAction(action.action_type,{description:e.target.value})}/></Field>
-            <Field label="PIC"><Input value={action.pic??''} disabled={formDisabled} onChange={e=>changeAction(action.action_type,{pic:e.target.value||null})}/></Field>
-            <Field label="Due Date"><Input type="date" value={action.due_date??''} disabled={formDisabled} onChange={e=>changeAction(action.action_type,{due_date:e.target.value||null})}/></Field>
-          </div>
-          <div className="grid md:grid-cols-2 gap-3 mt-4">
-            {Object.values(LTP_EVIDENCE_STATE).map(state=><Evidence
-              key={state}
-              className={state===LTP_EVIDENCE_STATE.BEFORE_AFTER?'md:col-span-2':undefined}
-              label={LTP_EVIDENCE_STATE_LABEL[state]}
-              uploadLabel={state===LTP_EVIDENCE_STATE.BEFORE_AFTER?'Upload Perbandingan':'Upload Bukti'}
-              state={state}
-              action={action}
-              editable={editable}
-              busy={busy}
-              dirty={dirty}
-              onUpload={upload}
-              onOpen={openEvidence}
-              onDelete={removeEvidence}
-            />)}
-          </div>
-        </div>)}
+        {actionTypes.map(type=>{
+          const grouped=actions.filter(action=>action.action_type===type);
+          return <section key={type} className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-gray-800">{LTP_ACTION_TYPE_LABEL[type]}</h3>
+              {editable&&<Button variant="secondary" disabled={busy} onClick={()=>addAction(type)}><Plus size={15}/> Tambah Tindakan</Button>}
+            </div>
+            {grouped.map((action,index)=><div key={actionKey(action)} className="border rounded-lg p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="font-medium">{LTP_ACTION_TYPE_LABEL[action.action_type]} #{index+1}</h4>
+                {editable&&<Button variant="ghost" disabled={busy} onClick={()=>removeAction(action)}><Trash2 size={15}/> Hapus Tindakan</Button>}
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                <Field label="Deskripsi" className="md:col-span-2"><Textarea rows={3} value={action.description} disabled={formDisabled} onChange={e=>changeAction(actionKey(action),{description:e.target.value})}/></Field>
+                <Field label="PIC"><Input value={action.pic??''} disabled={formDisabled} onChange={e=>changeAction(actionKey(action),{pic:e.target.value||null})}/></Field>
+                <Field label="Due Date"><Input type="date" value={action.due_date??''} disabled={formDisabled} onChange={e=>changeAction(actionKey(action),{due_date:e.target.value||null})}/></Field>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3 mt-4">
+                {Object.values(LTP_EVIDENCE_STATE).map(state=><Evidence
+                  key={state}
+                  className={state===LTP_EVIDENCE_STATE.BEFORE_AFTER?'md:col-span-2':undefined}
+                  label={LTP_EVIDENCE_STATE_LABEL[state]}
+                  uploadLabel={state===LTP_EVIDENCE_STATE.BEFORE_AFTER?'Upload Perbandingan':'Upload Bukti'}
+                  state={state}
+                  action={action}
+                  editable={editable}
+                  busy={busy}
+                  dirty={dirty}
+                  onUpload={upload}
+                  onOpen={openEvidence}
+                  onDelete={removeEvidence}
+                />)}
+              </div>
+            </div>)}
+          </section>;
+        })}
       </div>
     </Card>
 

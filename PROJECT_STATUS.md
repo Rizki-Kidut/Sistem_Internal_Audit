@@ -7,21 +7,21 @@ state, PR/merge lineage, runtime and browser verification, migration/security ev
 and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGENTS.md` contains
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
-This documentation snapshot starts from `main` commit
-`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`, the squash merge of PR #17 (Batch 7f).
-The active controlled feature slice is Batch 7g — Finding/LTP final synchronization.
+This documentation snapshot starts from current `main` commit
+`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`, the squash merge of PR #18 (Batch 7g).
+The active controlled feature slice is Batch 7h — Multiple LTP Actions with Evidence per Action.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, migration, Staging, runtime,
-real-browser, terminology re-test, Vercel, and static verification PASS; PR #18 remains OPEN and
-UNMERGED and requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (implementation, migration, Staging, runtime, real-browser,
+terminology re-test, Vercel, and static verification PASS.)
 
-PR #18, **Batch 7g: Finding/LTP final synchronization**, targets `main` at base SHA
-`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`. Its authoritative branch is
-`codex/implement-batch-7g-synchronization-feature`; the final browser-tested pre-documentation PR
-head was `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
+PR #18, **Batch 7g: Finding/LTP final synchronization**, was approved at head
+`2eb0e41fe57452b70d68df167965b25dbc5f2a1f` and squash-merged to `main` as
+`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`. Its authoritative branch was
+`codex/implement-batch-7g-synchronization-feature`; the browser-tested pre-documentation head was
+`219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
 
 ### Implementation and migration — VERIFIED ON STAGING
 
@@ -152,20 +152,52 @@ head was `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
 - [x] Batch 7g browser verification is complete. SQL/RPC/RLS, the immutable applied migration,
       notifications, workflow transitions/history wording, Finding synchronization, `PROJECT_PLAN.md`,
       `AGENTS.md`, `Readme.md`, and nested `/project` remain untouched by this final documentation closeout.
-      `main` remains untouched; PR #18 remains OPEN and UNMERGED pending explicit user merge approval.
+      PR #18 is merged at the documented squash commit; its verified implementation and evidence remain preserved.
 
-### Next controlled slice — NOT IMPLEMENTED
+## Batch 7h — Multiple LTP Actions with Evidence per Action — 1 Sep 2026
 
-Batch 7h — **Multiple LTP Actions with Evidence per Action** is the next planned scope. Existing evidence
-already belongs to `car_action_evidence.action_id`, and submit blockers validate evidence per action, but
-current uniqueness/save behavior on `(car_id, action_type)` effectively permits only one action row per
-action type and therefore prevents multiple separate Corrective actions.
+**Status:** `IMPLEMENTED_UNVERIFIED — STAGING / RUNTIME / BROWSER PENDING`
 
-The target principle is **one action = one evidence set**. Each action will own Description, PIC, Due Date,
-Evidence Before, Evidence After, and Before vs After; an evidence slot may still contain multiple files.
-Two Corrective actions must own two independent evidence sets, and submission must be blocked if any saved
-action lacks its required evidence. The intended UI will support numbered actions and `+ Tambah Tindakan`.
-Batch 7h schema, save logic, validation, and UI are explicitly deferred and were not implemented here.
+- [x] Implemented the principle **one action = one evidence set** without a second evidence model. Each
+      evidence set remains the existing collection of `car_action_evidence` rows keyed by the stable
+      `car_actions.id`; `BEFORE`, `AFTER`, and `BEFORE_AFTER` continue to accept multiple files and retain
+      the action-UUID Storage path. The evidence register/delete RPCs, access helpers, and Storage path were
+      audited and require no change because they already authorize and group by `action_id`.
+- [x] Added the single additive migration `20260901010000_enable_multiple_ltp_actions.sql` (repository
+      SHA-256 `02d848b3caed33fd4c9ab5d18b933c42e9f1bf0acd25fbd84b36cf60d5e2c6a8`). It adds positive, non-null
+      `sort_order`, deterministically backfills existing rows by `created_at,id` within each LTP/type, drops
+      the old `(car_id,action_type)` uniqueness, and creates deferred uniqueness on
+      `(car_id,action_type,sort_order)`. Migration assertions protect action/evidence counts, referential
+      ownership, positive/non-null ordering, and uniqueness. It does not recreate actions, change UUIDs,
+      duplicate evidence, increment LTP revisions, or create workflow events.
+- [x] Replaced `save_ltp_auditee_draft` additively with transactional UUID-based reconciliation. The server
+      rejects malformed/duplicate/cross-LTP IDs and action-type changes, derives sequential per-type order
+      from payload order, updates existing UUID rows, inserts nonblank new rows, deletes omitted evidence-free
+      rows, and rejects deletion of evidence-backed rows. Optimistic concurrency remains fail-first and one
+      successful draft transaction increments `cars.revision_version` exactly once.
+- [x] Replaced `ltp_submit_blockers` while preserving Section Manager, response, and Why-Why gates. At least
+      one Corrective action remains mandatory, and every persisted action now receives numbered PIC, Due Date,
+      and evidence-completeness blockers; for example, `Tindakan Korektif #2 belum memiliki PIC.` Evidence is
+      complete only with `BEFORE + AFTER` or at least one `BEFORE_AFTER` for that same action UUID.
+- [x] Replaced the latest `get_ltp_context(uuid)` definition without dropping Batch 7c–7g context fields or
+      workflow blockers. Action JSON includes `sort_order` and is ordered Temporary → Corrective → Preventive,
+      then `sort_order,id`. Existing access checks and function grants are retained; submit blockers remain
+      private, draft save remains authenticated-executable and internally Auditee-guarded, and context remains
+      authenticated-executable with its existing record access check.
+- [x] Refactored Section 5 into repeatable per-type groups with numbered cards, `+ Tambah Tindakan`, and
+      individual Auditee-only deletion. React targets persisted UUIDs or local-only `client_key` values, never
+      action type or array index. Persisted evidence prevents local removal; evidence-free removal commits only
+      through Save Draft. Read-only roles render only persisted actions.
+- [x] Unsaved actions render independent Before/After/Before-vs-After slots but preserve save-first upload.
+      Any structural/field edit marks the form dirty, blocking evidence mutation and submit until Save Draft.
+      Category C defaults only the initial Corrective #1 from `saran_perbaikan`; additional actions stay blank.
+- [x] Batch 7g final Finding synchronization, Finding lifecycle rules, notifications, and workflow event
+      semantics are untouched. All earlier migrations remain immutable, and nested `/project` is untouched.
+- [ ] Staging migration application and ledger version: **PENDING**; no Staging application is claimed.
+- [ ] Runtime 50-case verification matrix: **PENDING** for the technical lead after Staging migration.
+- [ ] User-driven browser smoke: **PENDING**. Vercel deployment status: **PENDING** until a remote PR deployment exists.
+- [x] Local static validation: `npm run typecheck`, changed-file ESLint, `npm run build`, and
+      `git diff --check` pass; build retains only the known non-blocking Browserslist/bundle-size advisories.
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 

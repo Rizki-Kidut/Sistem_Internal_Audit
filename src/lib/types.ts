@@ -527,7 +527,7 @@ export interface FindingContext {
 import type { LtpActionType, LtpEvidenceState, LtpStatus, LtpSystemRevisionCategory } from './enums';
 export interface LtpWhyAnalysis { id?:string;level:number;teks:string; }
 export interface LtpActionEvidence { id:string;action_id:string;evidence_state:LtpEvidenceState;file_name:string;path:string;mime_type:string|null;size_bytes:number|null;uploaded_at:string; }
-export interface LtpAction { id?:string;action_type:LtpActionType;description:string;pic:string|null;due_date:string|null;evidence:LtpActionEvidence[]; }
+export interface LtpAction { id?:string;client_key?:string;action_type:LtpActionType;sort_order:number;description:string;pic:string|null;due_date:string|null;evidence:LtpActionEvidence[]; }
 export interface LtpSystemRevision { id?:string;kategori:LtpSystemRevisionCategory;nama_dokumen:string;created_at?:string; }
 export interface LtpDraftPayload { car_id:string;expected_revision:number;dampak_temuan:string;manfaat_perbaikan:string;why_analysis:LtpWhyAnalysis[];actions:LtpAction[];system_revisions:LtpSystemRevision[]; }
 export interface LtpWorklistRow { car_id:string;finding_id:string;kode_ltp:string;kode_audit:string;kategori:KategoriTemuan;status:LtpStatus;seksi_auditee_id:string|null;seksi_nama:string|null;proses_nama:string|null;tanggal_temuan:string; }
