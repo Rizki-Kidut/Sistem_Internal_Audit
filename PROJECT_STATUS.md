@@ -14,13 +14,14 @@ The active controlled feature slice is Batch 7g — Finding/LTP final synchroniz
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
 
-**Status:** `IMPLEMENTED — STAGING VERIFIED — BROWSER PENDING` (PR #18 remains OPEN and
-UNMERGED; observational browser smoke is user-driven.)
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, migration, Staging, runtime,
+real-browser, terminology re-test, Vercel, and static verification PASS; PR #18 remains OPEN and
+UNMERGED and requires explicit user approval before merge.)
 
 PR #18, **Batch 7g: Finding/LTP final synchronization**, targets `main` at base SHA
 `1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`. Its authoritative branch is
-`codex/implement-batch-7g-synchronization-feature`; the pre-documentation PR head was
-`25ddeff90eaadf5d0f8abda1f3ac6138fe574125`.
+`codex/implement-batch-7g-synchronization-feature`; the final browser-tested pre-documentation PR
+head was `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
 
 ### Implementation and migration — VERIFIED ON STAGING
 
@@ -115,26 +116,56 @@ PR #18, **Batch 7g: Finding/LTP final synchronization**, targets `main` at base 
       warning also remains. The private `sync_finding_closed_from_ltp(uuid)` does not appear as an
       authenticated-executable warning, and runtime access control passed. Remediation reference:
       https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
-- [x] Vercel reported **SUCCESS** for pre-documentation PR head
-      `25ddeff90eaadf5d0f8abda1f3ac6138fe574125`.
-- [x] Static validation remains PASS: `npm run typecheck`, `npm run build`, and `git diff --check`. Build
-      emitted only the existing non-blocking Browserslist and bundle-size advisories. Repository-wide lint
-      retains 24 pre-existing unused-symbol errors in untouched root source and `/project`; Batch 7g did
-      not introduce them.
-- [x] **Browser functional synchronization PASS:** QA-9910 showed Finding operational status `Closed`,
-      review status `LEGACY_ESTABLISHED`, unchanged read-only PLOR content, LTP internal state `CLOSED`,
-      and the existing 11 cumulative history events with no synchronization event #12.
-- [ ] **Browser terminology re-test remains PENDING and USER-DRIVEN.** Browser smoke found that Finding
-      correctly displayed `Closed` while the LTP worklist/detail displayed `Ditutup` / `LTP Ditutup`.
-      The product decision is to standardize the terminal user-facing status as `Closed`. The display-only
-      LTP mapping is corrected from internal `CLOSED` to label `Closed`, including worklist, detail badge,
-      filter option, and Admin terminal status display. Finding terminology and internal values remain
-      unchanged. Full browser PASS is not claimed until this terminology correction is re-tested.
-- [x] This terminology correction changes only the centralized LTP status label, the Admin terminal
-      status display, and `PROJECT_STATUS.md`. SQL/RPC/RLS, the applied Batch 7g migration, notifications,
-      workflow transitions/history wording, Finding synchronization/UI, `PROJECT_PLAN.md`, `AGENTS.md`,
-      `Readme.md`, and nested `/project` remain untouched. `main` remains untouched; PR #18 remains OPEN
-      and UNMERGED.
+- [x] Vercel reported **SUCCESS** for final browser-tested PR head
+      `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
+- [x] Static validation remains PASS: `npm run typecheck`, `npm run build`, changed-file ESLint for the
+      terminology correction, and `git diff --check`. Build emitted only the existing non-blocking
+      Browserslist and bundle-size advisories. Repository-wide lint retains 24 pre-existing unused-symbol
+      errors in untouched root source and `/project`; Batch 7g did not introduce them.
+
+### Real-browser synchronization and terminology verification — PASS
+
+- [x] **A — Temuan/PLOR worklist:** Finding `QA-9910/MFG/2099/001`, No. Audit `QA-9910`, displayed
+      Review Status `LEGACY_ESTABLISHED`, Finding / CAR Status `Closed`, and PLOR `Lengkap`. This proves
+      terminal synchronization is visible in the active worklist.
+- [x] **B — Finding detail:** the same Finding displayed Review Status `LEGACY_ESTABLISHED` and Finding /
+      CAR Status `Closed`, plus `Pelaksanaan audit ini sudah selesai.` Identity and Checklist-source
+      sections remained read-only, Sections 3–5 were functionally locked, PLOR content remained intact,
+      and Review & Approval remained unchanged. Final synchronization created no Finding-review event.
+- [x] **C — LTP cross-module consistency:** the LTP remained internally `CLOSED` and retained exactly 11
+      cumulative workflow events, ending with `Admin/QMS menyetujui dan menutup LTP`. No synchronization
+      event #12 appeared. The original browser pass exposed only a display inconsistency: Temuan/PLOR used
+      `Closed`, while the LTP worklist/detail used `Ditutup` / `LTP Ditutup`.
+- [x] The same-PR display-only correction standardized terminal user-facing terminology as `Closed`:
+      `LTP_STATUS_LABEL.CLOSED` changed `Ditutup → Closed`, and the Admin terminal decision status changed
+      `LTP Ditutup → Closed`. This covers the LTP worklist badge, detail badge, filter option, and Admin/QMS
+      terminal card. Finding terminology remained `Closed`; internal values remain Finding `Closed` and LTP
+      `CLOSED`. The natural-language event sentence `Admin/QMS menyetujui dan menutup LTP` was not changed.
+- [x] **Terminology browser re-test:** after deployment and hard refresh, the QA-9910 LTP worklist showed
+      Status `Closed`. Detail Section 9 showed Keputusan `Disetujui`, Status `Closed`, actor **Admin Browser
+      Smoke**, and retained comment `Disetujui dan LTP dapat ditutup.` Sections 7 and 8 remained historical;
+      Section 8 retained Hasil Verifikasi `Close`. PLOR and LTP terminal UI now both display `Closed`.
+- [x] Final read-only Staging verification after browser smoke found no backend mutation: LTP `CLOSED`,
+      revision `17`, Auditor result `CLOSE`, 11 events, latest `ADMIN_APPROVED_LTP`; Finding `Closed`,
+      `LEGACY_ESTABLISHED`, revision `2`, `car_id=NULL`. No browser action created event #12, incremented the
+      LTP revision, changed review status, or populated the legacy Finding relation.
+- [x] Batch 7g browser verification is complete. SQL/RPC/RLS, the immutable applied migration,
+      notifications, workflow transitions/history wording, Finding synchronization, `PROJECT_PLAN.md`,
+      `AGENTS.md`, `Readme.md`, and nested `/project` remain untouched by this final documentation closeout.
+      `main` remains untouched; PR #18 remains OPEN and UNMERGED pending explicit user merge approval.
+
+### Next controlled slice — NOT IMPLEMENTED
+
+Batch 7h — **Multiple LTP Actions with Evidence per Action** is the next planned scope. Existing evidence
+already belongs to `car_action_evidence.action_id`, and submit blockers validate evidence per action, but
+current uniqueness/save behavior on `(car_id, action_type)` effectively permits only one action row per
+action type and therefore prevents multiple separate Corrective actions.
+
+The target principle is **one action = one evidence set**. Each action will own Description, PIC, Due Date,
+Evidence Before, Evidence After, and Before vs After; an evidence slot may still contain multiple files.
+Two Corrective actions must own two independent evidence sets, and submission must be blocked if any saved
+action lacks its required evidence. The intended UI will support numbered actions and `+ Tambah Tindakan`.
+Batch 7h schema, save logic, validation, and UI are explicitly deferred and were not implemented here.
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 
