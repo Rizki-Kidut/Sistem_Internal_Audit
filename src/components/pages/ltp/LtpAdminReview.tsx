@@ -21,7 +21,7 @@ export function LtpAdminReview({context,onRefresh}:{context:LtpWorkflowContext;o
       <h2 className="font-semibold">9. Keputusan Admin/QMS</h2>
       {isReview?<p className="text-sm text-gray-600 mt-1">Status: <strong>Menunggu Keputusan Admin/QMS</strong></p>:latest&&<div className="mt-2 text-sm space-y-2">
         <div>Keputusan: <strong>{latest.event_type==='ADMIN_APPROVED_LTP'?'Disetujui':'Dikembalikan ke Auditor'}</strong></div>
-        {latest.event_type==='ADMIN_APPROVED_LTP'&&<div>Status: <strong>LTP Ditutup</strong></div>}
+        {latest.event_type==='ADMIN_APPROVED_LTP'&&<div>Status: <strong>Closed</strong></div>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500"><span>Diputuskan oleh: <strong className="text-gray-700">{latest.actor_name?.trim()||'Admin/QMS'}</strong></span><span className="inline-flex items-center gap-1"><Clock3 size={12}/>{dateTime(latest.created_at)}</span></div>
         {latest.comment?.trim()&&<div className="text-xs text-gray-600">Catatan Admin/QMS: <strong className="text-gray-700 whitespace-pre-wrap">{latest.comment}</strong></div>}
       </div>}
