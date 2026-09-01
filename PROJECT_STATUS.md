@@ -8,18 +8,64 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from `main` commit
-`9e4f0eadf01dcf1412b19b45a789bfb0d3d314dc`, the squash merge of PR #16 (Batch 7e).
-Batch 7f is ready for merge after explicit user approval. The next controlled feature slice after
-that merge is Batch 7g — Finding/LTP final synchronization.
+`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`, the squash merge of PR #17 (Batch 7f).
+The active controlled feature slice is Batch 7g — Finding/LTP final synchronization.
+
+
+## Batch 7g — Finding/LTP Final Synchronization — 31 Aug 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — STAGING, RUNTIME, SECURITY, VERCEL, AND USER-DRIVEN BROWSER VERIFICATION PENDING`
+
+- [x] The additive migration `20260831020000_sync_closed_ltp_finding.sql` implements exactly one
+      one-way terminal rule: a valid LTP `CLOSED` by authoritative Admin/QMS approval closes the related
+      Finding operational `status`. It deliberately defines no mapping for intermediate LTP states because
+      their Finding operational semantics have not been established.
+- [x] `findings.review_status` remains independent and unchanged. Only established Findings in
+      `PUBLISHED` or `LEGACY_ESTABLISHED` can be synchronized. The legacy `findings.car_id` is not
+      populated or changed; the canonical active relationship remains unique `cars.finding_id`.
+- [x] `protect_finding_update()` preserves its existing source-sync, Finding-workflow, and PLOR-save
+      branches and adds the dedicated `certitrack.finding_ltp_final_sync` branch. That branch permits only
+      nonterminal operational status to `Closed`, exactly one Finding revision increment, and the normal
+      trigger-managed `updated_at` change; every other Finding field is rejected.
+- [x] Private `SECURITY DEFINER` helper `sync_finding_closed_from_ltp(uuid)` locks the LTP and Finding,
+      validates `CLOSED`, Auditor result `CLOSE`, same-car immutable `ADMIN_APPROVED_LTP` evidence
+      (including compatible historical transition fields), established Finding review state, and an allowed
+      nonterminal Finding status. It returns `false` without mutation when already Closed and has all
+      execute privileges revoked from `PUBLIC`, `anon`, and `authenticated`.
+- [x] Future Admin APPROVE now updates the LTP, appends the existing terminal workflow event, and invokes
+      the private Finding synchronization before notification cleanup/fan-out in the same database
+      transaction. Any synchronization or later failure rolls back the whole approval. Admin RETURN,
+      Auditor decisions, the existing `LTP_CLOSED` notification fan-out, and terminal read-only behavior
+      remain unchanged. No duplicate Finding notification or Finding-review event was added.
+- [x] The one-time backfill calls the same helper only for LTPs with `CLOSED`, result `CLOSE`, same-car
+      `ADMIN_APPROVED_LTP` evidence, established Finding review state, and a non-Closed Finding, then
+      asserts that no qualifying mismatch remains. It changes only Finding `status`, `revision_version`,
+      and trigger-managed `updated_at`; it does not mutate LTP revision/history, notifications, PLOR data,
+      source Checklist data, review state, or legacy `car_id`.
+- [x] Repository migration SHA-256: `dbab53040fbaf5a670ef54defc404897ed9d3627af1769ebea2656f1bb9d5c1a`. No frontend change was necessary: the active
+      Temuan worklist/detail already reads `findings.status`, displays the value directly, and includes
+      `Closed` in its operational-status filter.
+- [x] Static checks passed for `npm run typecheck`, `npm run build`, and `git diff --check`. The build
+      emitted only the existing Browserslist-data and bundle-size advisories. There are no changed
+      ESLint-eligible application files in this migration/documentation-only slice. The repository-wide
+      `npm run lint` remains non-clean because of 24 pre-existing unused-symbol errors in untouched root
+      source and the untouched nested `/project` snapshot; Batch 7g introduced none of them.
+- [ ] CertiTrack-Staging application is pending; therefore the actual Staging migration ledger version/name,
+      backfill count, QA-9910 Finding revision before/after, 30-case rollback runtime matrix, direct-mutation
+      denial evidence, atomicity fixture, Security Advisor result, and Vercel result are not yet claimed.
+- [ ] After migration, the expected read-only QA-9910 state is unchanged LTP `CLOSED`, revision `17`,
+      Auditor result `CLOSE`, 11 events with latest `ADMIN_APPROVED_LTP`; Finding `Closed /
+      LEGACY_ESTABLISHED` with `car_id=NULL` and exactly one Finding revision increment. User-driven
+      browser smoke remains explicitly pending and must confirm no twelfth LTP event.
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (Staging, runtime, browser, and Vercel PASS; PR #17 remains OPEN and UNMERGED and requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (Staging, runtime, browser, and Vercel PASS.)
 
-PR #17, **Batch 7f: Admin/QMS LTP final decision**, targets `main` at base SHA
-`9e4f0eadf01dcf1412b19b45a789bfb0d3d314dc`. Its actual branch is
-`codex/implement-batch-7f-admin/qms-final-decision`; the pre-final-documentation remote head was
-`daa1fce0efc9bfe38853e31317521a2258a16b4c`.
+PR #17, **Batch 7f: Admin/QMS LTP final decision**, was approved at head
+`afa83c7fe49b80713b8b444586a4441a242a4db5` and squash-merged to `main` as
+`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`. Its implementation branch was
+`codex/implement-batch-7f-admin/qms-final-decision`.
 
 ### Implementation and migration — VERIFIED
 
@@ -173,10 +219,10 @@ closed, not the Finding.
 - [x] Batch 7f does not update `findings.status`, `findings.review_status`, or `findings.car_id`.
       Finding/LTP synchronization remains explicitly deferred to Batch 7g, even after Admin APPROVE
       closes the LTP.
-- [x] Existing applied migrations, application/source files, and nested `/project` remain untouched by
-      this final documentation-only closeout. PR #17 remains OPEN and UNMERGED; merge requires explicit
-      user approval. The next controlled slice after merge is Batch 7g — Finding/LTP final synchronization.
-      Handoff state: LTP `CLOSED`; Finding `Open / LEGACY_ESTABLISHED`, `car_id=NULL`.
+- [x] Existing applied migrations, application/source files, and nested `/project` remained untouched by
+      the final documentation-only closeout. PR #17 was subsequently approved and squash-merged. The
+      active controlled slice is Batch 7g — Finding/LTP final synchronization. Handoff state before the
+      Batch 7g migration: LTP `CLOSED`; Finding `Open / LEGACY_ESTABLISHED`, `car_id=NULL`.
 
 ## Batch 7e — LTP Auditor Verification — 30 Aug 2026
 
