@@ -29,7 +29,7 @@ export async function saveLtpAuditeeDraft(payload:LtpDraftPayload):Promise<numbe
     p_car_id:payload.car_id,p_expected_revision:payload.expected_revision,
     p_dampak_temuan:payload.dampak_temuan,p_manfaat_perbaikan:payload.manfaat_perbaikan,
     p_why_analysis:payload.why_analysis.map(({teks})=>({teks})),
-    p_actions:payload.actions.map(({action_type,description,pic,due_date})=>({action_type,description,pic,due_date})),
+    p_actions:payload.actions.map(({id,action_type,description,pic,due_date})=>({id:id??null,action_type,description,pic,due_date})),
     p_system_revisions:payload.system_revisions.map(({kategori,nama_dokumen})=>({kategori,nama_dokumen})),
   });
   if(error){if(error.message.includes('LTP_STALE_REVISION'))throw new Error(LTP_STALE_MESSAGE);throw new Error(`Gagal menyimpan Draft LTP: ${error.message}`);}

@@ -7,21 +7,21 @@ state, PR/merge lineage, runtime and browser verification, migration/security ev
 and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGENTS.md` contains
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
-This documentation snapshot starts from `main` commit
-`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`, the squash merge of PR #17 (Batch 7f).
-The active controlled feature slice is Batch 7g — Finding/LTP final synchronization.
+This documentation snapshot starts from current `main` commit
+`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`, the squash merge of PR #18 (Batch 7g).
+The active controlled feature slice is Batch 7h — Multiple LTP Actions with Evidence per Action.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, migration, Staging, runtime,
-real-browser, terminology re-test, Vercel, and static verification PASS; PR #18 remains OPEN and
-UNMERGED and requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (implementation, migration, Staging, runtime, real-browser,
+terminology re-test, Vercel, and static verification PASS.)
 
-PR #18, **Batch 7g: Finding/LTP final synchronization**, targets `main` at base SHA
-`1e9c32a05e475f21c7c557a94b42ae5cc5a6c168`. Its authoritative branch is
-`codex/implement-batch-7g-synchronization-feature`; the final browser-tested pre-documentation PR
-head was `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
+PR #18, **Batch 7g: Finding/LTP final synchronization**, was approved at head
+`2eb0e41fe57452b70d68df167965b25dbc5f2a1f` and squash-merged to `main` as
+`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`. Its authoritative branch was
+`codex/implement-batch-7g-synchronization-feature`; the browser-tested pre-documentation head was
+`219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
 
 ### Implementation and migration — VERIFIED ON STAGING
 
@@ -152,20 +152,150 @@ head was `219882c678a1ac9d4a0dfceacbf8cd4d9bafb4b7`.
 - [x] Batch 7g browser verification is complete. SQL/RPC/RLS, the immutable applied migration,
       notifications, workflow transitions/history wording, Finding synchronization, `PROJECT_PLAN.md`,
       `AGENTS.md`, `Readme.md`, and nested `/project` remain untouched by this final documentation closeout.
-      `main` remains untouched; PR #18 remains OPEN and UNMERGED pending explicit user merge approval.
+      PR #18 is merged at the documented squash commit; its verified implementation and evidence remain preserved.
 
-### Next controlled slice — NOT IMPLEMENTED
+## Batch 7h — Multiple LTP Actions with Evidence per Action — 1 Sep 2026
 
-Batch 7h — **Multiple LTP Actions with Evidence per Action** is the next planned scope. Existing evidence
-already belongs to `car_action_evidence.action_id`, and submit blockers validate evidence per action, but
-current uniqueness/save behavior on `(car_id, action_type)` effectively permits only one action row per
-action type and therefore prevents multiple separate Corrective actions.
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (Staging, runtime, real-browser, Vercel, security,
+and static verification PASS. PR #19 remains OPEN and UNMERGED; merge requires explicit user approval.)
 
-The target principle is **one action = one evidence set**. Each action will own Description, PIC, Due Date,
-Evidence Before, Evidence After, and Before vs After; an evidence slot may still contain multiple files.
-Two Corrective actions must own two independent evidence sets, and submission must be blocked if any saved
-action lacks its required evidence. The intended UI will support numbered actions and `+ Tambah Tindakan`.
-Batch 7h schema, save logic, validation, and UI are explicitly deferred and were not implemented here.
+PR #19, **Batch 7h: Multiple LTP actions with per-action evidence**, targets `main` at base SHA
+`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`. Its authoritative branch is
+`codex/implement-multiple-ltp-actions-feature`; the browser-tested/pre-closeout PR head is
+`aa63d8172555a4aef86963d5f28d47f3a9d169a2`.
+
+### Implementation and immutable Staging migration — PASS
+
+- [x] The principle remains **one action = one evidence set** without a second evidence model. Evidence
+      continues to be grouped by stable `car_actions.id`, with multiple files supported independently in
+      `BEFORE`, `AFTER`, and `BEFORE_AFTER` for each action UUID.
+- [x] Repository migration `20260901010000_enable_multiple_ltp_actions.sql` has repository SHA-256
+      `02d848b3caed33fd4c9ab5d18b933c42e9f1bf0acd25fbd84b36cf60d5e2c6a8`. CertiTrack-Staging applied it
+      under the separate actual ledger entry `20260901061215 · enable_multiple_ltp_actions`. Repository
+      filename and Staging ledger identity are intentionally recorded separately; the applied migration is
+      now immutable.
+- [x] Live schema verification passed: `car_actions.sort_order` is `integer NOT NULL` with
+      `CHECK (sort_order > 0)`; old constraint `car_actions_car_id_action_type_key` is absent; active
+      `car_actions_car_type_sort_order_key` is `UNIQUE (car_id, action_type, sort_order) DEFERRABLE
+      INITIALLY DEFERRED`. There are no invalid orders or duplicate business keys. Migration assertions
+      passed. Current retained global counts are `car_actions=6` and `car_action_evidence=18`; the migration
+      itself asserted both counts remained unchanged during backfill.
+
+### QA-9910 backward compatibility — PASS
+
+- [x] Retained terminal fixture `QA-9910/MFG/2099/001` remains LTP `CLOSED`, revision `17`, Auditor result
+      `CLOSE`, with 11 workflow events. Its Finding remains `Closed / LEGACY_ESTABLISHED`, with legacy
+      `finding.car_id=NULL`.
+- [x] The same action UUIDs survived: Temporary `6068174a-3b8e-43a1-871c-24675644ef90`, Corrective
+      `5b54f382-8876-4315-a205-8fd4711eb715`, and Preventive
+      `74044233-b74b-4c0b-9453-b8aad870ac8a`. Each now has `sort_order=1` and retains its original three
+      evidence rows under the same UUID. No evidence ownership, LTP revision, Finding field, or notification
+      changed, and no workflow event #12 was created.
+
+### Multi-action draft reconciliation — PASS
+
+- [x] A rollback-only Category C fixture based on editable `QA-9907/SYS/2099/002`, authorized as
+      `auditee@gmail.com`, saved Corrective #1 and #2 in one Draft operation. Two distinct action UUIDs with
+      independent descriptions and orders `[1,2]` were produced; LTP revision advanced exactly once `1 → 2`,
+      status remained `AUDITEE_DRAFT`, and zero workflow events were created.
+- [x] UUID edit isolation passed. With evidence on Corrective #1, editing only Corrective #2 preserved #1's
+      UUID, description, PIC, Due Date, order, and evidence count; #2 retained its UUID and changed only the
+      requested fields. The save incremented revision exactly once, proving identity is UUID—not action type.
+- [x] Deletion/renumbering passed with three Corrective actions: evidence-free old #2 was removed, old #1
+      remained UUID-stable as #1, and evidence-backed old #3 remained UUID-stable while becoming #2. Its
+      evidence remained attached to the same UUID, and the LTP revision incremented once.
+- [x] Evidence-backed deletion failed atomically with the expected message: `Tindakan yang memiliki evidence
+      tidak dapat dihapus. Hapus evidence pada tindakan tersebut terlebih dahulu.` Revision, Dampak, other
+      action content, the protected action, and its evidence all remained unchanged.
+- [x] Fail-closed guards passed independently: stale revision returned `LTP_STALE_REVISION`; a duplicate
+      persistent ID, an action ID owned by another LTP, and a Section Manager attempting an Auditee draft save
+      were rejected. Each rejection retained the prior LTP revision and action state with no partial mutation.
+
+### Per-action blockers, evidence, and compatibility — PASS
+
+- [x] With Corrective #1 complete and #2 incomplete, blockers specifically returned `Tindakan Korektif #2
+      belum memiliki PIC.`, `Tindakan Korektif #2 belum memiliki Due Date.`, and `Tindakan Korektif #2 wajib
+      memiliki Evidence Before dan Evidence After, atau satu Before vs After.`
+- [x] Corrective #2 evidence matrix passed: none, `BEFORE` only, and `AFTER` only were blocked; `BEFORE +
+      AFTER`, one `BEFORE_AFTER`, and multiple `BEFORE_AFTER` files passed the evidence gate. Evidence on #1
+      did not satisfy #2, and multiple files per evidence state remain supported.
+- [x] Multiple Temporary and multiple Preventive actions were accepted. `get_ltp_context` returned the
+      deterministic sequence Temporary #1, Temporary #2, Corrective #1, Preventive #1, Preventive #2, with
+      evidence nested under its owning UUID. Removing every Corrective retained `Tindakan Korektif wajib
+      diisi.`
+- [x] Traditional one-Corrective payload compatibility passed: one row at `sort_order=1`, exactly one revision
+      increment, and no workflow event from Draft save.
+
+### Role context and full workflow regression — PASS
+
+- [x] A rollback-only two-action context returned both actions read-only in every downstream state.
+      `MANAGER_REVIEW` exposed only `can_review_manager`; `AUDITOR_REVIEW` exposed only
+      `can_review_auditor`; `ADMIN_REVIEW` exposed only `can_review_admin`; `CLOSED` exposed no mutation or
+      review permission. `can_edit_auditee` was false throughout these downstream states.
+- [x] A fresh rollback-only Category C terminal path passed with two complete, independently evidenced
+      Corrective actions: `AUDITEE_DRAFT → MANAGER_REVIEW → AUDITOR_REVIEW → ADMIN_REVIEW → CLOSED` through
+      Auditee Submit, Manager APPROVE, Auditor CLOSE, and Admin APPROVE. Final pre-rollback state was LTP
+      `CLOSED`, revision `5`, result `CLOSE`, and Finding `Closed`. Both action UUIDs remained distinct;
+      Corrective #1 retained one `BEFORE_AFTER` row and #2 retained separate `BEFORE + AFTER` rows. This
+      freshly reconfirms Batch 7g terminal Finding synchronization.
+- [x] The original 50-point plan is not represented as “50/50 independently re-executed SQL cases” because it
+      mixes database, frontend-only, browser-only, and inherited regression behavior. Database/schema/runtime
+      core, the complete CLOSE terminal path, and Manager/Auditor/Admin read-only context passed. Frontend UX
+      was subsequently verified in the real browser. Unchanged RETURN and Auditor OPEN mutation functions were
+      not separately rerun in Batch 7h because this slice does not alter them.
+
+### Security, history, cleanup, deployment, and browser handoff
+
+- [x] Authenticated direct DML remains denied: INSERT/UPDATE/DELETE privileges are false on both
+      `car_actions` and `car_action_evidence`; mutations remain guarded-RPC controlled. Runtime authorization
+      tests passed.
+- [x] Draft action saves created zero workflow events. Direct UPDATE of an existing QA-9910 workflow event was
+      rejected by the immutable-history trigger with `Riwayat review/disposisi bersifat permanen`; QA-9910
+      retained exactly 11 events.
+- [x] Runtime cleanup passed: all action/evidence verification mutations were rollback-only; final runtime
+      action and evidence residue were both zero. QA-9910 and all retained fixtures remained unchanged.
+- [x] Security Advisor was run and is **not clean**. Existing
+      `authenticated_security_definer_function_executable` warnings remain for intentional internally guarded
+      RPCs including `save_ltp_auditee_draft`, `submit_ltp_to_manager`, `manager_decide_ltp`,
+      `auditor_verify_ltp`, `admin_decide_ltp`, evidence register/delete, `get_ltp_context`, and other existing
+      guarded/helper functions. **Leaked Password Protection Disabled** also remains. Runtime authorization
+      passed. Remediation reference:
+      https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- [x] Vercel reported **SUCCESS** for browser-tested/pre-closeout PR head
+      `aa63d8172555a4aef86963d5f28d47f3a9d169a2`.
+- [x] Retained static verification: `npm run typecheck`, `npm run build`, changed-file ESLint for
+      `src/lib/types.ts`, `src/services/ltpService.ts`, and `src/components/pages/ltp/LtpAuditeeForm.tsx`, plus
+      `git diff --check`, all passed. Known Browserslist and bundle-size advisories remain non-blocking.
+
+### Real-browser multi-action and terminal workflow verification — PASS
+
+- [x] The actual persistent browser fixture was `QA-9907/SYS/2099/001`. The similarly named
+      `QA-9907/SYS/2099/002` was used only for rollback/runtime verification and was not the real-browser fixture.
+- [x] Repeatable `+ Tambah Tindakan` passed. A blank added Temporary action was not persisted. Corrective #2
+      was created as UUID `75620bf4-d1e1-4360-9e24-22d7ff1cd453`, `sort_order=2`, Description
+      `Browser Smoke Corrective 2`, PIC `PIC Corrective 2`, and Due Date `2026-09-04`.
+- [x] Save-first evidence behavior passed. Before Corrective #2 evidence was complete, the UI returned the
+      specific blocker `Tindakan Korektif #2 wajib memiliki Evidence Before dan Evidence After, atau satu
+      Before vs After.` The blockers cleared after its independent evidence set was completed.
+- [x] Evidence isolation passed. Corrective #1 UUID `0021d8bf-31fc-47a6-b8bb-b92cafe88f98` remained
+      `sort_order=1` with three evidence rows. Corrective #2 UUID
+      `75620bf4-d1e1-4360-9e24-22d7ff1cd453` remained `sort_order=2` with four evidence rows: two `BEFORE`,
+      one `AFTER`, and one `BEFORE_AFTER`. Neither action displayed or consumed the other's evidence.
+- [x] Auditee Submit passed. Manager saw all actions/evidence read-only and APPROVE passed; Auditor saw them
+      read-only and CLOSE passed; Admin saw them read-only and final APPROVE passed. Final browser Section 9
+      displayed `Keputusan = Disetujui` and `Status = Closed`.
+- [x] Final live backend for `QA-9907/SYS/2099/001`: LTP `CLOSED`, revision `10`,
+      `auditor_verification_result=CLOSE`, six workflow events, latest `ADMIN_APPROVED_LTP`; Finding `Closed /
+      LEGACY_ESTABLISHED`, revision `2`, legacy `car_id=NULL`.
+- [x] Final live actions remained independently identified and evidenced: Temporary #1 UUID
+      `6e140fa1-9236-42b3-800f-6d2a5f512793`, order 1, evidence 3; Corrective #1 UUID
+      `0021d8bf-31fc-47a6-b8bb-b92cafe88f98`, order 1, evidence 3; Corrective #2 UUID
+      `75620bf4-d1e1-4360-9e24-22d7ff1cd453`, order 2, evidence 4; Preventive #1 UUID
+      `d15a0c26-f03a-4918-aa31-4892a1427935`, order 1, evidence 3.
+- [x] Batch 7h browser verification is complete. Staging, runtime, browser, Vercel, authorization, immutable
+      history, cleanup, and static gates pass. PR #19 remains OPEN and UNMERGED; explicit user approval is
+      required before merge.
+
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
 
@@ -1903,11 +2033,10 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and implemented audit-execution batches through Batch 6b have
-completed their required verification gates. Batch 7e Auditor verification has completed runtime,
-security, static, deployment, and real-browser verification and is ready for merge. PR #16 remains
-OPEN and UNMERGED; merge requires explicit user approval. The next controlled feature is Batch 7f —
-Admin/QMS LTP final decision.
+The stabilization database foundation and implemented audit-execution batches through Batch 7g have
+completed their required verification gates. Batch 7h multiple LTP actions with per-action evidence has
+completed Staging, runtime, security, static, Vercel, and real-browser verification and is ready for merge.
+PR #19 remains OPEN and UNMERGED; merge requires explicit user approval.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -1927,7 +2056,11 @@ Batch 7a    VERIFIED_COMPLETE (controlled LTP foundation slice)
 Batch 7b    VERIFIED_COMPLETE (controlled Auditee LTP authoring slice)
 Batch 7c    VERIFIED_COMPLETE (Auditee Submit → Section Manager Review)
 Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
-Batch 7e    VERIFIED_STAGING — READY_FOR_MERGE (Auditor verification; PR #16 OPEN/UNMERGED)
+Batch 7e    VERIFIED_COMPLETE — MERGED (Auditor verification; PR #16)
+Batch 7f    VERIFIED_COMPLETE — MERGED (Admin/QMS final decision; PR #17)
+Batch 7g    VERIFIED_COMPLETE — MERGED (Finding/LTP final synchronization; PR #18)
+Batch 7h    VERIFIED_STAGING — READY_FOR_MERGE (multi-action evidence; PR #19 OPEN/UNMERGED;
+            explicit user approval required)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8+    NOT_STARTED
