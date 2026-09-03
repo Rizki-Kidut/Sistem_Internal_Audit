@@ -44,6 +44,7 @@ export function DaftarKetidaksesuaianPage(){
       .daftar-ketidaksesuaian-print .report-header-layout { display: grid !important; grid-template-columns: minmax(0, 45fr) minmax(0, 55fr) !important; align-items: stretch; }
       .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; min-width: 0 !important; max-width: 100% !important; width: 100% !important; font-size: 8.5pt !important; }
       .daftar-ketidaksesuaian-print .report-table thead { display: table-header-group; }
+      .daftar-ketidaksesuaian-print .report-table th.classification-subheader { font-size: 7.5pt !important; padding-left: 2px !important; padding-right: 2px !important; white-space: nowrap !important; }
       .daftar-ketidaksesuaian-print .report-table th,
       .daftar-ketidaksesuaian-print .report-table td { border: 1px solid #111827 !important; padding: 5px !important; overflow-wrap: anywhere; white-space: normal; }
       .daftar-ketidaksesuaian-print .report-header { break-inside: avoid; }
@@ -75,7 +76,7 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
     <Card className="report-card overflow-x-auto p-5">
       <header className="report-header mb-5 border-b-2 border-gray-900 pb-4">
         <div className="report-header-layout grid gap-5 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
-          <div className="flex min-h-32 items-center"><h2 className="text-2xl font-bold leading-tight text-gray-900">DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN</h2></div>
+          <div className="flex min-h-32 items-center justify-center text-center"><h2 className="text-2xl font-bold leading-tight text-gray-900">DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN</h2></div>
           <div className="flex items-center">
             <table className="w-full table-fixed border-collapse text-xs">
               <thead><tr>{['No. audit','Audit team','Tgl. pembuatan','Dibuat'].map(label=><th key={label} className="border border-gray-500 bg-gray-50 px-1.5 py-2 text-center font-semibold">{label}</th>)}</tr></thead>
@@ -85,10 +86,10 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
         </div>
       </header>
       <table className="report-table min-w-[1000px] w-full border-collapse text-sm">
-        <colgroup><col className="w-[11%]"/><col className="w-[43%]"/><col className="w-[14%]"/><col className="w-[7%]"/><col className="w-[7%]"/><col className="w-[18%]"/></colgroup>
+        <colgroup><col className="w-[6%]"/><col className="w-[48%]"/><col className="w-[14%]"/><col className="w-[7%]"/><col className="w-[7%]"/><col className="w-[18%]"/></colgroup>
         <thead className="bg-blue-50 text-xs uppercase text-gray-700">
-          <tr><th rowSpan={2} className="border border-gray-400 p-2 text-left">No Ketidaksesuaian</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">No. Persyaratan + Item</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">Seksi Lokasi</th><th colSpan={2} className="border border-gray-400 p-2 text-center">Ketidaksesuaian (tanda O)</th><th rowSpan={2} className="border border-gray-400 p-2 text-center">Peluang Improvement</th></tr>
-          <tr><th className="border border-gray-400 p-2 text-center">Major</th><th className="border border-gray-400 p-2 text-center">Minor</th></tr>
+          <tr><th rowSpan={2} className="border border-gray-400 p-2 text-center align-middle whitespace-nowrap">No</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">No. Persyaratan + Item</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">Seksi Lokasi</th><th colSpan={2} className="border border-gray-400 p-2 text-center">Ketidaksesuaian (tanda O)</th><th rowSpan={2} className="border border-gray-400 p-2 text-center">Peluang Improvement</th></tr>
+          <tr><th className="classification-subheader border border-gray-400 px-1 py-2 text-center whitespace-nowrap">Major</th><th className="classification-subheader border border-gray-400 px-1 py-2 text-center whitespace-nowrap">Minor</th></tr>
         </thead>
         <tbody>{report.rows.map(row=><tr key={row.finding_id} className="align-top">
           <td className="border border-gray-400 p-2 text-center font-semibold">{row.nomor_urut_temuan}</td>
