@@ -29,7 +29,7 @@ export function DaftarKetidaksesuaianPage(){
   if(loading)return <LoadingSpinner message="Memuat Daftar Ketidaksesuaian..."/>;
   return <div className="daftar-ketidaksesuaian-print">
     <style>{`@media print {
-      @page { size: A4 portrait; margin: 10mm; }
+      @page { size: A4 portrait; margin: 19.05mm 17.78mm 19.05mm 17.78mm; }
       body:has(.daftar-ketidaksesuaian-print) { background: white !important; }
       body:has(.daftar-ketidaksesuaian-print) aside { display: none !important; }
       body:has(.daftar-ketidaksesuaian-print) main { overflow: visible !important; }
@@ -65,7 +65,7 @@ export function DaftarKetidaksesuaianPage(){
 function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
   const teamCode=report.team_label.includes(' — ')?report.team_label.split(' — ')[0].trim():report.team_label;
   return <>
-    <div className="print:hidden mb-3 flex justify-end"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button></div>
+    <div className="print:hidden mb-3 flex flex-col items-end gap-1"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button><p className="text-xs text-gray-500">Di dialog print, nonaktifkan &quot;Headers and footers&quot;.</p></div>
     <Card className="report-card overflow-x-auto p-5">
       <header className="report-header mb-5 border-b-2 border-gray-900 pb-4">
         <div className="report-header-layout grid gap-5 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
