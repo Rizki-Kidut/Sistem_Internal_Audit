@@ -34,8 +34,9 @@ export function DaftarKetidaksesuaianPage(){
       body:has(.daftar-ketidaksesuaian-print) aside { display: none !important; }
       body:has(.daftar-ketidaksesuaian-print) main { overflow: visible !important; }
       body:has(.daftar-ketidaksesuaian-print) main > div { max-width: none !important; padding: 0 !important; }
-      .daftar-ketidaksesuaian-print .report-card { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
-      .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; width: 100% !important; font-size: 9pt !important; }
+      .daftar-ketidaksesuaian-print .report-card { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
+      .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; min-width: 0 !important; max-width: 100% !important; width: 100% !important; font-size: 9pt !important; }
+      .daftar-ketidaksesuaian-print .report-table thead { display: table-header-group; }
       .daftar-ketidaksesuaian-print .report-table th,
       .daftar-ketidaksesuaian-print .report-table td { border: 1px solid #111827 !important; padding: 5px !important; overflow-wrap: anywhere; white-space: normal; }
       .daftar-ketidaksesuaian-print .report-header { break-inside: avoid; }
