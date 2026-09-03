@@ -64,21 +64,24 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
     <div className="print:hidden mb-3 flex justify-end"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button></div>
     <Card className="report-card overflow-x-auto p-5">
       <header className="report-header mb-5 border-b-2 border-gray-900 pb-4">
-        <div className="flex items-start justify-between gap-6"><div><p className="text-xs font-semibold tracking-wider text-blue-800">DOKUMEN</p><h2 className="text-2xl font-bold text-gray-900">DAFTAR KETIDAKSESUAIAN</h2></div><div className="text-right"><p className="text-xs text-gray-500">Kode Dokumen</p><p className="font-mono text-sm font-semibold">{DOCUMENT_CODE}</p></div></div>
+        <div className="flex items-start justify-between gap-6"><div><p className="text-xs font-semibold tracking-wider text-blue-800">DOKUMEN</p><h2 className="text-2xl font-bold text-gray-900">DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN</h2></div><div className="text-right"><p className="text-xs text-gray-500">Kode Dokumen</p><p className="font-mono text-sm font-semibold">{DOCUMENT_CODE}</p></div></div>
         <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-sm lg:grid-cols-4">
           <HeaderValue label="No. Audit" value={report.kode_audit}/><HeaderValue label="Team Audit" value={report.team_label}/><HeaderValue label="Tanggal Generate" value={formatGeneratedDate(report.generated_at)}/><HeaderValue label="Dibuat" value={report.team_leader_name}/>
         </dl>
       </header>
       <table className="report-table min-w-[1000px] w-full border-collapse text-sm">
         <colgroup><col className="w-[11%]"/><col className="w-[43%]"/><col className="w-[14%]"/><col className="w-[7%]"/><col className="w-[7%]"/><col className="w-[18%]"/></colgroup>
-        <thead><tr className="bg-blue-50 text-left text-xs uppercase text-gray-700">{['No Ketidaksesuaian','No. Persyaratan + Item','Seksi Lokasi','Major','Minor','Peluang Improvement'].map(label=><th key={label} className="border border-gray-400 p-2">{label}</th>)}</tr></thead>
+        <thead className="bg-blue-50 text-xs uppercase text-gray-700">
+          <tr><th rowSpan={2} className="border border-gray-400 p-2 text-left">No Ketidaksesuaian</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">No. Persyaratan + Item</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">Seksi Lokasi</th><th colSpan={2} className="border border-gray-400 p-2 text-center">Ketidaksesuaian (tanda O)</th><th rowSpan={2} className="border border-gray-400 p-2 text-center">Peluang Improvement</th></tr>
+          <tr><th className="border border-gray-400 p-2 text-center">Major</th><th className="border border-gray-400 p-2 text-center">Minor</th></tr>
+        </thead>
         <tbody>{report.rows.map(row=><tr key={row.finding_id} className="align-top">
           <td className="border border-gray-400 p-2 text-center font-semibold">{row.nomor_urut_temuan}</td>
-          <td className="border border-gray-400 p-2"><div className="space-y-1">{row.reference&&<p className="font-semibold">{row.reference}</p>}<p className="whitespace-pre-wrap">{row.narrative}</p></div></td>
+          <td className="border border-gray-400 p-2 whitespace-pre-wrap">{row.narrative}</td>
           <td className="border border-gray-400 p-2">{row.location||'-'}</td>
-          <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='A'?'✓':''}</td>
-          <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='B'?'✓':''}</td>
-          <td className="border border-gray-400 p-2">{row.kategori==='C'?`C — ${row.saran_perbaikan||'-'}`:''}</td>
+          <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='A'?'O':''}</td>
+          <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='B'?'O':''}</td>
+          <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='C'?'O':''}</td>
         </tr>)}</tbody>
       </table>
     </Card>
