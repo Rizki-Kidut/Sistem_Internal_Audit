@@ -29,12 +29,18 @@ export function DaftarKetidaksesuaianPage(){
   if(loading)return <LoadingSpinner message="Memuat Daftar Ketidaksesuaian..."/>;
   return <div className="daftar-ketidaksesuaian-print">
     <style>{`@media print {
-      @page { size: A4 portrait; margin: 19.05mm 17.78mm 19.05mm 17.78mm; }
-      body:has(.daftar-ketidaksesuaian-print) { background: white !important; }
+      @page { size: A4 portrait; margin: 0; }
+      html, body { margin: 0 !important; padding: 0 !important; }
+      body:has(.daftar-ketidaksesuaian-print) { margin: 0 !important; padding: 0 !important; background: white !important; }
       body:has(.daftar-ketidaksesuaian-print) aside { display: none !important; }
-      body:has(.daftar-ketidaksesuaian-print) main { overflow: visible !important; }
-      body:has(.daftar-ketidaksesuaian-print) main > div { max-width: none !important; padding: 0 !important; }
-      .daftar-ketidaksesuaian-print .report-card { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
+      body:has(.daftar-ketidaksesuaian-print) main { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: none !important; overflow: visible !important; }
+      body:has(.daftar-ketidaksesuaian-print) main > div { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: none !important; }
+      .daftar-ketidaksesuaian-print { box-sizing: border-box !important; width: 100% !important; min-height: 297mm !important; padding: 19.05mm 17.78mm 19.05mm 17.78mm !important; }
+      .daftar-ketidaksesuaian-print .report-card { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
+      .daftar-ketidaksesuaian-print .report-header,
+      .daftar-ketidaksesuaian-print .report-header-layout,
+      .daftar-ketidaksesuaian-print .report-table,
+      .daftar-ketidaksesuaian-print .report-document-code { width: 100% !important; max-width: none !important; }
       .daftar-ketidaksesuaian-print .report-header-layout { display: grid !important; grid-template-columns: minmax(0, 45fr) minmax(0, 55fr) !important; align-items: stretch; }
       .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; min-width: 0 !important; max-width: 100% !important; width: 100% !important; font-size: 8.5pt !important; }
       .daftar-ketidaksesuaian-print .report-table thead { display: table-header-group; }
@@ -65,7 +71,7 @@ export function DaftarKetidaksesuaianPage(){
 function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
   const teamCode=report.team_label.includes(' — ')?report.team_label.split(' — ')[0].trim():report.team_label;
   return <>
-    <div className="print:hidden mb-3 flex flex-col items-end gap-1"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button><p className="text-xs text-gray-500">Di dialog print, nonaktifkan &quot;Headers and footers&quot;.</p></div>
+    <div className="print:hidden mb-3 flex flex-col items-end gap-1"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button><p className="text-xs text-gray-500">Di dialog print gunakan Scale 100%, Margins None, dan nonaktifkan &quot;Headers and footers&quot;.</p></div>
     <Card className="report-card overflow-x-auto p-5">
       <header className="report-header mb-5 border-b-2 border-gray-900 pb-4">
         <div className="report-header-layout grid gap-5 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
