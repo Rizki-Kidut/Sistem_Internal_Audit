@@ -531,6 +531,15 @@ export interface LtpAction { id?:string;client_key?:string;action_type:LtpAction
 export interface LtpSystemRevision { id?:string;kategori:LtpSystemRevisionCategory;nama_dokumen:string;created_at?:string; }
 export interface LtpDraftPayload { car_id:string;expected_revision:number;dampak_temuan:string;manfaat_perbaikan:string;why_analysis:LtpWhyAnalysis[];actions:LtpAction[];system_revisions:LtpSystemRevision[]; }
 export interface LtpWorklistRow { car_id:string;finding_id:string;kode_ltp:string;kode_audit:string;kategori:KategoriTemuan;status:LtpStatus;seksi_auditee_id:string|null;seksi_nama:string|null;proses_nama:string|null;tanggal_temuan:string; }
+export interface DaftarKetidaksesuaianAuditOption { kode_audit:string; finding_count:number; }
+export interface DaftarKetidaksesuaianRow {
+  finding_id:string; nomor_urut_temuan:number; reference:string|null; narrative:string;
+  location:string|null; kategori:KategoriTemuan; saran_perbaikan:string|null;
+}
+export interface DaftarKetidaksesuaianReport {
+  kode_audit:string; generated_at:string; team_label:string; team_leader_name:string;
+  rows:DaftarKetidaksesuaianRow[];
+}
 export interface LtpContext {
   ltp:{id:string;finding_id:string;kode_ltp:string;status:LtpStatus;seksi_auditee_id:string|null;revision_version:number;dampak_temuan:string|null;manfaat_perbaikan:string|null;auditor_verification_result:string|null;created_at:string};
   finding:{kode_audit:string;kode_temuan:string;kategori:KategoriTemuan;problem:string;location:string;objective_evidence:string;reference:string|null;saran_perbaikan:string|null;auditee_area:string|null;tanggal_temuan:string};

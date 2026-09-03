@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
   { id: 'pelaksanaan', label: 'Pelaksanaan Audit', icon: <ClipboardCheck size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'temuan', label: 'Temuan (PLOR)', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'car', label: 'LTP', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'laporan', label: 'Laporan Internal Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
   { id: 'analisa', label: 'Analisa Weakness Point', icon: <BarChart3 size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
 
