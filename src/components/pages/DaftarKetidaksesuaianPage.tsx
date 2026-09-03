@@ -29,18 +29,20 @@ export function DaftarKetidaksesuaianPage(){
   if(loading)return <LoadingSpinner message="Memuat Daftar Ketidaksesuaian..."/>;
   return <div className="daftar-ketidaksesuaian-print">
     <style>{`@media print {
-      @page { size: A4 landscape; margin: 10mm; }
+      @page { size: A4 portrait; margin: 10mm; }
       body:has(.daftar-ketidaksesuaian-print) { background: white !important; }
       body:has(.daftar-ketidaksesuaian-print) aside { display: none !important; }
       body:has(.daftar-ketidaksesuaian-print) main { overflow: visible !important; }
       body:has(.daftar-ketidaksesuaian-print) main > div { max-width: none !important; padding: 0 !important; }
       .daftar-ketidaksesuaian-print .report-card { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
-      .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; min-width: 0 !important; max-width: 100% !important; width: 100% !important; font-size: 9pt !important; }
+      .daftar-ketidaksesuaian-print .report-header-layout { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(70mm, 0.9fr) !important; align-items: stretch; }
+      .daftar-ketidaksesuaian-print .report-table { table-layout: fixed; min-width: 0 !important; max-width: 100% !important; width: 100% !important; font-size: 8.5pt !important; }
       .daftar-ketidaksesuaian-print .report-table thead { display: table-header-group; }
       .daftar-ketidaksesuaian-print .report-table th,
       .daftar-ketidaksesuaian-print .report-table td { border: 1px solid #111827 !important; padding: 5px !important; overflow-wrap: anywhere; white-space: normal; }
       .daftar-ketidaksesuaian-print .report-header { break-inside: avoid; }
       .daftar-ketidaksesuaian-print .report-table tr { break-inside: avoid; }
+      .daftar-ketidaksesuaian-print .report-filler-row { display: table-row !important; height: 22mm; }
     }`}</style>
     <div className="print:hidden mb-6">
       <h1 className="text-2xl font-bold text-gray-900">Daftar Ketidaksesuaian</h1>
@@ -64,10 +66,15 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
     <div className="print:hidden mb-3 flex justify-end"><Button onClick={()=>window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button></div>
     <Card className="report-card overflow-x-auto p-5">
       <header className="report-header mb-5 border-b-2 border-gray-900 pb-4">
-        <div className="flex items-start justify-between gap-6"><div><p className="text-xs font-semibold tracking-wider text-blue-800">DOKUMEN</p><h2 className="text-2xl font-bold text-gray-900">DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN</h2></div><div className="text-right"><p className="text-xs text-gray-500">Kode Dokumen</p><p className="font-mono text-sm font-semibold">{DOCUMENT_CODE}</p></div></div>
-        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-sm lg:grid-cols-4">
-          <HeaderValue label="No. Audit" value={report.kode_audit}/><HeaderValue label="Team Audit" value={report.team_label}/><HeaderValue label="Tanggal Generate" value={formatGeneratedDate(report.generated_at)}/><HeaderValue label="Dibuat" value={report.team_leader_name}/>
-        </dl>
+        <div className="report-header-layout grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
+          <div className="flex min-h-32 items-center"><div><p className="text-xs font-semibold tracking-wider text-blue-800">DOKUMEN</p><h2 className="mt-2 text-2xl font-bold leading-tight text-gray-900">DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN</h2></div></div>
+          <div className="flex flex-col">
+            <table className="w-full border-collapse text-sm"><tbody>
+              <MetadataRow label="No. audit" value={report.kode_audit}/><MetadataRow label="Audit team" value={report.team_label}/><MetadataRow label="Tgl. pembuatan" value={formatGeneratedDate(report.generated_at)}/><MetadataRow label="Dibuat" value={report.team_leader_name}/>
+            </tbody></table>
+            <div className="mt-2 text-right"><span className="text-xs text-gray-500">Kode Dokumen: </span><strong className="font-mono text-sm">{DOCUMENT_CODE}</strong></div>
+          </div>
+        </div>
       </header>
       <table className="report-table min-w-[1000px] w-full border-collapse text-sm">
         <colgroup><col className="w-[11%]"/><col className="w-[43%]"/><col className="w-[14%]"/><col className="w-[7%]"/><col className="w-[7%]"/><col className="w-[18%]"/></colgroup>
@@ -82,10 +89,10 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='A'?'O':''}</td>
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='B'?'O':''}</td>
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='C'?'O':''}</td>
-        </tr>)}</tbody>
+        </tr>)}{Array.from({length:Math.max(0,6-report.rows.length)},(_,index)=><tr key={`filler-${index}`} aria-hidden="true" className="report-filler-row hidden">{Array.from({length:6},(_,cellIndex)=><td key={cellIndex} className="border border-gray-400"/>)}</tr>)}</tbody>
       </table>
     </Card>
   </>;
 }
 
-function HeaderValue({label,value}:{label:string;value:string}){return <div><dt className="text-xs text-gray-500">{label}</dt><dd className="mt-0.5 font-semibold text-gray-900">{value||'-'}</dd></div>;}
+function MetadataRow({label,value}:{label:string;value:string}){return <tr><th className="w-[38%] border border-gray-500 bg-gray-50 px-2 py-1.5 text-left text-xs font-semibold">{label}</th><td className="border border-gray-500 px-2 py-1.5 font-medium">{value||'-'}</td></tr>;}
