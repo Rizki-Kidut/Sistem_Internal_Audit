@@ -2001,7 +2001,9 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ## Batch 8a — Daftar Ketidaksesuaian — 3 Sep 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED — BROWSER PENDING`
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation complete; static verification,
+Vercel deployment, and manual real-browser verification PASS. PR #20 remains OPEN / UNMERGED and
+requires explicit user approval before merge.)
 
 - [x] Implemented the central Admin-only **Daftar Ketidaksesuaian** workspace as a computed, read-only
       report. The existing sidebar item is enabled and routed to the new page; the existing authorization
@@ -2010,24 +2012,63 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
       `listFindings()` records by Finding ID. Only audits with at least one accessible Finding-backed LTP
       appear, options and report rows are deterministic, and no checklist item table supplies report content.
 - [x] A selected No. Audit loads `getFindingContext()` once from one eligible Finding after validating that
-      every report Finding belongs to the same Instruction row. Team display uses current Team Master
-      `{kode_tim} — {nama_tim}`; **Dibuat** uses only the member marked `is_team_leader` and never falls back
-      to the company Lead Auditor.
-- [x] The six required columns map to the formal Finding fields. The approved
-      `formatFindingNarrative()` helper is reused; blank Category C reference is omitted; Location remains
-      the `Seksi Lokasi` source; A and B use markers; C renders `C — {saran_perbaikan}`.
-- [x] Browser print uses `window.print()` with page-scoped A4 landscape rules, visible document header/code,
-      bordered wrapping table cells, and print-hidden navigation, selector, and action controls. No PDF
-      dependency was added.
-- [x] This slice adds no report/snapshot table, migration, RLS policy, RPC, Finding/LTP schema change, or
-      persistent mutation. Sources remain existing `findings` plus `cars`/LTP service access.
-- [x] Static implementation checks passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
-      `git diff --check`. No package file or nested `/project` file changed. Build retained only existing
-      non-blocking Browserslist and bundle-size advisories.
-- [ ] Vercel deployment status is not available at local implementation handoff.
-- [ ] Real-browser smoke remains pending. Planned Staging fixture `QA-9907` should produce exactly two rows,
-      ordered 1 then 2: Finding #1 with the Minor marker and Finding #2 with Peluang Improvement text. The
-      fixture must remain read-only during verification.
+      every report Finding belongs to the same Instruction row. The header shows only current Team Master
+      `kode_tim`, intentionally omitting the long Team name. **Dibuat** uses the Team Master member marked
+      `is_team_leader`; this is the Team Leader and must not be confused with the company Lead Auditor.
+- [x] No persistent report/snapshot table exists. The source architecture reuses the existing authorized
+      cars/LTP worklist, formal Findings, and existing Finding context / Team Master. Batch 8a adds no
+      migration, RPC change, RLS change, workflow mutation, or package dependency, and it does not expand
+      the existing Admin-only authorization boundary.
+
+### Real-browser report and classification verification — PASS
+
+- [x] Manual browser smoke used `QA-9907`, which contained exactly two eligible Findings with LTP:
+      Finding #1 had `nomor_urut_temuan=1`, Category B; Finding #2 had `nomor_urut_temuan=2`, Category C.
+      The report rendered both in deterministic order `1`, `2`.
+- [x] Header data passed: **No. Audit** displayed `QA-9907`; **Audit team** displayed only
+      `B6B-SMOKE-TEAM`; and **Dibuat** displayed `B6B Smoke Auditor Lead`, the Team Master Team Leader.
+      The document title is **DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN**.
+- [x] The upper form header uses a centered title in the left column and a horizontal four-column/two-row
+      metadata table in the right column. The metadata headings are **No. audit**, **Audit team**,
+      **Tgl. pembuatan**, and **Dibuat**, with values directly beneath. The title is horizontally and
+      vertically centered inside its left header column.
+- [x] Document code `Q-120-ISE-001-FORM-008` appears alone, without a `Kode Dokumen:` prefix, after the
+      complete table and right-aligned at the bottom-right of the form.
+- [x] Final visible table columns are **NO**, **NO. PERSYARATAN + ITEM**, **SEKSI LOKASI**,
+      **KETIDAKSESUAIAN (TANDA O)** grouped over **MAJOR** and **MINOR**, and
+      **PELUANG IMPROVEMENT**. The fixed colgroup is `6% / 48% / 14% / 7% / 7% / 18%`, totaling 100%.
+- [x] All table headers are centered: NO, NO. PERSYARATAN + ITEM, SEKSI LOKASI, the grouped
+      classification heading, MAJOR, MINOR, and PELUANG IMPROVEMENT. Body NO, SEKSI LOKASI, and
+      classification markers are centered; the PLOR narrative remains left-aligned. MAJOR and MINOR
+      remain on one line in print.
+- [x] The official classification marker is `O`, not a check mark or `X`. Category A maps to Major `O`,
+      Category B maps to Minor `O`, and Category C maps to Peluang Improvement `O`, with all other marker
+      cells blank. In the `QA-9907` smoke, Finding #1 showed Minor `O` and Finding #2 showed Peluang
+      Improvement `O`.
+- [x] The report reuses the existing `formatFindingNarrative()` helper and renders `row.narrative`; it does
+      not duplicate narrative formatting and does not separately render `row.reference`. Klausul/Acuan
+      remains naturally embedded in the formal PLOR narrative. For Category C, the recommendation remains
+      inside the PLOR narrative rather than the Peluang Improvement marker column.
+
+### Print/PDF, deployment, and static verification — PASS
+
+- [x] Final browser print was manually verified as a clean, single-page A4 Portrait output for the short
+      two-Finding `QA-9907` report. The application uses deterministic geometry: `@page` sets `A4 portrait`
+      and `margin: 0`; browser/application outer print geometry is reset; and the report root applies Excel
+      Normal margins internally: top/bottom `19.05 mm` and left/right `17.78 mm`.
+- [x] Verified browser settings were Paper **A4**, Layout **Portrait**, Scale **100%**, Margins **None**, and
+      **Headers and footers OFF**. Disabling the browser setting removed browser-generated date/time, title,
+      URL, and page number; the application does not claim to disable those browser decorations
+      programmatically.
+- [x] Print-only filler rows remain blank bordered rows visible only in print. They create no report data,
+      make no database mutation, and kept the two-Finding report body proportional and visually balanced.
+- [x] Static checks passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
+      advisories. No migration or package file changed, and nested `/project` remained untouched.
+- [x] Vercel reported **SUCCESS** for final browser-tested PR head
+      `980385b7249a9ac38282fd41b17bc0db18cfeb8c`.
+- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, remains **OPEN / UNMERGED** at browser-
+      tested head `980385b7249a9ac38282fd41b17bc0db18cfeb8c`. Explicit user approval is still required before merge.
 
 ---
 
@@ -2059,7 +2100,8 @@ No implementation found.
 
 The stabilization database foundation and implemented audit-execution batches through Batch 7h have
 completed their required verification gates, and PR #19 is merged. Batch 8a Daftar Ketidaksesuaian is
-implemented as a computed report; deployment and real-browser verification remain pending.
+`VERIFIED_STAGING — READY_FOR_MERGE`: browser PASS, Vercel PASS, and database change NONE. PR #20 remains
+OPEN / UNMERGED; the next action is final review plus explicit merge approval.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2086,7 +2128,8 @@ Batch 7h    VERIFIED_COMPLETE — MERGED (multi-action evidence; PR #19; squash 
             8ba3a432ead18aca49737e33318a37532b7a5b3b)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
-Batch 8a    IMPLEMENTED_UNVERIFIED — BROWSER PENDING
+Batch 8a    VERIFIED_STAGING — READY_FOR_MERGE (PR #20 OPEN / UNMERGED; browser PASS;
+            Vercel PASS; database change NONE; explicit merge approval required)
 Batch 8b+   NOT_STARTED
 ```
 
