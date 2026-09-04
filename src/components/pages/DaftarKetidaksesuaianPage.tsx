@@ -88,7 +88,7 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
       <table className="report-table min-w-[1000px] w-full border-collapse text-sm">
         <colgroup><col className="w-[6%]"/><col className="w-[48%]"/><col className="w-[14%]"/><col className="w-[7%]"/><col className="w-[7%]"/><col className="w-[18%]"/></colgroup>
         <thead className="bg-blue-50 text-xs uppercase text-gray-700">
-          <tr><th rowSpan={2} className="border border-gray-400 p-2 text-center align-middle whitespace-nowrap">No</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">No. Persyaratan + Item</th><th rowSpan={2} className="border border-gray-400 p-2 text-left">Seksi Lokasi</th><th colSpan={2} className="border border-gray-400 p-2 text-center">Ketidaksesuaian (tanda O)</th><th rowSpan={2} className="border border-gray-400 p-2 text-center">Peluang Improvement</th></tr>
+          <tr><th rowSpan={2} className="border border-gray-400 p-2 text-center align-middle whitespace-nowrap">No</th><th rowSpan={2} className="border border-gray-400 p-2 text-center align-middle">No. Persyaratan + Item</th><th rowSpan={2} className="border border-gray-400 p-2 text-center align-middle">Seksi Lokasi</th><th colSpan={2} className="border border-gray-400 p-2 text-center">Ketidaksesuaian (tanda O)</th><th rowSpan={2} className="border border-gray-400 p-2 text-center">Peluang Improvement</th></tr>
           <tr><th className="classification-subheader border border-gray-400 px-1 py-2 text-center whitespace-nowrap">Major</th><th className="classification-subheader border border-gray-400 px-1 py-2 text-center whitespace-nowrap">Minor</th></tr>
         </thead>
         <tbody>{report.rows.map(row=><tr key={row.finding_id} className="align-top">
