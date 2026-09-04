@@ -8,8 +8,8 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from current `main` commit
-`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`, the squash merge of PR #18 (Batch 7g).
-The active controlled feature slice is Batch 7h — Multiple LTP Actions with Evidence per Action.
+`8ba3a432ead18aca49737e33318a37532b7a5b3b`, the squash merge of PR #19 (Batch 7h).
+The active controlled feature slice is Batch 8a — Daftar Ketidaksesuaian.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
@@ -156,12 +156,13 @@ PR #18, **Batch 7g: Finding/LTP final synchronization**, was approved at head
 
 ## Batch 7h — Multiple LTP Actions with Evidence per Action — 1 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (Staging, runtime, real-browser, Vercel, security,
-and static verification PASS. PR #19 remains OPEN and UNMERGED; merge requires explicit user approval.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (Staging, runtime, real-browser, Vercel, security,
+and static verification PASS.)
 
-PR #19, **Batch 7h: Multiple LTP actions with per-action evidence**, targets `main` at base SHA
-`35d61194b34bea62f4bc722f1d9848d92aa7ce6d`. Its authoritative branch is
-`codex/implement-multiple-ltp-actions-feature`; the browser-tested/pre-closeout PR head is
+PR #19, **Batch 7h: Multiple LTP actions with per-action evidence**, was approved at final head
+`50597ef2e0537cf001e9ee38c81f5e1a03b14436` and squash-merged to `main` as
+`8ba3a432ead18aca49737e33318a37532b7a5b3b`. Its authoritative branch was
+`codex/implement-multiple-ltp-actions-feature`; the browser-tested/pre-closeout PR head was
 `aa63d8172555a4aef86963d5f28d47f3a9d169a2`.
 
 ### Implementation and immutable Staging migration — PASS
@@ -293,8 +294,7 @@ PR #19, **Batch 7h: Multiple LTP actions with per-action evidence**, targets `ma
       `75620bf4-d1e1-4360-9e24-22d7ff1cd453`, order 2, evidence 4; Preventive #1 UUID
       `d15a0c26-f03a-4918-aa31-4892a1427935`, order 1, evidence 3.
 - [x] Batch 7h browser verification is complete. Staging, runtime, browser, Vercel, authorization, immutable
-      history, cleanup, and static gates pass. PR #19 remains OPEN and UNMERGED; explicit user approval is
-      required before merge.
+      history, cleanup, and static gates pass. PR #19 is merged at the documented squash commit.
 
 
 ## Batch 7f — Admin/QMS LTP Final Decision — 31 Aug 2026
@@ -1999,11 +1999,76 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ---
 
-## Batch 8a — Daftar Ketidaksesuaian
+## Batch 8a — Daftar Ketidaksesuaian — 3 Sep 2026
 
-**Status:** `NOT_STARTED`
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation complete; static verification,
+Vercel deployment, and manual real-browser verification PASS. PR #20 remains OPEN / UNMERGED and
+requires explicit user approval before merge.)
 
-Sidebar entry exists as disabled, but no implementation was found.
+- [x] Implemented the central Admin-only **Daftar Ketidaksesuaian** workspace as a computed, read-only
+      report. The existing sidebar item is enabled and routed to the new page; the existing authorization
+      boundary remains unchanged (`ADMIN` only).
+- [x] The eligible population is the inner match of authorized `listLtpWorklist()` rows and formal
+      `listFindings()` records by Finding ID. Only audits with at least one accessible Finding-backed LTP
+      appear, options and report rows are deterministic, and no checklist item table supplies report content.
+- [x] A selected No. Audit loads `getFindingContext()` once from one eligible Finding after validating that
+      every report Finding belongs to the same Instruction row. The header shows only current Team Master
+      `kode_tim`, intentionally omitting the long Team name. **Dibuat** uses the Team Master member marked
+      `is_team_leader`; this is the Team Leader and must not be confused with the company Lead Auditor.
+- [x] No persistent report/snapshot table exists. The source architecture reuses the existing authorized
+      cars/LTP worklist, formal Findings, and existing Finding context / Team Master. Batch 8a adds no
+      migration, RPC change, RLS change, workflow mutation, or package dependency, and it does not expand
+      the existing Admin-only authorization boundary.
+
+### Real-browser report and classification verification — PASS
+
+- [x] Manual browser smoke used `QA-9907`, which contained exactly two eligible Findings with LTP:
+      Finding #1 had `nomor_urut_temuan=1`, Category B; Finding #2 had `nomor_urut_temuan=2`, Category C.
+      The report rendered both in deterministic order `1`, `2`.
+- [x] Header data passed: **No. Audit** displayed `QA-9907`; **Audit team** displayed only
+      `B6B-SMOKE-TEAM`; and **Dibuat** displayed `B6B Smoke Auditor Lead`, the Team Master Team Leader.
+      The document title is **DAFTAR KETIDAKSESUAIAN / PELUANG PERBAIKAN**.
+- [x] The upper form header uses a centered title in the left column and a horizontal four-column/two-row
+      metadata table in the right column. The metadata headings are **No. audit**, **Audit team**,
+      **Tgl. pembuatan**, and **Dibuat**, with values directly beneath. The title is horizontally and
+      vertically centered inside its left header column.
+- [x] Document code `Q-120-ISE-001-FORM-008` appears alone, without a `Kode Dokumen:` prefix, after the
+      complete table and right-aligned at the bottom-right of the form.
+- [x] Final visible table columns are **NO**, **NO. PERSYARATAN + ITEM**, **SEKSI LOKASI**,
+      **KETIDAKSESUAIAN (TANDA O)** grouped over **MAJOR** and **MINOR**, and
+      **PELUANG IMPROVEMENT**. The fixed colgroup is `6% / 48% / 14% / 7% / 7% / 18%`, totaling 100%.
+- [x] All table headers are centered: NO, NO. PERSYARATAN + ITEM, SEKSI LOKASI, the grouped
+      classification heading, MAJOR, MINOR, and PELUANG IMPROVEMENT. Body NO, SEKSI LOKASI, and
+      classification markers are centered; the PLOR narrative remains left-aligned. MAJOR and MINOR
+      remain on one line in print.
+- [x] The official classification marker is `O`, not a check mark or `X`. Category A maps to Major `O`,
+      Category B maps to Minor `O`, and Category C maps to Peluang Improvement `O`, with all other marker
+      cells blank. In the `QA-9907` smoke, Finding #1 showed Minor `O` and Finding #2 showed Peluang
+      Improvement `O`.
+- [x] The report reuses the existing `formatFindingNarrative()` helper and renders `row.narrative`; it does
+      not duplicate narrative formatting and does not separately render `row.reference`. Klausul/Acuan
+      remains naturally embedded in the formal PLOR narrative. For Category C, the recommendation remains
+      inside the PLOR narrative rather than the Peluang Improvement marker column.
+
+### Print/PDF, deployment, and static verification — PASS
+
+- [x] Final browser print was manually verified as a clean, single-page A4 Portrait output for the short
+      two-Finding `QA-9907` report. The application uses deterministic geometry: `@page` sets `A4 portrait`
+      and `margin: 0`; browser/application outer print geometry is reset; and the report root applies Excel
+      Normal margins internally: top/bottom `19.05 mm` and left/right `17.78 mm`.
+- [x] Verified browser settings were Paper **A4**, Layout **Portrait**, Scale **100%**, Margins **None**, and
+      **Headers and footers OFF**. Disabling the browser setting removed browser-generated date/time, title,
+      URL, and page number; the application does not claim to disable those browser decorations
+      programmatically.
+- [x] Print-only filler rows remain blank bordered rows visible only in print. They create no report data,
+      make no database mutation, and kept the two-Finding report body proportional and visually balanced.
+- [x] Static checks passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
+      `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
+      advisories. No migration or package file changed, and nested `/project` remained untouched.
+- [x] Vercel reported **SUCCESS** for final browser-tested PR head
+      `980385b7249a9ac38282fd41b17bc0db18cfeb8c`.
+- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, remains **OPEN / UNMERGED** at browser-
+      tested head `980385b7249a9ac38282fd41b17bc0db18cfeb8c`. Explicit user approval is still required before merge.
 
 ---
 
@@ -2033,10 +2098,10 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and implemented audit-execution batches through Batch 7g have
-completed their required verification gates. Batch 7h multiple LTP actions with per-action evidence has
-completed Staging, runtime, security, static, Vercel, and real-browser verification and is ready for merge.
-PR #19 remains OPEN and UNMERGED; merge requires explicit user approval.
+The stabilization database foundation and implemented audit-execution batches through Batch 7h have
+completed their required verification gates, and PR #19 is merged. Batch 8a Daftar Ketidaksesuaian is
+`VERIFIED_STAGING — READY_FOR_MERGE`: browser PASS, Vercel PASS, and database change NONE. PR #20 remains
+OPEN / UNMERGED; the next action is final review plus explicit merge approval.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2059,11 +2124,13 @@ Batch 7d    VERIFIED_COMPLETE — MERGED (Section Manager decision; PR #13)
 Batch 7e    VERIFIED_COMPLETE — MERGED (Auditor verification; PR #16)
 Batch 7f    VERIFIED_COMPLETE — MERGED (Admin/QMS final decision; PR #17)
 Batch 7g    VERIFIED_COMPLETE — MERGED (Finding/LTP final synchronization; PR #18)
-Batch 7h    VERIFIED_STAGING — READY_FOR_MERGE (multi-action evidence; PR #19 OPEN/UNMERGED;
-            explicit user approval required)
+Batch 7h    VERIFIED_COMPLETE — MERGED (multi-action evidence; PR #19; squash merge
+            8ba3a432ead18aca49737e33318a37532b7a5b3b)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
-Batch 8+    NOT_STARTED
+Batch 8a    VERIFIED_STAGING — READY_FOR_MERGE (PR #20 OPEN / UNMERGED; browser PASS;
+            Vercel PASS; database change NONE; explicit merge approval required)
+Batch 8b+   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and

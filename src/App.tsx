@@ -15,6 +15,7 @@ import { TemuanPage } from './components/pages/TemuanPage';
 import { PelaksanaanAuditPage } from './components/pages/PelaksanaanAuditPage';
 import { LtpPage } from './components/pages/LtpPage';
 import { UserManagementPage } from './components/pages/UserManagementPage';
+import { DaftarKetidaksesuaianPage } from './components/pages/DaftarKetidaksesuaianPage';
 import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
@@ -69,6 +70,8 @@ function App() {
         return <TemuanPage />;
       case 'car':
         return <LtpPage />;
+      case 'ketidaksesuaian':
+        return <DaftarKetidaksesuaianPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':
