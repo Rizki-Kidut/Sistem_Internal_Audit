@@ -94,7 +94,7 @@ function ReportPreview({report}:{report:DaftarKetidaksesuaianReport}){
         <tbody>{report.rows.map(row=><tr key={row.finding_id} className="align-top">
           <td className="border border-gray-400 p-2 text-center font-semibold">{row.nomor_urut_temuan}</td>
           <td className="border border-gray-400 p-2 whitespace-pre-wrap">{row.narrative}</td>
-          <td className="border border-gray-400 p-2">{row.location||'-'}</td>
+          <td className="border border-gray-400 p-2 text-center align-middle">{row.location||'-'}</td>
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='A'?'O':''}</td>
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='B'?'O':''}</td>
           <td className="border border-gray-400 p-2 text-center text-lg font-bold">{row.kategori==='C'?'O':''}</td>
