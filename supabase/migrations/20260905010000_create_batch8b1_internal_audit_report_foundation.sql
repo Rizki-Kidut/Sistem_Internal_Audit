@@ -15,9 +15,6 @@ CREATE TABLE public.audit_internal_reports (
   follow_up_required boolean,
   follow_up_items jsonb NOT NULL DEFAULT '[]'::jsonb,
   catatan text,
-  team_leader_signer_name text,
-  section_manager_signer_name text,
-  management_representative_signer_name text,
   status text NOT NULL DEFAULT 'Draft',
   kode_dokumen text NOT NULL DEFAULT 'Q-120-ISE-001-FORM-015',
   revision_version integer NOT NULL DEFAULT 1,
@@ -27,6 +24,9 @@ CREATE TABLE public.audit_internal_reports (
   CONSTRAINT audit_internal_reports_instruction_row_key UNIQUE (instruction_row_id),
   CONSTRAINT audit_internal_reports_attendees_array CHECK (jsonb_typeof(auditee_hadir) = 'array'),
   CONSTRAINT audit_internal_reports_follow_up_array CHECK (jsonb_typeof(follow_up_items) = 'array'),
+  CONSTRAINT audit_internal_reports_follow_up_consistency CHECK (
+    follow_up_required IS TRUE OR jsonb_array_length(follow_up_items) = 0
+  ),
   CONSTRAINT audit_internal_reports_status_check CHECK (status IN ('Draft','Final')),
   CONSTRAINT audit_internal_reports_revision_positive CHECK (revision_version > 0)
 );
@@ -179,7 +179,10 @@ BEGIN
     hasil_pengamatan=btrim(COALESCE(p_hasil_pengamatan,'')),
     evaluasi=btrim(COALESCE(p_evaluasi,'')),
     follow_up_required=p_follow_up_required,
-    follow_up_items=p_follow_up_items,
+    follow_up_items=CASE
+      WHEN p_follow_up_required IS TRUE THEN p_follow_up_items
+      ELSE '[]'::jsonb
+    END,
     catatan=NULLIF(btrim(COALESCE(p_catatan,'')),''),
     revision_version=v_report.revision_version+1
   WHERE id=p_report_id
@@ -200,6 +203,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.audit_internal_reports'::regclass AND contype='u' AND conname='audit_internal_reports_instruction_row_key') THEN RAISE EXCEPTION 'missing instruction-row uniqueness'; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.audit_internal_reports'::regclass AND conname='audit_internal_reports_revision_positive') THEN RAISE EXCEPTION 'missing positive revision constraint'; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.audit_internal_reports'::regclass AND conname='audit_internal_reports_status_check') THEN RAISE EXCEPTION 'missing status constraint'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.audit_internal_reports'::regclass AND conname='audit_internal_reports_follow_up_consistency') THEN RAISE EXCEPTION 'missing follow-up consistency constraint'; END IF;
   SELECT column_default INTO v_default FROM information_schema.columns WHERE table_schema='public' AND table_name='audit_internal_reports' AND column_name='auditee_hadir';
   IF v_default IS NULL OR v_default NOT LIKE '%[]%' THEN RAISE EXCEPTION 'invalid attendee default'; END IF;
   SELECT column_default INTO v_default FROM information_schema.columns WHERE table_schema='public' AND table_name='audit_internal_reports' AND column_name='follow_up_items';

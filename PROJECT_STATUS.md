@@ -2081,7 +2081,7 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
       `codex/implement-batch-8b1-internal-audit-report-foundation`.
 - [x] Added exactly one pending migration,
       `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`,
-      SHA-256 `51f02c738d172ff06f223dadfd0719bd08627e34aae60434ba12d6d5d2e64e7c`.
+      SHA-256 `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
       The migration has not been applied to Staging.
 - [x] `audit_internal_reports` persists only report-owned manual Draft data. No. Audit, process,
       target sections/managers, objective/scope, audit time range, Team facts, assistant auditors,
@@ -2109,6 +2109,11 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
       computed context, optional attendee/follow-up rows, manual data, and Save Draft actions.
 - [x] Batch 8b1 adds no Final transition, signature/approval routing, official final finding-summary print
       table, or print/PDF layout. These remain Batch 8b2 scope.
+- [x] Pre-migration consistency correction removed the three premature signer-name snapshot columns;
+      no replacement signer or approval architecture was introduced. Draft save now normalizes
+      `follow_up_items` to `[]` whenever `follow_up_required` is `FALSE` or `NULL`, preserves the supplied
+      array only when it is `TRUE`, and a table CHECK constraint enforces the same invariant. The Draft UI
+      also clears local follow-up rows when **Tidak** or **Belum ditentukan** is selected.
 - [x] Static checks passed: `npm run typecheck`, `npm run build`, targeted changed-file ESLint, and
       `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
       advisories. Package files, nested `/project`, and all historical migrations remain untouched.

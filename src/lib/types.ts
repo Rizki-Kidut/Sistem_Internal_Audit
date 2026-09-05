@@ -650,7 +650,6 @@ export interface InternalAuditReport {
   auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string|null; nama_produk:string|null; nama_line:string|null;
   sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
   follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string|null;
-  team_leader_signer_name:string|null; section_manager_signer_name:string|null; management_representative_signer_name:string|null;
   status:InternalAuditReportStatus; kode_dokumen:string; revision_version:number; finalized_at:string|null;
   created_at:string; updated_at:string;
 }
