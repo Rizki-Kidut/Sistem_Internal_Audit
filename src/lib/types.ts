@@ -636,3 +636,43 @@ export interface AuditAgendaContext {
   lead: Auditor | null; members: Auditor[]; agenda: AuditAgenda | null;
 }
 export interface AgendaWorklistRow extends AuditAgendaContext { status_agenda: 'Belum Dibuat' | AuditAgendaStatus; }
+
+// ============================================================
+// BATCH 8b1: LAPORAN INTERNAL AUDIT (report-owned Draft fields only)
+// ============================================================
+export type InternalAuditReportStatus = 'Draft' | 'Final';
+export interface InternalAuditReportAttendee { nama:string; seksi:string; }
+export interface InternalAuditReportFollowUpItem {
+  seksi:string; seksi_pelaksana_follow_up:string; jadwal_follow_up:string|null;
+}
+export interface InternalAuditReport {
+  id:string; instruction_row_id:string; tanggal_terbit:string;
+  auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string|null; nama_produk:string|null; nama_line:string|null;
+  sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
+  follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string|null;
+  team_leader_signer_name:string|null; section_manager_signer_name:string|null; management_representative_signer_name:string|null;
+  status:InternalAuditReportStatus; kode_dokumen:string; revision_version:number; finalized_at:string|null;
+  created_at:string; updated_at:string;
+}
+export interface InternalAuditReportChecklistPresence { sistem:boolean; produk:boolean; manufaktur_shift:boolean; }
+export interface InternalAuditReportFindingCounts { A:number; B:number; C:number; }
+export interface InternalAuditReportFindingSummaryGroup {
+  reference:string|null; location:string|null; finding_numbers:number[]; requirement:string|null;
+  counts:InternalAuditReportFindingCounts;
+}
+export interface InternalAuditReportContext {
+  row:AuditInstructionRow; instruction:AuditInstruction; proses:Proses|null; sections:Seksi[];
+  agenda:AuditAgenda|null; agenda_items:AuditAgendaItem[]; team:AuditTeamMaster|null;
+  team_leader:Auditor|null; team_members:Auditor[]; selected_sub_leader:Auditor|null; remaining_members:Auditor[];
+  checklist_presence:InternalAuditReportChecklistPresence; findings:Finding[];
+  finding_counts:InternalAuditReportFindingCounts; finding_references:string[];
+  finding_summary_groups:InternalAuditReportFindingSummaryGroup[]; report:InternalAuditReport|null;
+  eligible:boolean; eligibility_reason:string|null; audit_time_range:string;
+}
+export type InternalAuditReportWorklistRow = InternalAuditReportContext;
+export interface SaveInternalAuditReportDraftPayload {
+  report_id:string; expected_revision:number; tanggal_terbit:string;
+  auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string; nama_produk:string; nama_line:string;
+  sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
+  follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string;
+}

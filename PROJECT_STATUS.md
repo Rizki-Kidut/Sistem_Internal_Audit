@@ -8,8 +8,8 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from current `main` commit
-`8ba3a432ead18aca49737e33318a37532b7a5b3b`, the squash merge of PR #19 (Batch 7h).
-The active controlled feature slice is Batch 8a — Daftar Ketidaksesuaian.
+`109250c3f2554bc1de2ad4ee8b671bf07a6775cf`, the squash merge of PR #20 (Batch 8a).
+The active controlled feature slice is Batch 8b1 — Internal Audit Report Foundation & Draft.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
@@ -2001,9 +2001,9 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ## Batch 8a — Daftar Ketidaksesuaian — 3 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation complete; static verification,
-Vercel deployment, and manual real-browser verification PASS. PR #20 remains OPEN / UNMERGED and
-requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (PR #20 approved at head
+`553f50a54a4429d174dc1ef700e643e08b06d918` and squash-merged to `main` as
+`109250c3f2554bc1de2ad4ee8b671bf07a6775cf`; prior static, Vercel, and real-browser verification PASS.)
 
 - [x] Implemented the central Admin-only **Daftar Ketidaksesuaian** workspace as a computed, read-only
       report. The existing sidebar item is enabled and routed to the new page; the existing authorization
@@ -2065,18 +2065,63 @@ requires explicit user approval before merge.)
 - [x] Static checks passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
       `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
       advisories. No migration or package file changed, and nested `/project` remained untouched.
-- [x] Vercel reported **SUCCESS** for final browser-tested PR head
+- [x] Vercel reported **SUCCESS** for browser-tested PR head
       `980385b7249a9ac38282fd41b17bc0db18cfeb8c`.
-- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, remains **OPEN / UNMERGED** at browser-
-      tested head `980385b7249a9ac38282fd41b17bc0db18cfeb8c`. Explicit user approval is still required before merge.
+- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, was approved at final head
+      `553f50a54a4429d174dc1ef700e643e08b06d918` and squash-merged to `main` as
+      `109250c3f2554bc1de2ad4ee8b671bf07a6775cf`.
 
 ---
 
-## Batch 8b — Laporan Internal Audit
+## Batch 8b1 — Internal Audit Report Foundation & Draft — 5 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING`
+
+- [x] Implemented from base `main` SHA `109250c3f2554bc1de2ad4ee8b671bf07a6775cf` on branch
+      `codex/implement-batch-8b1-internal-audit-report-foundation`.
+- [x] Added exactly one pending migration,
+      `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`,
+      SHA-256 `51f02c738d172ff06f223dadfd0719bd08627e34aae60434ba12d6d5d2e64e7c`.
+      The migration has not been applied to Staging.
+- [x] `audit_internal_reports` persists only report-owned manual Draft data. No. Audit, process,
+      target sections/managers, objective/scope, audit time range, Team facts, assistant auditors,
+      other checked items, Checklist presence, Findings, Finding counts/references, and future summary
+      grouping remain computed from their current upstream sources.
+- [x] Draft creation eligibility is server-authoritative: an Agenda plus at least one System, Product,
+      or Manufacturing/Shift Checklist. Agenda Final, Findings, LTP, and CAR lifecycle completion are
+      deliberately not prerequisites; clean audits with zero Findings remain eligible.
+- [x] Added guarded Admin-only create/save RPCs, one-report-per-Instruction-row uniqueness, atomic
+      stale-revision protection, JSON top-level array validation, Draft-only saving, and direct
+      authenticated INSERT/UPDATE/DELETE revocation. Successful saves increment the revision exactly once.
+- [x] Team Leader is computed read-only from the assigned Team Master member marked
+      `is_team_leader`. Sub Leader is optional, defaults to and accepts `NULL`, and can only be selected
+      from non-leader Members of the same assigned Team. The server validates every non-NULL selection
+      before mutation. No Sub-Leader Team Master role or Team Master architecture change was added.
+- [x] When selected, the Sub Leader is removed from the computed remaining Member display; when no Sub
+      Leader is selected, every normal Member remains displayed.
+- [x] Customer/Product/Line are suggested once at creation only when exactly one unique nonblank upstream
+      value exists, then remain manually editable report-owned values and are never live-overwritten.
+- [x] Added pure, explicit-click generators for editable Hasil Pengamatan (A/B/C counts plus audit
+      context, including clean-audit wording) and Evaluasi (trimmed, deduplicated, deterministic nonblank
+      Finding references, including clean-audit/no-reference wording). No AI or automatic regeneration is used.
+- [x] Enabled and routed the existing Admin-only `laporan` workspace. The worklist keeps ineligible rows
+      visible with Agenda/Checklist blockers and live Checklist/Finding status; the Draft editor contains
+      computed context, optional attendee/follow-up rows, manual data, and Save Draft actions.
+- [x] Batch 8b1 adds no Final transition, signature/approval routing, official final finding-summary print
+      table, or print/PDF layout. These remain Batch 8b2 scope.
+- [x] Static checks passed: `npm run typecheck`, `npm run build`, targeted changed-file ESLint, and
+      `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
+      advisories. Package files, nested `/project`, and all historical migrations remain untouched.
+- [ ] Staging migration review/application: **PENDING**.
+- [ ] Vercel deployment status: **PENDING**.
+- [ ] Real-browser smoke verification: **PENDING** (fixture to be prepared after migration application).
+
+## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 
 **Status:** `NOT_STARTED`
 
-Sidebar entry exists as disabled, but no implementation was found.
+Final transition, signature/approval workflow, official form layout, final finding-summary table, and
+print/PDF remain deferred to the separately controlled Batch 8b2 scope.
 
 ---
 
@@ -2098,10 +2143,9 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and implemented audit-execution batches through Batch 7h have
-completed their required verification gates, and PR #19 is merged. Batch 8a Daftar Ketidaksesuaian is
-`VERIFIED_STAGING — READY_FOR_MERGE`: browser PASS, Vercel PASS, and database change NONE. PR #20 remains
-OPEN / UNMERGED; the next action is final review plus explicit merge approval.
+The stabilization database foundation and audit-execution batches through Batch 8a have completed their
+applicable verification gates, and PR #20 is merged. Batch 8b1 is implemented and statically verified; its migration, Vercel deployment, and real-browser
+smoke remain pending.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2128,9 +2172,10 @@ Batch 7h    VERIFIED_COMPLETE — MERGED (multi-action evidence; PR #19; squash 
             8ba3a432ead18aca49737e33318a37532b7a5b3b)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
-Batch 8a    VERIFIED_STAGING — READY_FOR_MERGE (PR #20 OPEN / UNMERGED; browser PASS;
-            Vercel PASS; database change NONE; explicit merge approval required)
-Batch 8b+   NOT_STARTED
+Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
+            squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
+Batch 8b1   IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING
+Batch 8b2+  NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
