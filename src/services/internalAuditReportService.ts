@@ -55,12 +55,19 @@ export function groupInternalAuditReportFindings(findings:Finding[]):InternalAud
   return [...groups.values()];
 }
 
+export function meaningfulOptionalValue(value?:string|null):string|null {
+  const normalized=value?.trim()??'';
+  return normalized&&normalized!=='-'&&normalized!=='—'?normalized:null;
+}
+
 export function generateHasilPengamatanDraft(input:{
   proses:string|null; counts:InternalAuditReportFindingCounts; nama_customer?:string|null; nama_produk?:string|null;
 }):string {
   const process=input.proses?.trim()||'yang ditetapkan';
-  const subject=[input.nama_produk?.trim()&&`produk ${input.nama_produk.trim()}`,input.nama_customer?.trim()&&`customer ${input.nama_customer.trim()}`].filter(Boolean).join(' untuk ');
-  const context=subject?` dengan konteks ${subject}`:'';
+  const product=meaningfulOptionalValue(input.nama_produk);
+  const customer=meaningfulOptionalValue(input.nama_customer);
+  const context=product&&customer?` untuk produk ${product} milik customer ${customer}`
+    :product?` untuk produk ${product}`:customer?` untuk customer ${customer}`:'';
   if(input.counts.A===0&&input.counts.B===0&&input.counts.C===0){
     return `Telah dilakukan audit pada proses ${process}${context}. Berdasarkan hasil audit, tidak ditemukan ketidaksesuaian maupun Peluang Improvement.`;
   }

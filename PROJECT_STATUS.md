@@ -2075,14 +2075,15 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ## Batch 8b1 — Internal Audit Report Foundation & Draft — 5 Sep 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING`
+**Status:** `IMPLEMENTED_UNVERIFIED — FINAL BROWSER RECHECK PENDING`
 
 - [x] Implemented from base `main` SHA `109250c3f2554bc1de2ad4ee8b671bf07a6775cf` on branch
       `codex/implement-batch-8b1-internal-audit-report-foundation`.
-- [x] Added exactly one pending migration,
+- [x] Added exactly one Batch 8b1 migration,
       `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`,
-      SHA-256 `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
-      The migration has not been applied to Staging.
+      immutable SHA-256 `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
+      CertiTrack-Staging applied it under ledger version `20260905041814` with name
+      `create_batch8b1_internal_audit_report_foundation`; the repository migration is now immutable.
 - [x] `audit_internal_reports` persists only report-owned manual Draft data. No. Audit, process,
       target sections/managers, objective/scope, audit time range, Team facts, assistant auditors,
       other checked items, Checklist presence, Findings, Finding counts/references, and future summary
@@ -2117,9 +2118,23 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 - [x] Static checks passed: `npm run typecheck`, `npm run build`, targeted changed-file ESLint, and
       `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
       advisories. Package files, nested `/project`, and all historical migrations remain untouched.
-- [ ] Staging migration review/application: **PENDING**.
-- [ ] Vercel deployment status: **PENDING**.
-- [ ] Real-browser smoke verification: **PENDING** (fixture to be prepared after migration application).
+- [x] Final browser-refinement source patch treats blank, hyphen (`-`), and em-dash (`—`) customer/product
+      placeholders as absent only while generating Hasil Pengamatan, while preserving real values and the
+      stored report fields. Ineligible **Buat Laporan** buttons now use an explicit muted-gray disabled style;
+      eligibility logic is unchanged. No migration, package, or database behavior changed in this patch.
+### Staging and browser verification — PASS before final refinement
+
+- [x] `QA-9907` eligibility transition passed: missing Agenda blocked creation; Agenda Draft plus System
+      Checklist enabled creation. Draft creation/save and computed process, manager, objective/scope,
+      timeline, Team code, and Team Leader context passed.
+- [x] Optional Sub Leader passed two-way persistence (`NULL` → same-Team Member → `NULL`), including
+      selected-member removal and full Member-list restoration. Auditee persistence and revision increments passed.
+- [x] Follow-up `TRUE` row persistence, UI clearing on `FALSE`, and authoritative database normalization to
+      `follow_up_items=[]` passed. Generate Evaluasi passed.
+- [x] Stale-write protection passed directly on Staging: revision 8 rejected `p_expected_revision=7` with
+      the expected reload message and remained revision 8 after the probe.
+- [x] Vercel deployment and the above runtime/browser checks passed for the pre-refinement implementation.
+- [ ] Final deployed-browser recheck of dash-placeholder prose and disabled-button styling: **PENDING**.
 
 ## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 
@@ -2149,8 +2164,8 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation and audit-execution batches through Batch 8a have completed their
-applicable verification gates, and PR #20 is merged. Batch 8b1 is implemented and statically verified; its migration, Vercel deployment, and real-browser
-smoke remain pending.
+applicable verification gates, and PR #20 is merged. Batch 8b1 has passed Staging migration/runtime and initial browser verification. The final UI-only
+refinements for placeholder-aware prose and disabled-button styling require a deployed-browser recheck.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2179,7 +2194,7 @@ PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
             squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
-Batch 8b1   IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING
+Batch 8b1   IMPLEMENTED_UNVERIFIED — FINAL BROWSER RECHECK PENDING
 Batch 8b2+  NOT_STARTED
 ```
 
