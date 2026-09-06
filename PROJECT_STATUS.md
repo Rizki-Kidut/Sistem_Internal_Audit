@@ -2073,68 +2073,118 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ---
 
-## Batch 8b1 — Internal Audit Report Foundation & Draft — 5 Sep 2026
+## Batch 8b1 — Internal Audit Report Foundation & Draft — 5–6 Sep 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED — FINAL BROWSER RECHECK PENDING`
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging
+security/runtime verification, Vercel deployment, and final real-browser verification PASS. PR #21 remains
+OPEN / UNMERGED and requires explicit user approval before merge.)
 
-- [x] Implemented from base `main` SHA `109250c3f2554bc1de2ad4ee8b671bf07a6775cf` on branch
-      `codex/implement-batch-8b1-internal-audit-report-foundation`.
-- [x] Added exactly one Batch 8b1 migration,
-      `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`,
-      immutable SHA-256 `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
-      CertiTrack-Staging applied it under ledger version `20260905041814` with name
-      `create_batch8b1_internal_audit_report_foundation`; the repository migration is now immutable.
-- [x] `audit_internal_reports` persists only report-owned manual Draft data. No. Audit, process,
-      target sections/managers, objective/scope, audit time range, Team facts, assistant auditors,
-      other checked items, Checklist presence, Findings, Finding counts/references, and future summary
-      grouping remain computed from their current upstream sources.
-- [x] Draft creation eligibility is server-authoritative: an Agenda plus at least one System, Product,
-      or Manufacturing/Shift Checklist. Agenda Final, Findings, LTP, and CAR lifecycle completion are
-      deliberately not prerequisites; clean audits with zero Findings remain eligible.
-- [x] Added guarded Admin-only create/save RPCs, one-report-per-Instruction-row uniqueness, atomic
-      stale-revision protection, JSON top-level array validation, Draft-only saving, and direct
-      authenticated INSERT/UPDATE/DELETE revocation. Successful saves increment the revision exactly once.
-- [x] Team Leader is computed read-only from the assigned Team Master member marked
-      `is_team_leader`. Sub Leader is optional, defaults to and accepts `NULL`, and can only be selected
-      from non-leader Members of the same assigned Team. The server validates every non-NULL selection
-      before mutation. No Sub-Leader Team Master role or Team Master architecture change was added.
-- [x] When selected, the Sub Leader is removed from the computed remaining Member display; when no Sub
-      Leader is selected, every normal Member remains displayed.
-- [x] Customer/Product/Line are suggested once at creation only when exactly one unique nonblank upstream
-      value exists, then remain manually editable report-owned values and are never live-overwritten.
-- [x] Added pure, explicit-click generators for editable Hasil Pengamatan (A/B/C counts plus audit
-      context, including clean-audit wording) and Evaluasi (trimmed, deduplicated, deterministic nonblank
-      Finding references, including clean-audit/no-reference wording). No AI or automatic regeneration is used.
-- [x] Enabled and routed the existing Admin-only `laporan` workspace. The worklist keeps ineligible rows
-      visible with Agenda/Checklist blockers and live Checklist/Finding status; the Draft editor contains
-      computed context, optional attendee/follow-up rows, manual data, and Save Draft actions.
-- [x] Batch 8b1 adds no Final transition, signature/approval routing, official final finding-summary print
-      table, or print/PDF layout. These remain Batch 8b2 scope.
-- [x] Pre-migration consistency correction removed the three premature signer-name snapshot columns;
-      no replacement signer or approval architecture was introduced. Draft save now normalizes
-      `follow_up_items` to `[]` whenever `follow_up_required` is `FALSE` or `NULL`, preserves the supplied
-      array only when it is `TRUE`, and a table CHECK constraint enforces the same invariant. The Draft UI
-      also clears local follow-up rows when **Tidak** or **Belum ditentukan** is selected.
-- [x] Static checks passed: `npm run typecheck`, `npm run build`, targeted changed-file ESLint, and
-      `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
-      advisories. Package files, nested `/project`, and all historical migrations remain untouched.
-- [x] Final browser-refinement source patch treats blank, hyphen (`-`), and em-dash (`—`) customer/product
-      placeholders as absent only while generating Hasil Pengamatan, while preserving real values and the
-      stored report fields. Ineligible **Buat Laporan** buttons now use an explicit muted-gray disabled style;
-      eligibility logic is unchanged. No migration, package, or database behavior changed in this patch.
-### Staging and browser verification — PASS before final refinement
+### Implemented scope and architecture
 
-- [x] `QA-9907` eligibility transition passed: missing Agenda blocked creation; Agenda Draft plus System
-      Checklist enabled creation. Draft creation/save and computed process, manager, objective/scope,
-      timeline, Team code, and Team Leader context passed.
-- [x] Optional Sub Leader passed two-way persistence (`NULL` → same-Team Member → `NULL`), including
-      selected-member removal and full Member-list restoration. Auditee persistence and revision increments passed.
-- [x] Follow-up `TRUE` row persistence, UI clearing on `FALSE`, and authoritative database normalization to
-      `follow_up_items=[]` passed. Generate Evaluasi passed.
-- [x] Stale-write protection passed directly on Staging: revision 8 rejected `p_expected_revision=7` with
-      the expected reload message and remained revision 8 after the probe.
-- [x] Vercel deployment and the above runtime/browser checks passed for the pre-refinement implementation.
-- [ ] Final deployed-browser recheck of dash-placeholder prose and disabled-button styling: **PENDING**.
+- [x] Implemented the Admin-only **Laporan Internal Audit** foundation and Draft workspace for official
+      document `Q-120-ISE-001-FORM-015`.
+- [x] Enforced at most one report per Instruction row. Persistence contains report-owned manual Draft fields
+      only; No. Audit, process, target sections/managers, Agenda scope/timeline, Team, Checklist presence,
+      Findings, counts, and references remain computed live from their upstream sources.
+- [x] Creation eligibility remains Agenda plus at least one supported System, Product, or Manufacturing/Shift
+      Checklist. Agenda Final is not required, and a clean audit with zero Findings remains valid.
+- [x] Batch 8b1 deliberately provides no Final transition, signature/approval workflow, approval routing,
+      or final print/PDF layout.
+
+### Immutable migration and security/runtime verification — PASS
+
+- [x] Repository migration:
+      `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`.
+      Final immutable SHA-256:
+      `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
+- [x] CertiTrack-Staging applied the migration successfully under ledger entry
+      `20260905041814 · create_batch8b1_internal_audit_report_foundation`. The migration is now immutable
+      and was not changed after Staging application.
+- [x] Verified `audit_internal_reports` exists with the one-report-per-Instruction-row unique constraint,
+      positive revision constraint, JSON-array constraints, follow-up consistency constraint, and nullable
+      `sub_leader_auditor_id`.
+- [x] Verified authenticated direct `INSERT`, `UPDATE`, and `DELETE` are revoked; Admin SELECT RLS is active.
+      Create and Save Draft RPCs are guarded, both use `SECURITY DEFINER` with locked `search_path`, and an
+      unauthenticated create attempt was rejected.
+- [x] Successful Draft saves increment `revision_version` exactly once. The authoritative direct Staging
+      stale-write probe used current revision `8` with `p_expected_revision=7`; the RPC rejected it with
+      **“Laporan sudah berubah. Muat ulang data sebelum menyimpan kembali.”** and committed no mutation,
+      leaving revision `8`. The duplicate-browser-tab experiment is not treated as stale-write proof because
+      refreshed browser state made both writes valid sequential saves.
+
+### QA-9907 eligibility, creation, and computed context — FULL PASS
+
+- [x] Initial fixture state had a System Checklist, no Agenda, and no report. The worklist showed Agenda
+      **Belum Dibuat**, Checklist **Sistem**, Major `0`, Minor `1`, Peluang Improvement `1`, and Report
+      **Belum Dibuat**. **Buat Laporan** remained visible but disabled, with **Agenda belum dibuat.** shown.
+- [x] After creating an Agenda Draft, the worklist showed Agenda **Draft**, retained Checklist **Sistem** and
+      Report **Belum Dibuat**, removed the blocker, and enabled **Buat Laporan**. Agenda Final was not required.
+- [x] Draft creation passed with official code `Q-120-ISE-001-FORM-015`. Computed process, Section Manager,
+      Agenda objective/scope, Agenda-item audit date/time, Team code `B6B-SMOKE-TEAM`, and Team Leader
+      `B6B Smoke Auditor Lead` all passed.
+- [x] Repeatable Auditee Hadir rows, including multiple browser-fixture attendees, saved and reloaded correctly.
+
+### Optional Sub Leader and Member presentation — FULL PASS
+
+- [x] Sub Leader remains optional; no Team Master Sub-Leader role exists. Initial
+      `sub_leader_auditor_id=NULL` displayed **Tidak ada Sub Leader**.
+- [x] Fixture Team Leader was `B6B Smoke Auditor Lead` and Member was `B6B Smoke Auditor Member`. With
+      Sub Leader `NULL`, Member Audit displayed the Member. Selecting that same-Team Member as Sub Leader
+      made Member Audit empty/`-`; Save plus reload retained the selection.
+- [x] Returning the selector to **Tidak ada Sub Leader** restored `B6B Smoke Auditor Member`; Save plus reload
+      retained `NULL`. Server-side same-Team, non-Team-Leader Member validation remains authoritative.
+
+### Follow-up consistency — FULL PASS
+
+- [x] `follow_up_required=TRUE` with a repeatable follow-up row saved and survived reload. Changing
+      `TRUE → FALSE` cleared UI rows immediately; Save and reload retained `FALSE`, while the database retained
+      `follow_up_required=false` and `follow_up_items=[]`.
+- [x] Server normalization and the database follow-up consistency constraint both passed.
+
+### Draft generation and final browser refinements — FULL PASS
+
+- [x] Generate Evaluasi used unique, trimmed, deterministic nonblank Finding references. QA-9907 included
+      `9.2.2` and `Klausal IATF 7.2 - Kompetesi`; no Finding narrative was duplicated.
+- [x] QA-9907 stored `nama_customer="-"`, `nama_produk="-"`, and `nama_line="-"`. The original generated
+      prose incorrectly included `produk -` and `customer -`. The final refinement treats `NULL`, blank,
+      whitespace, `-`, and `—` as absent only when generating prose and does not mutate those report fields.
+- [x] Final browser recheck generated and saved:
+      **“Telah dilakukan audit pada proses Rencana Bisnis dan Management Review. Berdasarkan hasil audit,
+      ditemukan 0 ketidaksesuaian Major, 1 ketidaksesuaian Minor, dan 1 Peluang Improvement.”**
+- [x] Final browser verification confirmed ineligible **Buat Laporan** buttons remain visible, clearly
+      gray/muted, disabled, and accompanied by their blocker reason. Eligibility logic was unchanged.
+
+### Final verified QA-9907 state
+
+```text
+status = Draft
+revision_version = 9
+nama_customer = "-"
+nama_produk = "-"
+nama_line = "-"
+sub_leader_auditor_id = NULL
+follow_up_required = false
+follow_up_items = []
+```
+
+Hasil Pengamatan contains the corrected placeholder-free generated text above.
+
+### Static, deployment, and PR status — PASS / OPEN
+
+- [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. No package
+      files, nested `/project`, historical migrations, or post-application migration content changed.
+- [x] Vercel reported **SUCCESS** on browser-tested implementation head
+      `664b22eb10b7d7890565d1393ae10565df7370b9`.
+- [x] QA-9907 completed final real-browser verification, including both final UI refinements, at that head.
+- [ ] PR #21, **Batch 8b1: Internal Audit Report foundation**, remains **OPEN / UNMERGED**. Explicit user
+      approval is required before merge.
+
+### Deferred beyond Batch 8b1
+
+- [ ] Batch 8b2: Final transition; pixel-perfect official `Q-120-ISE-001-FORM-015` print layout; final
+      Finding-summary printed table; signature selections; approval workflow; report routing; Management
+      Representative approval; and print/PDF.
+- [ ] Batch 9: Weakness Analysis and subsequent Batch 9 scope.
 
 ## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 
@@ -2164,8 +2214,9 @@ No implementation found.
 # 5. Current Handoff Point
 
 The stabilization database foundation and audit-execution batches through Batch 8a have completed their
-applicable verification gates, and PR #20 is merged. Batch 8b1 has passed Staging migration/runtime and initial browser verification. The final UI-only
-refinements for placeholder-aware prose and disabled-button styling require a deployed-browser recheck.
+applicable verification gates, and PR #20 is merged. Batch 8b1 has completed implementation, immutable
+migration, Staging security/runtime, Vercel, static, and final browser verification. PR #21 remains open and
+unmerged; explicit user approval is required before merge.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2194,7 +2245,7 @@ PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
             squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
-Batch 8b1   IMPLEMENTED_UNVERIFIED — FINAL BROWSER RECHECK PENDING
+Batch 8b1   VERIFIED_STAGING — READY_FOR_MERGE (PR #21 OPEN / UNMERGED; explicit approval required)
 Batch 8b2+  NOT_STARTED
 ```
 
