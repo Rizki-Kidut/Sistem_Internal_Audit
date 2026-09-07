@@ -2075,9 +2075,7 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ## Batch 8b1 — Internal Audit Report Foundation & Draft — 5–6 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging
-security/runtime verification, Vercel deployment, and final real-browser verification PASS. PR #21 remains
-OPEN / UNMERGED and requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (PR #21 squash-merged to `main` as `752d503e116186812201692d57aa77278088634b`; immutable Staging migration and browser verification remain recorded below.)
 
 ### Implemented scope and architecture
 
@@ -2176,8 +2174,7 @@ Hasil Pengamatan contains the corrected placeholder-free generated text above.
 - [x] Vercel reported **SUCCESS** on browser-tested implementation head
       `664b22eb10b7d7890565d1393ae10565df7370b9`.
 - [x] QA-9907 completed final real-browser verification, including both final UI refinements, at that head.
-- [ ] PR #21, **Batch 8b1: Internal Audit Report foundation**, remains **OPEN / UNMERGED**. Explicit user
-      approval is required before merge.
+- [x] PR #21, **Batch 8b1: Internal Audit Report foundation**, was squash-merged to `main` as `752d503e116186812201692d57aa77278088634b`.
 
 ### Deferred beyond Batch 8b1
 
@@ -2185,6 +2182,21 @@ Hasil Pengamatan contains the corrected placeholder-free generated text above.
       Finding-summary printed table; signature selections; approval workflow; report routing; Management
       Representative approval; and print/PDF.
 - [ ] Batch 9: Weakness Analysis and subsequent Batch 9 scope.
+
+
+## Batch 8b2a — Section-Scoped Internal Audit Report Foundation — 7 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING`
+
+- [x] Superseded QA-wide report cardinality with one report per Instruction row + Section. Every distinct `target` and `terkait` Section is a candidate, including zero-Finding Sections.
+- [x] Added structured nullable `findings.seksi_auditee_id` and report `seksi_id` FKs to `seksi`; Finding ownership is never inferred from location/auditee text. Backfill prefers CAR ownership, then exactly-one-distinct scoped Section, otherwise remains unresolved; contradictions fail migration.
+- [x] Added guarded PLOR-with-Section save, scope validation, formal-review completeness gate, and LTP inheritance from the Finding Section with historical single-target fallback.
+- [x] Added conservative legacy report backfill for one-Section QA only. Multi-Section legacy Drafts remain unscoped and require stale-safe Admin assignment; no report-owned content is duplicated.
+- [x] Replaced Instruction-only uniqueness with partial unique Instruction + non-null Section scope and retired authenticated execution of the ambiguous old create RPC. New Admin create requires Agenda, a supported QA-level Checklist, and a valid scope Section, but no Finding.
+- [x] Refactored report data into Level 1 QA summaries and Level 2 Section candidates. Established counts/references/summary/evaluation are Section-scoped; pending Section or active unassigned Findings block generators. Clean Sections generate the confirmed formal compliance narrative.
+- [x] Existing optional Sub Leader/member filtering and follow-up normalization remain unchanged per report. Report access remains Admin-only. No approval workflow, Final Snapshot, official print, PDF, signatures, or route diagram was added.
+- [ ] New migration `supabase/migrations/20260907150000_create_batch8b2a_section_scoped_reports.sql` is pending Staging application. Do not apply remotely from this task.
+- [ ] Browser smoke and Vercel deployment are pending.
 
 ## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 

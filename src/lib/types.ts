@@ -510,7 +510,7 @@ export interface Finding {
   kategori: KategoriTemuan; klasifikasi_dis: KlasifikasiDIS | null;
   problem: string | null; location: string | null; objective_evidence: string | null;
   reference: string | null; saran_perbaikan: string | null; auditor_penemu_id: string | null;
-  auditee_area: string | null; tanggal_temuan: string; status: FindingStatus; review_status: FindingReviewStatus; car_id: string | null; revision_version:number;
+  auditee_area: string | null; seksi_auditee_id:string|null; tanggal_temuan: string; status: FindingStatus; review_status: FindingReviewStatus; car_id: string | null; revision_version:number;
   created_at: string; updated_at: string; auditor_penemu?: Auditor | null;
 }
 export interface FindingReviewEvent { id:string;finding_id:string;event_type:string;actor_user_id:string;actor_identity_type:string;comment:string|null;changed_fields:Record<string,unknown>|null;before_values:Record<string,unknown>|null;after_values:Record<string,unknown>|null;created_at:string; }
@@ -646,7 +646,7 @@ export interface InternalAuditReportFollowUpItem {
   seksi:string; seksi_pelaksana_follow_up:string; jadwal_follow_up:string|null;
 }
 export interface InternalAuditReport {
-  id:string; instruction_row_id:string; tanggal_terbit:string;
+  id:string; instruction_row_id:string; seksi_id:string|null; tanggal_terbit:string;
   auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string|null; nama_produk:string|null; nama_line:string|null;
   sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
   follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string|null;
@@ -656,19 +656,24 @@ export interface InternalAuditReport {
 export interface InternalAuditReportChecklistPresence { sistem:boolean; produk:boolean; manufaktur_shift:boolean; }
 export interface InternalAuditReportFindingCounts { A:number; B:number; C:number; }
 export interface InternalAuditReportFindingSummaryGroup {
-  reference:string|null; location:string|null; finding_numbers:number[]; requirement:string|null;
+  reference:string|null; location:string|null; finding_numbers:number[]; requirement:string|null; requirements:string[];
   counts:InternalAuditReportFindingCounts;
 }
 export interface InternalAuditReportContext {
-  row:AuditInstructionRow; instruction:AuditInstruction; proses:Proses|null; sections:Seksi[];
+  row:AuditInstructionRow; instruction:AuditInstruction; proses:Proses|null; sections:Seksi[]; scope_section:Seksi;
   agenda:AuditAgenda|null; agenda_items:AuditAgendaItem[]; team:AuditTeamMaster|null;
   team_leader:Auditor|null; team_members:Auditor[]; selected_sub_leader:Auditor|null; remaining_members:Auditor[];
-  checklist_presence:InternalAuditReportChecklistPresence; findings:Finding[];
+  checklist_presence:InternalAuditReportChecklistPresence; findings:Finding[]; established_findings:Finding[]; pending_findings:Finding[]; unassigned_finding_count:number;
   finding_counts:InternalAuditReportFindingCounts; finding_references:string[];
   finding_summary_groups:InternalAuditReportFindingSummaryGroup[]; report:InternalAuditReport|null;
   eligible:boolean; eligibility_reason:string|null; audit_time_range:string;
 }
-export type InternalAuditReportWorklistRow = InternalAuditReportContext;
+export interface InternalAuditReportWorklistRow {
+  row:AuditInstructionRow; instruction:AuditInstruction; proses:Proses|null; agenda:AuditAgenda|null;
+  checklist_presence:InternalAuditReportChecklistPresence; scope_sections:InternalAuditReportContext[];
+  legacy_report:InternalAuditReport|null; established_finding_count:number; pending_finding_count:number;
+  unassigned_finding_count:number; eligible:boolean; eligibility_reason:string|null;
+}
 export interface SaveInternalAuditReportDraftPayload {
   report_id:string; expected_revision:number; tanggal_terbit:string;
   auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string; nama_produk:string; nama_line:string;
