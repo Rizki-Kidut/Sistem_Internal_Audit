@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
   { id: 'temuan', label: 'Temuan (PLOR)', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'car', label: 'LTP', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'laporan', label: 'Laporan Internal Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'laporan', label: 'Laporan Internal Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'analisa', label: 'Analisa Weakness Point', icon: <BarChart3 size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
 
   // Master data

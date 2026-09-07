@@ -16,6 +16,7 @@ import { PelaksanaanAuditPage } from './components/pages/PelaksanaanAuditPage';
 import { LtpPage } from './components/pages/LtpPage';
 import { UserManagementPage } from './components/pages/UserManagementPage';
 import { DaftarKetidaksesuaianPage } from './components/pages/DaftarKetidaksesuaianPage';
+import { LaporanInternalAuditPage } from './components/pages/LaporanInternalAuditPage';
 import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
@@ -72,6 +73,8 @@ function App() {
         return <LtpPage />;
       case 'ketidaksesuaian':
         return <DaftarKetidaksesuaianPage />;
+      case 'laporan':
+        return <LaporanInternalAuditPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':

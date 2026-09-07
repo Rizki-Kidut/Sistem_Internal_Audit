@@ -8,8 +8,8 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from current `main` commit
-`8ba3a432ead18aca49737e33318a37532b7a5b3b`, the squash merge of PR #19 (Batch 7h).
-The active controlled feature slice is Batch 8a — Daftar Ketidaksesuaian.
+`109250c3f2554bc1de2ad4ee8b671bf07a6775cf`, the squash merge of PR #20 (Batch 8a).
+The active controlled feature slice is Batch 8b1 — Internal Audit Report Foundation & Draft.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
@@ -2001,9 +2001,9 @@ Historical target-plan snapshot; superseded by the controlled LTP slices documen
 
 ## Batch 8a — Daftar Ketidaksesuaian — 3 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation complete; static verification,
-Vercel deployment, and manual real-browser verification PASS. PR #20 remains OPEN / UNMERGED and
-requires explicit user approval before merge.)
+**Status:** `VERIFIED_COMPLETE — MERGED` (PR #20 approved at head
+`553f50a54a4429d174dc1ef700e643e08b06d918` and squash-merged to `main` as
+`109250c3f2554bc1de2ad4ee8b671bf07a6775cf`; prior static, Vercel, and real-browser verification PASS.)
 
 - [x] Implemented the central Admin-only **Daftar Ketidaksesuaian** workspace as a computed, read-only
       report. The existing sidebar item is enabled and routed to the new page; the existing authorization
@@ -2065,18 +2065,133 @@ requires explicit user approval before merge.)
 - [x] Static checks passed: `npm run typecheck`, `npm run build`, changed-file ESLint, and
       `git diff --check`. Build emitted only the known non-blocking Browserslist-data and bundle-size
       advisories. No migration or package file changed, and nested `/project` remained untouched.
-- [x] Vercel reported **SUCCESS** for final browser-tested PR head
+- [x] Vercel reported **SUCCESS** for browser-tested PR head
       `980385b7249a9ac38282fd41b17bc0db18cfeb8c`.
-- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, remains **OPEN / UNMERGED** at browser-
-      tested head `980385b7249a9ac38282fd41b17bc0db18cfeb8c`. Explicit user approval is still required before merge.
+- [x] PR #20, **Batch 8a: Daftar Ketidaksesuaian computed report**, was approved at final head
+      `553f50a54a4429d174dc1ef700e643e08b06d918` and squash-merged to `main` as
+      `109250c3f2554bc1de2ad4ee8b671bf07a6775cf`.
 
 ---
 
-## Batch 8b — Laporan Internal Audit
+## Batch 8b1 — Internal Audit Report Foundation & Draft — 5–6 Sep 2026
+
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging
+security/runtime verification, Vercel deployment, and final real-browser verification PASS. PR #21 remains
+OPEN / UNMERGED and requires explicit user approval before merge.)
+
+### Implemented scope and architecture
+
+- [x] Implemented the Admin-only **Laporan Internal Audit** foundation and Draft workspace for official
+      document `Q-120-ISE-001-FORM-015`.
+- [x] Enforced at most one report per Instruction row. Persistence contains report-owned manual Draft fields
+      only; No. Audit, process, target sections/managers, Agenda scope/timeline, Team, Checklist presence,
+      Findings, counts, and references remain computed live from their upstream sources.
+- [x] Creation eligibility remains Agenda plus at least one supported System, Product, or Manufacturing/Shift
+      Checklist. Agenda Final is not required, and a clean audit with zero Findings remains valid.
+- [x] Batch 8b1 deliberately provides no Final transition, signature/approval workflow, approval routing,
+      or final print/PDF layout.
+
+### Immutable migration and security/runtime verification — PASS
+
+- [x] Repository migration:
+      `supabase/migrations/20260905010000_create_batch8b1_internal_audit_report_foundation.sql`.
+      Final immutable SHA-256:
+      `e19918fce10d4dbc886ec570f4b8c2844755d9ca128d110971e4de1af43564f2`.
+- [x] CertiTrack-Staging applied the migration successfully under ledger entry
+      `20260905041814 · create_batch8b1_internal_audit_report_foundation`. The migration is now immutable
+      and was not changed after Staging application.
+- [x] Verified `audit_internal_reports` exists with the one-report-per-Instruction-row unique constraint,
+      positive revision constraint, JSON-array constraints, follow-up consistency constraint, and nullable
+      `sub_leader_auditor_id`.
+- [x] Verified authenticated direct `INSERT`, `UPDATE`, and `DELETE` are revoked; Admin SELECT RLS is active.
+      Create and Save Draft RPCs are guarded, both use `SECURITY DEFINER` with locked `search_path`, and an
+      unauthenticated create attempt was rejected.
+- [x] Successful Draft saves increment `revision_version` exactly once. The authoritative direct Staging
+      stale-write probe used current revision `8` with `p_expected_revision=7`; the RPC rejected it with
+      **“Laporan sudah berubah. Muat ulang data sebelum menyimpan kembali.”** and committed no mutation,
+      leaving revision `8`. The duplicate-browser-tab experiment is not treated as stale-write proof because
+      refreshed browser state made both writes valid sequential saves.
+
+### QA-9907 eligibility, creation, and computed context — FULL PASS
+
+- [x] Initial fixture state had a System Checklist, no Agenda, and no report. The worklist showed Agenda
+      **Belum Dibuat**, Checklist **Sistem**, Major `0`, Minor `1`, Peluang Improvement `1`, and Report
+      **Belum Dibuat**. **Buat Laporan** remained visible but disabled, with **Agenda belum dibuat.** shown.
+- [x] After creating an Agenda Draft, the worklist showed Agenda **Draft**, retained Checklist **Sistem** and
+      Report **Belum Dibuat**, removed the blocker, and enabled **Buat Laporan**. Agenda Final was not required.
+- [x] Draft creation passed with official code `Q-120-ISE-001-FORM-015`. Computed process, Section Manager,
+      Agenda objective/scope, Agenda-item audit date/time, Team code `B6B-SMOKE-TEAM`, and Team Leader
+      `B6B Smoke Auditor Lead` all passed.
+- [x] Repeatable Auditee Hadir rows, including multiple browser-fixture attendees, saved and reloaded correctly.
+
+### Optional Sub Leader and Member presentation — FULL PASS
+
+- [x] Sub Leader remains optional; no Team Master Sub-Leader role exists. Initial
+      `sub_leader_auditor_id=NULL` displayed **Tidak ada Sub Leader**.
+- [x] Fixture Team Leader was `B6B Smoke Auditor Lead` and Member was `B6B Smoke Auditor Member`. With
+      Sub Leader `NULL`, Member Audit displayed the Member. Selecting that same-Team Member as Sub Leader
+      made Member Audit empty/`-`; Save plus reload retained the selection.
+- [x] Returning the selector to **Tidak ada Sub Leader** restored `B6B Smoke Auditor Member`; Save plus reload
+      retained `NULL`. Server-side same-Team, non-Team-Leader Member validation remains authoritative.
+
+### Follow-up consistency — FULL PASS
+
+- [x] `follow_up_required=TRUE` with a repeatable follow-up row saved and survived reload. Changing
+      `TRUE → FALSE` cleared UI rows immediately; Save and reload retained `FALSE`, while the database retained
+      `follow_up_required=false` and `follow_up_items=[]`.
+- [x] Server normalization and the database follow-up consistency constraint both passed.
+
+### Draft generation and final browser refinements — FULL PASS
+
+- [x] Generate Evaluasi used unique, trimmed, deterministic nonblank Finding references. QA-9907 included
+      `9.2.2` and `Klausal IATF 7.2 - Kompetesi`; no Finding narrative was duplicated.
+- [x] QA-9907 stored `nama_customer="-"`, `nama_produk="-"`, and `nama_line="-"`. The original generated
+      prose incorrectly included `produk -` and `customer -`. The final refinement treats `NULL`, blank,
+      whitespace, `-`, and `—` as absent only when generating prose and does not mutate those report fields.
+- [x] Final browser recheck generated and saved:
+      **“Telah dilakukan audit pada proses Rencana Bisnis dan Management Review. Berdasarkan hasil audit,
+      ditemukan 0 ketidaksesuaian Major, 1 ketidaksesuaian Minor, dan 1 Peluang Improvement.”**
+- [x] Final browser verification confirmed ineligible **Buat Laporan** buttons remain visible, clearly
+      gray/muted, disabled, and accompanied by their blocker reason. Eligibility logic was unchanged.
+
+### Final verified QA-9907 state
+
+```text
+status = Draft
+revision_version = 9
+nama_customer = "-"
+nama_produk = "-"
+nama_line = "-"
+sub_leader_auditor_id = NULL
+follow_up_required = false
+follow_up_items = []
+```
+
+Hasil Pengamatan contains the corrected placeholder-free generated text above.
+
+### Static, deployment, and PR status — PASS / OPEN
+
+- [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. No package
+      files, nested `/project`, historical migrations, or post-application migration content changed.
+- [x] Vercel reported **SUCCESS** on browser-tested implementation head
+      `664b22eb10b7d7890565d1393ae10565df7370b9`.
+- [x] QA-9907 completed final real-browser verification, including both final UI refinements, at that head.
+- [ ] PR #21, **Batch 8b1: Internal Audit Report foundation**, remains **OPEN / UNMERGED**. Explicit user
+      approval is required before merge.
+
+### Deferred beyond Batch 8b1
+
+- [ ] Batch 8b2: Final transition; pixel-perfect official `Q-120-ISE-001-FORM-015` print layout; final
+      Finding-summary printed table; signature selections; approval workflow; report routing; Management
+      Representative approval; and print/PDF.
+- [ ] Batch 9: Weakness Analysis and subsequent Batch 9 scope.
+
+## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 
 **Status:** `NOT_STARTED`
 
-Sidebar entry exists as disabled, but no implementation was found.
+Final transition, signature/approval workflow, official form layout, final finding-summary table, and
+print/PDF remain deferred to the separately controlled Batch 8b2 scope.
 
 ---
 
@@ -2098,10 +2213,10 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and implemented audit-execution batches through Batch 7h have
-completed their required verification gates, and PR #19 is merged. Batch 8a Daftar Ketidaksesuaian is
-`VERIFIED_STAGING — READY_FOR_MERGE`: browser PASS, Vercel PASS, and database change NONE. PR #20 remains
-OPEN / UNMERGED; the next action is final review plus explicit merge approval.
+The stabilization database foundation and audit-execution batches through Batch 8a have completed their
+applicable verification gates, and PR #20 is merged. Batch 8b1 has completed implementation, immutable
+migration, Staging security/runtime, Vercel, static, and final browser verification. PR #21 remains open and
+unmerged; explicit user approval is required before merge.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2128,9 +2243,10 @@ Batch 7h    VERIFIED_COMPLETE — MERGED (multi-action evidence; PR #19; squash 
             8ba3a432ead18aca49737e33318a37532b7a5b3b)
 PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor access;
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
-Batch 8a    VERIFIED_STAGING — READY_FOR_MERGE (PR #20 OPEN / UNMERGED; browser PASS;
-            Vercel PASS; database change NONE; explicit merge approval required)
-Batch 8b+   NOT_STARTED
+Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
+            squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
+Batch 8b1   VERIFIED_STAGING — READY_FOR_MERGE (PR #21 OPEN / UNMERGED; explicit approval required)
+Batch 8b2+  NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
