@@ -49,8 +49,17 @@ export async function resolveFindingSourceLabels(findings:SourceFindingRef[]):Pr
 }
 
 export async function listFindings(): Promise<Finding[]> {
-  const { data,error }=await supabase.from('findings').select('*,auditor_penemu:auditors(*)').order('created_at',{ascending:false});
-  if(error) throw new Error(`Gagal memuat Temuan: ${error.message}`); return (data??[]).map((row:Record<string,unknown>)=>mapFinding(row));
+  const [findingsResult,sectionsResult]=await Promise.all([
+    supabase.from('findings').select('*,auditor_penemu:auditors(*)').order('created_at',{ascending:false}),
+    supabase.from('seksi').select('*'),
+  ]);
+  if(findingsResult.error)throw new Error(`Gagal memuat Temuan: ${findingsResult.error.message}`);
+  if(sectionsResult.error)throw new Error(`Gagal memuat Seksi Auditee: ${sectionsResult.error.message}`);
+  const sections=new Map((sectionsResult.data??[]).map(section=>[section.id,section]));
+  return(findingsResult.data??[]).map((row:Record<string,unknown>)=>mapFinding({
+    ...row,
+    seksi_auditee:typeof row.seksi_auditee_id==='string'?sections.get(row.seksi_auditee_id)??null:null,
+  }));
 }
 export async function getFindingById(id:string):Promise<Finding|null>{
   const {data,error}=await supabase.from('findings').select('*,auditor_penemu:auditors(*)').eq('id',id).maybeSingle();

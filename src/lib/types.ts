@@ -511,7 +511,7 @@ export interface Finding {
   problem: string | null; location: string | null; objective_evidence: string | null;
   reference: string | null; saran_perbaikan: string | null; auditor_penemu_id: string | null;
   auditee_area: string | null; seksi_auditee_id:string|null; tanggal_temuan: string; status: FindingStatus; review_status: FindingReviewStatus; car_id: string | null; revision_version:number;
-  created_at: string; updated_at: string; auditor_penemu?: Auditor | null;
+  created_at: string; updated_at: string; auditor_penemu?: Auditor | null; seksi_auditee?: Seksi | null;
 }
 export interface FindingReviewEvent { id:string;finding_id:string;event_type:string;actor_user_id:string;actor_identity_type:string;comment:string|null;changed_fields:Record<string,unknown>|null;before_values:Record<string,unknown>|null;after_values:Record<string,unknown>|null;created_at:string; }
 export interface FindingSourceDisposition { finding_id:string;source_type:FindingSourceType;source_item_id:string;initial_judgement:string;effective_judgement:string;reason:string;actor_display_name:string;created_at:string; }

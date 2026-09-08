@@ -6,6 +6,20 @@ CREATE INDEX audit_internal_reports_seksi_idx ON public.audit_internal_reports(s
 
 -- Refuse contradictory structured history before any backfill.
 DO $$ DECLARE v_ids text; BEGIN
+ SELECT string_agg(f.id::text,', ' ORDER BY f.id::text) INTO v_ids
+ FROM public.findings f
+ JOIN public.cars c ON c.finding_id=f.id
+ WHERE c.seksi_auditee_id IS NOT NULL
+   AND NOT EXISTS (
+     SELECT 1
+     FROM public.audit_instruction_rows r
+     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(r.seksi_marks,'[]'::jsonb)) mark
+     WHERE r.id=f.instruction_row_id
+       AND mark->>'tipe' IN('target','terkait')
+       AND public.safe_uuid(mark->>'seksi_id')=c.seksi_auditee_id
+   );
+ IF v_ids IS NOT NULL THEN RAISE EXCEPTION 'LTP Section berada di luar lingkup QA: %',v_ids; END IF;
+
  SELECT string_agg(f.id::text,', ' ORDER BY f.id::text) INTO v_ids FROM public.findings f JOIN public.cars c ON c.finding_id=f.id WHERE f.seksi_auditee_id IS NOT NULL AND c.seksi_auditee_id IS NOT NULL AND f.seksi_auditee_id<>c.seksi_auditee_id;
  IF v_ids IS NOT NULL THEN RAISE EXCEPTION 'Finding/LTP Section contradiction: %',v_ids; END IF;
 END $$;
