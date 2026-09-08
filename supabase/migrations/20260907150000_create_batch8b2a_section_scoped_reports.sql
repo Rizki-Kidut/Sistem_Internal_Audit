@@ -153,7 +153,26 @@ DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.audit_internal_reports'::regclass AND conname='audit_internal_reports_instruction_row_key') THEN RAISE EXCEPTION 'old report uniqueness remains';END IF;
  IF to_regclass('public.audit_internal_reports_instruction_section_unique') IS NULL THEN RAISE EXCEPTION 'missing scoped report uniqueness';END IF;
  IF has_table_privilege('authenticated','public.audit_internal_reports','INSERT') OR has_table_privilege('authenticated','public.audit_internal_reports','UPDATE') OR has_table_privilege('authenticated','public.audit_internal_reports','DELETE') THEN RAISE EXCEPTION 'direct report DML must remain revoked';END IF;
- IF has_table_privilege('authenticated','public.findings','UPDATE') THEN RAISE EXCEPTION 'direct Finding UPDATE must remain revoked';END IF;
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='public' AND c.relname='findings' AND c.relrowsecurity
+ ) THEN RAISE EXCEPTION 'Finding RLS must remain enabled';END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='findings' AND policyname='findings_admin_update')
+    OR NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='findings' AND policyname='findings_auditor_update')
+ THEN RAISE EXCEPTION 'Finding UPDATE policies must remain installed';END IF;
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_trigger
+   WHERE tgrelid='public.findings'::regclass AND tgname='trg_protect_finding_update'
+     AND NOT tgisinternal AND tgenabled<>'D'
+ ) THEN RAISE EXCEPTION 'Core Finding mutation trigger must remain enabled';END IF;
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_trigger
+   WHERE tgrelid='public.findings'::regclass AND tgname='trg_protect_completed_audit_plor'
+     AND NOT tgisinternal AND tgenabled<>'D'
+ ) THEN RAISE EXCEPTION 'Completed-audit PLOR trigger must remain enabled';END IF;
+ IF has_table_privilege('authenticated','public.findings','INSERT')
+    OR has_table_privilege('authenticated','public.findings','DELETE')
+ THEN RAISE EXCEPTION 'Direct Finding INSERT/DELETE must remain revoked';END IF;
  IF EXISTS(
    SELECT 1 FROM public.findings f
    WHERE f.seksi_auditee_id IS NOT NULL AND NOT EXISTS(
