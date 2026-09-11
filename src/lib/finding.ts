@@ -1,9 +1,10 @@
 import type { Finding } from './types';
 
 const filled = (value: string | null | undefined) => Boolean(value?.trim());
-export function isFindingPLORComplete(finding: Pick<Finding, 'kategori'|'problem'|'location'|'objective_evidence'|'reference'|'saran_perbaikan'|'auditor_penemu_id'|'tanggal_temuan'>): boolean {
+export function isFindingPLORComplete(finding: Pick<Finding, 'kategori'|'problem'|'location'|'objective_evidence'|'reference'|'saran_perbaikan'|'auditor_penemu_id'|'tanggal_temuan'|'seksi_auditee_id'>): boolean {
   const commonFieldsComplete = filled(finding.problem) && filled(finding.location)
-    && filled(finding.objective_evidence) && Boolean(finding.auditor_penemu_id && finding.tanggal_temuan);
+    && filled(finding.objective_evidence)
+    && Boolean(finding.auditor_penemu_id && finding.tanggal_temuan && finding.seksi_auditee_id);
   return commonFieldsComplete && (finding.kategori === 'C'
     ? filled(finding.saran_perbaikan)
     : filled(finding.reference));

@@ -49,8 +49,17 @@ export async function resolveFindingSourceLabels(findings:SourceFindingRef[]):Pr
 }
 
 export async function listFindings(): Promise<Finding[]> {
-  const { data,error }=await supabase.from('findings').select('*,auditor_penemu:auditors(*)').order('created_at',{ascending:false});
-  if(error) throw new Error(`Gagal memuat Temuan: ${error.message}`); return (data??[]).map((row:Record<string,unknown>)=>mapFinding(row));
+  const [findingsResult,sectionsResult]=await Promise.all([
+    supabase.from('findings').select('*,auditor_penemu:auditors(*)').order('created_at',{ascending:false}),
+    supabase.from('seksi').select('*'),
+  ]);
+  if(findingsResult.error)throw new Error(`Gagal memuat Temuan: ${findingsResult.error.message}`);
+  if(sectionsResult.error)throw new Error(`Gagal memuat Seksi Auditee: ${sectionsResult.error.message}`);
+  const sections=new Map((sectionsResult.data??[]).map(section=>[section.id,section]));
+  return(findingsResult.data??[]).map((row:Record<string,unknown>)=>mapFinding({
+    ...row,
+    seksi_auditee:typeof row.seksi_auditee_id==='string'?sections.get(row.seksi_auditee_id)??null:null,
+  }));
 }
 export async function getFindingById(id:string):Promise<Finding|null>{
   const {data,error}=await supabase.from('findings').select('*,auditor_penemu:auditors(*)').eq('id',id).maybeSingle();
@@ -58,11 +67,11 @@ export async function getFindingById(id:string):Promise<Finding|null>{
 }
 export async function saveFindingPLOR(finding:Finding,reason:string|null=null):Promise<Finding>{
   if(finding.klasifikasi_dis&&!Object.values(KLASIFIKASI_DIS).includes(finding.klasifikasi_dis))throw new Error('Klasifikasi DIS tidak valid');
-  const {data,error}=await supabase.rpc('save_finding_plor',{
+  const {data,error}=await supabase.rpc('save_finding_plor_with_section',{
     p_id:finding.id,p_expected_version:finding.revision_version,p_klasifikasi_dis:finding.klasifikasi_dis,
     p_problem:finding.problem?.trim()||null,p_location:finding.location?.trim()||null,p_objective_evidence:finding.objective_evidence?.trim()||null,
     p_reference:finding.reference?.trim()||null,p_saran_perbaikan:finding.saran_perbaikan?.trim()||null,p_auditor_penemu_id:finding.auditor_penemu_id,
-    p_auditee_area:finding.auditee_area?.trim()||null,p_tanggal_temuan:finding.tanggal_temuan,p_reason:reason?.trim()||null,
+    p_auditee_area:finding.auditee_area?.trim()||null,p_seksi_auditee_id:finding.seksi_auditee_id,p_tanggal_temuan:finding.tanggal_temuan,p_reason:reason?.trim()||null,
   });
   if(error)throw new Error(`Gagal menyimpan PLOR: ${error.message}`);
   if(!data)throw new Error('Finding ini telah diperbarui anggota Tim lain. Muat ulang data terbaru sebelum menyimpan.');
@@ -105,7 +114,7 @@ export async function getFindingContext(findingId:string):Promise<FindingContext
   const finding=await getFindingById(findingId);if(!finding)throw new Error('Temuan tidak ditemukan');
   const {data:row,error:rowError}=await supabase.from('audit_instruction_rows').select('*').eq('id',finding.instruction_row_id).single();
   if(rowError||!row)throw new Error(`Gagal memuat konteks QA: ${rowError?.message??'baris Instruksi tidak ditemukan'}`);
-  const targetSectionIds=((row.seksi_marks??[]) as {seksi_id:string;tipe:string}[]).filter(mark=>mark.tipe==='target').map(mark=>mark.seksi_id);
+  const targetSectionIds=[...new Set(((row.seksi_marks??[]) as {seksi_id:string;tipe:string}[]).filter(mark=>mark.tipe==='target'||mark.tipe==='terkait').map(mark=>mark.seksi_id))];
   const [instructionResult,processResult,sectionsResult]=await Promise.all([
     supabase.from('audit_instructions').select('*').eq('id',row.instruction_id).single(),
     row.proses_id?supabase.from('proses').select('*').eq('id',row.proses_id).maybeSingle():Promise.resolve({data:null,error:null}),
@@ -120,6 +129,8 @@ export async function getFindingContext(findingId:string):Promise<FindingContext
   else if(finding.source_type===FINDING_SOURCE_TYPE.MANUFAKTUR_SHIFT){const {data,error}=await supabase.from('checklist_manufaktur_items').select('no_proses_dicek,hasil_pengamatan,hasil,bank_item:checklist_manufaktur_bank_items(nomor,item_pemeriksaan,klausul)').eq('id',finding.source_item_id).single();if(error||!data)throw new Error(`Gagal memuat sumber Checklist Manufaktur/Shift: ${error?.message??'item tidak ditemukan'}`);const bank=Array.isArray(data.bank_item)?data.bank_item[0]:data.bank_item;sourceNote=data.hasil_pengamatan;sourceReference=bank?.klausul??null;sourceDetails={no_proses_dicek:data.no_proses_dicek,hasil:data.hasil,nomor:bank?.nomor??null,item_pemeriksaan:bank?.item_pemeriksaan??null,klausul:bank?.klausul??null};}
   else {const {data,error}=await supabase.from('checklist_produk_items').select('item_pemeriksaan,standar_kriteria,hasil_pemeriksaan,judgment,finding_kategori,fase:checklist_produk_fase(nama_fase)').eq('id',finding.source_item_id).single();if(error||!data)throw new Error(`Gagal memuat sumber Checklist Produk: ${error?.message??'item tidak ditemukan'}`);const fase=Array.isArray(data.fase)?data.fase[0]:data.fase;sourceNote=data.hasil_pemeriksaan;sourceReference=data.standar_kriteria;sourceDetails={fase:fase?.nama_fase??null,item_pemeriksaan:data.item_pemeriksaan,standar_kriteria:data.standar_kriteria,judgment:data.judgment,finding_kategori:data.finding_kategori};}
   const team=row.team_master_id?await getAuditTeamMasterById(row.team_master_id):null;
-  return{finding,row,instruction,proses,sections:sectionRows??[],team,source_note:sourceNote,source_reference:sourceReference,source_details:sourceDetails} as FindingContext;
+  const scopedSections=sectionRows??[];
+  const resolvedFinding=finding.review_status==='DRAFT'&&!finding.seksi_auditee_id&&scopedSections.length===1?{...finding,seksi_auditee_id:scopedSections[0].id}:finding;
+  return{finding:resolvedFinding,row,instruction,proses,sections:scopedSections,team,source_note:sourceNote,source_reference:sourceReference,source_details:sourceDetails} as FindingContext;
 }
 export function findingTeamAuditors(context:FindingContext):Auditor[]{return context.team?.members.map(m=>m.auditor).filter((a):a is Auditor=>Boolean(a))??[];}

@@ -1547,6 +1547,16 @@ Document code:
 
 # Batch 8b — Laporan Internal Audit
 
+### Batch 8b2a authoritative section-scope refinement (supersedes QA-wide cardinality)
+
+- Laporan Internal Audit is owned by one Instruction row (`QA`) **and one Section**; one QA may therefore have N reports, with at most one report per QA + Section.
+- Every distinct Section in `audit_instruction_rows.seksi_marks` is a report candidate. Both `target` and `terkait` marks count, and a zero-Finding Section still receives a report.
+- Finding organizational ownership is the structured nullable `findings.seksi_auditee_id`; `location` and `auditee_area` remain separate occurrence/display values and are never Section authorization keys.
+- Report Finding counts, references, summary groups, Hasil Pengamatan, Evaluasi, and audited Section Manager are computed only for that report's Section. Pending scoped Findings or active unassigned Findings block generators from declaring a clean audit.
+- A clean Section generates formal prose stating that the audited process at that Section complies with applicable requirements, rather than using 0/0/0 as its primary narrative.
+- The later approval batch will route a report automatically to the Manager belonging to `report.seksi_id`; Batch 8b2a does not implement approval or final print behavior.
+
+
 Most report fields are computed from existing:
 
 - Agenda
