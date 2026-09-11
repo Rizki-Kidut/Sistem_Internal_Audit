@@ -8,8 +8,8 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from current `main` commit
-`109250c3f2554bc1de2ad4ee8b671bf07a6775cf`, the squash merge of PR #20 (Batch 8a).
-The active controlled feature slice is Batch 8b1 — Internal Audit Report Foundation & Draft.
+`752d503e116186812201692d57aa77278088634b`, the squash merge of PR #21 (Batch 8b1).
+The active controlled feature slice is Batch 8b2a — Section-Scoped Internal Audit Report Foundation.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
@@ -2184,23 +2184,106 @@ Hasil Pengamatan contains the corrected placeholder-free generated text above.
 - [ ] Batch 9: Weakness Analysis and subsequent Batch 9 scope.
 
 
-## Batch 8b2a — Section-Scoped Internal Audit Report Foundation — 7 Sep 2026
+## Batch 8b2a — Section-Scoped Internal Audit Report Foundation — 7–11 Sep 2026
 
-**Status:** `IMPLEMENTED_UNVERIFIED — STAGING/BROWSER PENDING`
+**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging
+security/runtime verification, Vercel deployment, static validation, and real-browser verification PASS.
+PR #22 remains **OPEN / UNMERGED** and requires explicit user approval before merge.)
 
-- [x] Superseded QA-wide report cardinality with one report per Instruction row + Section. Every distinct `target` and `terkait` Section is a candidate, including zero-Finding Sections.
-- [x] Added structured nullable `findings.seksi_auditee_id` and report `seksi_id` FKs to `seksi`; Finding ownership is never inferred from location/auditee text. Backfill prefers CAR ownership, then exactly-one-distinct scoped Section, otherwise remains unresolved; contradictions fail migration.
-- [x] Added guarded PLOR-with-Section save, scope validation, formal-review completeness gate, and LTP inheritance from the Finding Section with historical single-target fallback.
-- [x] Pre-migration refinement aligned the shared PLOR completeness helper with the server gate by requiring structured Section ownership, so Temuan and Pelaksanaan share the same incomplete result until a Section is selected. The Temuan worklist now resolves Section master data once and displays the actual Section name without location/text fallback.
-- [x] Pre-backfill validation now aborts when an existing CAR/LTP Section is outside the linked Finding's `target`/`terkait` QA scope; the current read-only Staging precheck reported no such rows.
-- [x] Final pre-migration guard correction prepares `protect_finding_update()` before historical normalization and permits only a transaction-local `certitrack.finding_section_backfill` NULL-to-valid-scope Section assignment. It preserves Finding revisions and creates no PLOR edit event, restores the context immediately, locks Section ownership after completed execution, and asserts post-backfill scope/CAR/revision consistency.
-- [x] The first Staging apply attempt rolled back atomically on an invalid assertion that expected authenticated Finding UPDATE to be revoked; neither Section column nor a Batch 8b2a ledger entry remained. The assertion now preserves the intentional Finding baseline—authenticated UPDATE governed by enabled RLS, Admin/Auditor UPDATE policies, and both mutation triggers—while still requiring direct Finding INSERT/DELETE to remain unavailable. Migration re-application remains pending.
-- [x] Added conservative legacy report backfill for one-Section QA only. Multi-Section legacy Drafts remain unscoped and require stale-safe Admin assignment; no report-owned content is duplicated.
-- [x] Replaced Instruction-only uniqueness with partial unique Instruction + non-null Section scope and retired authenticated execution of the ambiguous old create RPC. New Admin create requires Agenda, a supported QA-level Checklist, and a valid scope Section, but no Finding.
-- [x] Refactored report data into Level 1 QA summaries and Level 2 Section candidates. Established counts/references/summary/evaluation are Section-scoped; pending Section or active unassigned Findings block generators. Clean Sections generate the confirmed formal compliance narrative.
-- [x] Existing optional Sub Leader/member filtering and follow-up normalization remain unchanged per report. Report access remains Admin-only. No approval workflow, Final Snapshot, official print, PDF, signatures, or route diagram was added.
-- [ ] New migration `supabase/migrations/20260907150000_create_batch8b2a_section_scoped_reports.sql` is pending Staging application. Do not apply remotely from this task.
-- [ ] Browser smoke and Vercel deployment are pending.
+### Authoritative architecture and migration — VERIFIED
+
+- [x] One Instruction row / QA may own N reports, with at most one report per QA + Section. Every distinct
+      `target` and `terkait` Section in `audit_instruction_rows.seksi_marks` is a report candidate, including
+      Sections with zero Findings. The partial unique index on `(instruction_row_id, seksi_id)` where
+      `seksi_id IS NOT NULL` enforces the scoped maximum.
+- [x] Structured organizational ownership is `findings.seksi_auditee_id`; report ownership is
+      `audit_internal_reports.seksi_id`. Both reference `seksi`. Free-text `location` and `auditee_area`
+      remain occurrence/display information and are not Section authority keys.
+- [x] Formal report counts and summaries include only `PUBLISHED` and `LEGACY_ESTABLISHED` Findings and
+      exclude `ANNULLED`. Other review states remain pending: they do not count formally and block a
+      clean-audit conclusion for their own Section. Any active Finding without `seksi_auditee_id` blocks
+      report generators across that QA until its ownership is resolved.
+- [x] Repository migration:
+      `supabase/migrations/20260907150000_create_batch8b2a_section_scoped_reports.sql`.
+      Final immutable SHA-256:
+      `822c97450d069dce081c0163ebc584721dced8b9dead61650f6ae70bbbdf8b43`.
+- [x] The first Staging apply attempt failed on an assertion that incorrectly expected authenticated Finding
+      UPDATE to be revoked and rolled back atomically. Complete rollback was confirmed: neither new Section
+      column nor a Batch 8b2a ledger entry remained. The assertion was aligned with the established Finding
+      security envelope—authenticated UPDATE under RLS, Admin/Auditor UPDATE policies, and enabled mutation
+      triggers—while direct INSERT/DELETE remain unavailable.
+- [x] The corrected migration subsequently applied successfully to CertiTrack-Staging under ledger entry
+      `20260908060655 · create_batch8b2a_section_scoped_reports`. It is now **APPLIED and IMMUTABLE**;
+      every later database correction must use a new additive migration.
+- [x] Trigger-safe normalization used the dedicated transaction-local
+      `certitrack.finding_section_backfill` context, preserved Finding revisions, emitted no `PLOR_EDITED`
+      event, accepted only NULL-to-valid-scope ownership, and retained CAR/scope/contradiction assertions.
+      Completed-audit protection now also locks `seksi_auditee_id`.
+
+### Backward compatibility — QA-9907 PASS
+
+- [x] Batch 8b2a backfill succeeded for QA-9907. Its two established Findings remain valid and are owned by
+      **Quality Assurance System**. The existing Batch 8b1 Draft report was scoped to that same Section,
+      remained at revision `9`, and was neither copied nor duplicated; report-owned content was preserved.
+
+### QA-0101 controlled fixture and Team repair
+
+- [x] Smoke process **Rencana Bisnis dan Management Review** covers three Sections: **BOD & Management
+      Representative** (`terkait`), **Quality Assurance System** (`target`), and **Quality Control**
+      (`terkait`). Findings `QA-0101/SYS/2026/001` (B) and `QA-0101/SYS/2026/002` (C) both remain
+      `DRAFT`, revision `2`, and are explicitly owned by **Quality Assurance System**.
+- [x] Formal Level-2 semantics passed: BOD = `0/0/0 · Sesuai`; QAS = `0/0/0 · Pending 2 · Menunggu
+      Finalisasi Temuan`; Quality Control = `0/0/0 · Sesuai`.
+- [x] Team `B8B2A-QA0101` / **B8B2A QA-0101 Smoke Team**, Plan 2026, is Aktif + Locked. Team Leader is
+      **B8B2A Smoke Auditor Lead** and Member is **B8B2A Smoke Auditor Member**.
+- [x] QA-0101 had a pre-existing invalid Team state despite an existing Checklist. The user explicitly
+      approved a controlled Staging-only repair; Checklist and Findings remained intact, and every temporarily
+      bypassed `audit_team_masters` trigger was restored **ENABLED** afterward.
+- [ ] Existing `validate_team_responsibilities()` / `trg_validate_team_header_responsibilities` behavior can
+      fail during normal Team creation. This is unrelated to Batch 8b2a and must be addressed, if needed, in
+      a separately scoped future change and new migration; the applied Batch 8b2a migration must not change.
+
+### Section report browser verification — PASS
+
+- [x] **BOD clean-audit report:** Draft revision `3`; Section-specific Manager, Team Leader, and optional
+      Sub Leader displays passed. Selecting **B8B2A Smoke Auditor Member** as Sub Leader persisted after
+      reload, and Member Audit displayed `-`, proving the selected Sub Leader was removed from remaining
+      Members. `follow_up_required=false` and `follow_up_items=[]` persisted.
+- [x] BOD clean Hasil persisted exactly as:
+      **“Telah dilakukan Internal Audit pada proses Rencana Bisnis dan Management Review pada Seksi BOD &
+      Management Representative. Berdasarkan hasil verifikasi, pelaksanaan proses Rencana Bisnis dan
+      Management Review pada Seksi BOD & Management Representative telah sesuai dengan ketentuan yang berlaku.”**
+- [x] BOD clean Evaluasi persisted exactly as:
+      **“Pelaksanaan pada Seksi BOD & Management Representative telah memenuhi persyaratan yang diperiksa.
+      Pertahankan penerapan dan pemantauan yang sudah berjalan.”**
+- [x] **QAS pending-Finding report:** Draft revision `1`; formal Major/Minor/Peluang Improvement remained
+      `0/0/0`, Pending displayed `2`, and **“Masih terdapat Temuan yang belum selesai direview.”** appeared.
+      Both Generate Draft buttons were disabled; database Hasil and Evaluasi remained empty. This proves
+      pending Findings do not count formally and prevent a false clean-audit conclusion.
+- [x] **Quality Control zero-Finding report:** Draft revision `2`; established `0`, pending `0`, Sub Leader
+      `NULL`, `follow_up_required=false`, and `follow_up_items=[]`. Both clean generators passed and persisted.
+      Its free-text Catatan fixture was deliberately left unchanged.
+- [x] Quality Control Hasil persisted exactly as:
+      **“Telah dilakukan Internal Audit pada proses Rencana Bisnis dan Management Review pada Seksi Quality
+      Control. Berdasarkan hasil verifikasi, pelaksanaan proses Rencana Bisnis dan Management Review pada
+      Seksi Quality Control telah sesuai dengan ketentuan yang berlaku.”**
+- [x] Quality Control Evaluasi persisted exactly as:
+      **“Pelaksanaan pada Seksi Quality Control telah memenuhi persyaratan yang diperiksa. Pertahankan
+      penerapan dan pemantauan yang sudah berjalan.”**
+- [x] Duplicate creation for QA-0101 + Quality Control was rejected with **“Laporan Internal Audit untuk No.
+      Audit dan Seksi ini sudah ada.”** Exactly one Quality Control report remained at revision `2`.
+
+### Static, deployment, PR, and deferred scope
+
+- [x] `npm run typecheck`, `npm run build`, targeted changed-file ESLint, and `git diff --check` passed.
+- [x] Vercel reported **SUCCESS** for authoritative implementation head
+      `a4ccd487566588a698116a4e3f093350045547d0`.
+- [x] Staging migration/security/runtime and the BOD, QAS pending-Finding, Quality Control zero-Finding,
+      Sub Leader, follow-up, clean-generator, and duplicate-scope browser checks passed.
+- [ ] PR #22 remains **OPEN / UNMERGED**. Explicit user approval is required before merge.
+- [ ] Final transition, official `Q-120-ISE-001-FORM-015` layout, final printed Finding-summary table,
+      signatures, approval workflow, report routing, Management Representative approval, and PDF/print remain
+      deferred to the later Batch 8b2 scope.
 
 ## Batch 8b2 — Internal Audit Report Finalization & Official Layout
 
@@ -2229,10 +2312,11 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and audit-execution batches through Batch 8a have completed their
-applicable verification gates, and PR #20 is merged. Batch 8b1 has completed implementation, immutable
-migration, Staging security/runtime, Vercel, static, and final browser verification. PR #21 remains open and
-unmerged; explicit user approval is required before merge.
+The stabilization database foundation and audit-execution batches through Batch 8b1 have completed their
+applicable verification gates, and PR #21 is squash-merged as current `main`
+`752d503e116186812201692d57aa77278088634b`. Batch 8b2a has completed implementation, immutable Staging
+migration, security/runtime, Vercel, static, and real-browser verification. PR #22 remains open and unmerged;
+explicit user approval is required before merge.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2261,8 +2345,9 @@ PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor
             squash merge 5727f32acac35f4e973b799bf1b7aa590181bf46)
 Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
             squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
-Batch 8b1   VERIFIED_STAGING — READY_FOR_MERGE (PR #21 OPEN / UNMERGED; explicit approval required)
-Batch 8b2+  NOT_STARTED
+Batch 8b1   VERIFIED_COMPLETE — MERGED (PR #21; squash merge 752d503e116186812201692d57aa77278088634b)
+Batch 8b2a  VERIFIED_STAGING — READY_FOR_MERGE (PR #22 OPEN / UNMERGED; explicit approval required)
+Batch 8b2   NOT_STARTED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
