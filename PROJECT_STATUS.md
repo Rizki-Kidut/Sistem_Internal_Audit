@@ -8,8 +8,8 @@ and deferred scope. `PROJECT_PLAN.md` remains the forward-looking roadmap, `AGEN
 engineering-agent operating rules, and `Readme.md` remains the repository landing page.
 
 This documentation snapshot starts from current `main` commit
-`752d503e116186812201692d57aa77278088634b`, the squash merge of PR #21 (Batch 8b1).
-The active controlled feature slice is Batch 8b2a — Section-Scoped Internal Audit Report Foundation.
+`2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9`, the squash merge of PR #22 (Batch 8b2a).
+The active controlled feature slice is Batch 8b2 — Internal Audit Report Finalization & Official Layout.
 
 
 ## Batch 7g — Finding/LTP Final Synchronization — 1 Sep 2026
@@ -2167,7 +2167,7 @@ follow_up_items = []
 
 Hasil Pengamatan contains the corrected placeholder-free generated text above.
 
-### Static, deployment, and PR status — PASS / OPEN
+### Static, deployment, and PR status — PASS / MERGED
 
 - [x] `npm run typecheck`, `npm run build`, changed-file ESLint, and `git diff --check` passed. No package
       files, nested `/project`, historical migrations, or post-application migration content changed.
@@ -2186,9 +2186,9 @@ Hasil Pengamatan contains the corrected placeholder-free generated text above.
 
 ## Batch 8b2a — Section-Scoped Internal Audit Report Foundation — 7–11 Sep 2026
 
-**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging
+**Status:** `VERIFIED_COMPLETE — MERGED` (implementation, immutable migration, Staging
 security/runtime verification, Vercel deployment, static validation, and real-browser verification PASS.
-PR #22 remains **OPEN / UNMERGED** and requires explicit user approval before merge.)
+PR #22 was squash-merged to `main` as `2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9` after explicit user approval.)
 
 ### Authoritative architecture and migration — VERIFIED
 
@@ -2280,7 +2280,7 @@ PR #22 remains **OPEN / UNMERGED** and requires explicit user approval before me
       `a4ccd487566588a698116a4e3f093350045547d0`.
 - [x] Staging migration/security/runtime and the BOD, QAS pending-Finding, Quality Control zero-Finding,
       Sub Leader, follow-up, clean-generator, and duplicate-scope browser checks passed.
-- [ ] PR #22 remains **OPEN / UNMERGED**. Explicit user approval is required before merge.
+- [x] PR #22, **Batch 8b2a: Section-scoped Internal Audit Reports**, was squash-merged to `main` as `2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9` after explicit user approval.
 - [ ] Final transition, official `Q-120-ISE-001-FORM-015` layout, final printed Finding-summary table,
       signatures, approval workflow, report routing, Management Representative approval, and PDF/print remain
       deferred to the later Batch 8b2 scope.
@@ -2312,11 +2312,10 @@ No implementation found.
 
 # 5. Current Handoff Point
 
-The stabilization database foundation and audit-execution batches through Batch 8b1 have completed their
-applicable verification gates, and PR #21 is squash-merged as current `main`
-`752d503e116186812201692d57aa77278088634b`. Batch 8b2a has completed implementation, immutable Staging
-migration, security/runtime, Vercel, static, and real-browser verification. PR #22 remains open and unmerged;
-explicit user approval is required before merge.
+The stabilization database foundation and audit-execution batches through Batch 8b2a have completed their
+applicable verification gates. PR #22 is squash-merged as current `main`
+`2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9`. Batch 8b2a is `VERIFIED_COMPLETE — MERGED`;
+the next deferred controlled slice is Batch 8b2 — Internal Audit Report Finalization & Official Layout.
 
 ```text
 Batch 1     IN_PROGRESS
@@ -2346,7 +2345,7 @@ PR #14      VERIFIED_COMPLETE — MERGED (Admin user management + annual Auditor
 Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d174dc1ef700e643e08b06d918;
             squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
 Batch 8b1   VERIFIED_COMPLETE — MERGED (PR #21; squash merge 752d503e116186812201692d57aa77278088634b)
-Batch 8b2a  VERIFIED_STAGING — READY_FOR_MERGE (PR #22 OPEN / UNMERGED; explicit approval required)
+Batch 8b2a  VERIFIED_COMPLETE — MERGED (PR #22; squash merge 2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9)
 Batch 8b2   NOT_STARTED
 ```
 
