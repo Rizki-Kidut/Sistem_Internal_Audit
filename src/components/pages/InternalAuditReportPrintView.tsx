@@ -22,12 +22,13 @@ export function InternalAuditReportPrintView({
   report: InternalAuditReport;
   preview?: boolean;
 }) {
-  const signer = [context.team_leader, ...context.team_members].find(
-    (auditor) => auditor?.id === report.leader_signatory_auditor_id,
-  );
   const subLeader = context.team_members.find(
     (auditor) => auditor.id === report.sub_leader_auditor_id,
   );
+  const selectedSigner = [context.team_leader, subLeader].find(
+    (auditor) => auditor?.id === report.leader_signatory_auditor_id,
+  );
+  const signer = selectedSigner ?? (!report.leader_signatory_auditor_id ? context.team_leader : null);
   const members = context.team_members.filter(
     (auditor) => auditor.id !== report.sub_leader_auditor_id,
   );
@@ -42,7 +43,6 @@ export function InternalAuditReportPrintView({
         {preview && <div className="form015-watermark">DRAFT / PREVIEW</div>}
 
         <header className="form015-header">
-          <div className="form015-code">{report.kode_dokumen}</div>
           <h1>Laporan Internal Audit</h1>
         </header>
 
@@ -317,6 +317,8 @@ export function InternalAuditReportPrintView({
           </p>
           <p>{context.checklist_presence.produk ? '☑' : '☐'} Checklist audit produk (jika ada)</p>
         </section>
+
+        <footer className="form015-code-footer">{report.kode_dokumen}</footer>
       </article>
     </div>
   );
