@@ -76,6 +76,9 @@ BEGIN
  IF v_report.follow_up_required AND (jsonb_array_length(v_report.follow_up_items)=0 OR EXISTS (
    SELECT 1 FROM jsonb_array_elements(v_report.follow_up_items) item WHERE NULLIF(btrim(item->>'seksi'),'') IS NULL
    OR NULLIF(btrim(item->>'seksi_pelaksana_follow_up'),'') IS NULL OR NULLIF(btrim(item->>'jadwal_follow_up'),'') IS NULL
+   OR CASE WHEN item->>'jadwal_follow_up' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      THEN to_char((item->>'jadwal_follow_up')::date,'YYYY-MM-DD') IS DISTINCT FROM item->>'jadwal_follow_up'
+      ELSE true END
  )) THEN RAISE EXCEPTION 'Setiap follow-up wajib memiliki Seksi, Seksi Pelaksana, dan Jadwal.'; END IF;
  SELECT r.team_master_id,s.kepala_seksi INTO v_team_id,v_manager FROM public.audit_instruction_rows r
    JOIN public.seksi s ON s.id=v_report.seksi_id WHERE r.id=v_report.instruction_row_id;
@@ -92,7 +95,8 @@ BEGIN
  RETURN v_report;
 END $$;
 
-REVOKE EXECUTE ON FUNCTION public.save_internal_audit_report_draft(uuid,integer,date,jsonb,text,text,text,uuid,text,text,boolean,jsonb,text) FROM authenticated;
+-- Keep the established 13-argument Draft-save RPC executable during the staged frontend rollout.
+-- It retains its original Draft/status/revision guards and does not bypass direct-table restrictions.
 REVOKE ALL ON FUNCTION public.save_internal_audit_report_draft(uuid,integer,date,jsonb,text,text,text,uuid,uuid,text,text,boolean,jsonb,text),public.finalize_internal_audit_report(uuid,integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.save_internal_audit_report_draft(uuid,integer,date,jsonb,text,text,text,uuid,uuid,text,text,boolean,jsonb,text),public.finalize_internal_audit_report(uuid,integer) TO authenticated;
 
