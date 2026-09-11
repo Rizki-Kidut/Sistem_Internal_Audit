@@ -648,7 +648,8 @@ export interface InternalAuditReportFollowUpItem {
 export interface InternalAuditReport {
   id:string; instruction_row_id:string; seksi_id:string|null; tanggal_terbit:string;
   auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string|null; nama_produk:string|null; nama_line:string|null;
-  sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
+  sub_leader_auditor_id:string|null; leader_signatory_auditor_id:string|null; manager_signatory_name:string|null;
+  hasil_pengamatan:string; evaluasi:string;
   follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string|null;
   status:InternalAuditReportStatus; kode_dokumen:string; revision_version:number; finalized_at:string|null;
   created_at:string; updated_at:string;
@@ -677,6 +678,6 @@ export interface InternalAuditReportWorklistRow {
 export interface SaveInternalAuditReportDraftPayload {
   report_id:string; expected_revision:number; tanggal_terbit:string;
   auditee_hadir:InternalAuditReportAttendee[]; nama_customer:string; nama_produk:string; nama_line:string;
-  sub_leader_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
+  sub_leader_auditor_id:string|null; leader_signatory_auditor_id:string|null; hasil_pengamatan:string; evaluasi:string;
   follow_up_required:boolean|null; follow_up_items:InternalAuditReportFollowUpItem[]; catatan:string;
 }
