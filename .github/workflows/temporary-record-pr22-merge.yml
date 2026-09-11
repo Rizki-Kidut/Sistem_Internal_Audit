@@ -1,0 +1,90 @@
+name: Temporary record PR22 merge
+
+on:
+  push:
+    branches:
+      - docs/record-pr22-merge
+
+permissions:
+  contents: write
+
+jobs:
+  update-project-status:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/record-pr22-merge
+          fetch-depth: 0
+
+      - name: Update PROJECT_STATUS merge state
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('PROJECT_STATUS.md')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  "This documentation snapshot starts from current `main` commit\n"
+                  "`752d503e116186812201692d57aa77278088634b`, the squash merge of PR #21 (Batch 8b1).\n"
+                  "The active controlled feature slice is Batch 8b2a — Section-Scoped Internal Audit Report Foundation.",
+                  "This documentation snapshot starts from current `main` commit\n"
+                  "`2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9`, the squash merge of PR #22 (Batch 8b2a).\n"
+                  "The active controlled feature slice is Batch 8b2 — Internal Audit Report Finalization & Official Layout."
+              ),
+              (
+                  "**Status:** `VERIFIED_STAGING — READY_FOR_MERGE` (implementation, immutable migration, Staging\n"
+                  "security/runtime verification, Vercel deployment, static validation, and real-browser verification PASS.\n"
+                  "PR #22 remains **OPEN / UNMERGED** and requires explicit user approval before merge.)",
+                  "**Status:** `VERIFIED_COMPLETE — MERGED` (implementation, immutable migration, Staging\n"
+                  "security/runtime verification, Vercel deployment, static validation, and real-browser verification PASS.\n"
+                  "PR #22 was squash-merged to `main` as `2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9` after explicit user approval.)"
+              ),
+              (
+                  "- [ ] PR #22 remains **OPEN / UNMERGED**. Explicit user approval is required before merge.",
+                  "- [x] PR #22, **Batch 8b2a: Section-scoped Internal Audit Reports**, was squash-merged to `main` as `2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9` after explicit user approval."
+              ),
+              (
+                  "The stabilization database foundation and audit-execution batches through Batch 8b1 have completed their\n"
+                  "applicable verification gates, and PR #21 is squash-merged as current `main`\n"
+                  "`752d503e116186812201692d57aa77278088634b`. Batch 8b2a has completed implementation, immutable Staging\n"
+                  "migration, security/runtime, Vercel, static, and real-browser verification. PR #22 remains open and unmerged;\n"
+                  "explicit user approval is required before merge.",
+                  "The stabilization database foundation and audit-execution batches through Batch 8b2a have completed their\n"
+                  "applicable verification gates. PR #22 is squash-merged as current `main`\n"
+                  "`2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9`. Batch 8b2a is `VERIFIED_COMPLETE — MERGED`;\n"
+                  "the next deferred controlled slice is Batch 8b2 — Internal Audit Report Finalization & Official Layout."
+              ),
+              (
+                  "Batch 8b2a  VERIFIED_STAGING — READY_FOR_MERGE (PR #22 OPEN / UNMERGED; explicit approval required)",
+                  "Batch 8b2a  VERIFIED_COMPLETE — MERGED (PR #22; squash merge 2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9)"
+              ),
+              (
+                  "### Static, deployment, and PR status — PASS / OPEN",
+                  "### Static, deployment, and PR status — PASS / MERGED"
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one occurrence, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/temporary-record-pr22-merge.yml')
+          if workflow.exists():
+              workflow.unlink()
+
+      - name: Commit documentation correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATUS.md .github/workflows/temporary-record-pr22-merge.yml
+          git diff --cached --check
+          git commit -m "Record PR #22 merge in project status"
+          git push origin HEAD:docs/record-pr22-merge
