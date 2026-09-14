@@ -1,6 +1,11 @@
-import type { InternalAuditReport, InternalAuditReportContext } from '../../lib/types';
+import type {
+  InternalAuditReport,
+  InternalAuditReportContext,
+  InternalAuditReportFindingSummaryGroup,
+} from '../../lib/types';
 import './internalAuditReportPrint.css';
 
+const FINDING_ROWS_PER_PAGE = 5;
 const value = (v?: string | null) => v?.trim() || '-';
 const date = (v?: string | null) =>
   v
@@ -12,6 +17,217 @@ const date = (v?: string | null) =>
       }).format(new Date(`${v.slice(0, 10)}T00:00:00Z`))
     : '-';
 const lines = (values: (string | null | undefined)[]) => values.map(value).join('\n');
+const chunkFindings = (groups: InternalAuditReportFindingSummaryGroup[]) => {
+  if (!groups.length) return [[]] as InternalAuditReportFindingSummaryGroup[][];
+  const chunks: InternalAuditReportFindingSummaryGroup[][] = [];
+  for (let index = 0; index < groups.length; index += FINDING_ROWS_PER_PAGE) {
+    chunks.push(groups.slice(index, index + FINDING_ROWS_PER_PAGE));
+  }
+  return chunks;
+};
+
+function Watermark({ preview }: { preview: boolean }) {
+  return preview ? <div className="form015-watermark">DRAFT / PREVIEW</div> : null;
+}
+
+function DocumentHeader({ context, report }: { context: InternalAuditReportContext; report: InternalAuditReport }) {
+  return (
+    <>
+      <header className="form015-header">
+        <h1>Laporan Internal Audit</h1>
+      </header>
+      <table className="form015-table-fixed form015-meta-table">
+        <colgroup>
+          <col style={{ width: '19%' }} />
+          <col style={{ width: '31%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '32%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th>No. audit</th>
+            <td className="strong">{context.row.kode_audit}</td>
+            <th>Tanggal Terbit</th>
+            <td>{date(report.tanggal_terbit)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function FindingBlock({
+  groups,
+  empty,
+}: {
+  groups: InternalAuditReportFindingSummaryGroup[];
+  empty?: boolean;
+}) {
+  return (
+    <>
+      <table className="finding-table form015-table-fixed">
+        <colgroup>
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '31%' }} />
+          <col style={{ width: '17%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th rowSpan={2}>No. Ketidaksesuaian</th>
+            <th colSpan={2}>Item kejadian ketidaksesuaian</th>
+            <th rowSpan={2}>Seksi tempat kejadian</th>
+            <th colSpan={3}>Jumlah Ketidaksesuaian</th>
+          </tr>
+          <tr>
+            <th>Klausul</th>
+            <th>Persyaratan</th>
+            <th>Major</th>
+            <th>Minor</th>
+            <th>Peluang Improvement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.length ? (
+            groups.map((group, index) => (
+              <tr key={`${group.reference ?? '-'}-${group.location ?? '-'}-${index}`}>
+                <td>{group.finding_numbers.join(' & ')}</td>
+                <td>{value(group.reference)}</td>
+                <td className="pre">{value(group.requirement)}</td>
+                <td>{value(group.location)}</td>
+                <td>{group.counts.A || '-'}</td>
+                <td>{group.counts.B || '-'}</td>
+                <td>{group.counts.C || '-'}</td>
+              </tr>
+            ))
+          ) : empty ? (
+            <tr>
+              <td colSpan={7} className="form015-empty-row">
+                Tidak terdapat ketidaksesuaian / peluang improvement.
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+      <p className="form015-note">
+        *Lihat lampiran “Q-120-ISE-001-FORM-008 Daftar Ketidaksesuaian/Peluang Perbaikan” untuk detail
+        ketidaksesuaian
+      </p>
+    </>
+  );
+}
+
+function ClosingSections({
+  context,
+  report,
+  signerName,
+}: {
+  context: InternalAuditReportContext;
+  report: InternalAuditReport;
+  signerName: string | null | undefined;
+}) {
+  return (
+    <>
+      <table className="form015-table-fixed form015-followup-table">
+        <colgroup>
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '35%' }} />
+          <col style={{ width: '27%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th rowSpan={Math.max(1, report.follow_up_items.length + 1)}>Saran perbaikan</th>
+            <td>{report.follow_up_required ? '☑ Ada   ☐ Tidak' : '☐ Ada   ☑ Tidak'}</td>
+            <th>Seksi pelaksana audit follow-up</th>
+            <th>Jadwal audit follow-up</th>
+          </tr>
+          {report.follow_up_required &&
+            report.follow_up_items.map((item, index) => (
+              <tr key={index}>
+                <td>{value(item.seksi)}</td>
+                <td>{value(item.seksi_pelaksana_follow_up)}</td>
+                <td>{date(item.jadwal_follow_up)}</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+
+      <table className="signature-table form015-table-fixed">
+        <colgroup>
+          <col style={{ width: '54%' }} />
+          <col style={{ width: '15.33%' }} />
+          <col style={{ width: '15.33%' }} />
+          <col style={{ width: '15.34%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td rowSpan={2} className="notes">
+              <b>[Catatan]</b>
+              <p>{value(report.catatan)}</p>
+            </td>
+            <th>
+              Leader/sub-leader
+              <br />
+              tim audit
+            </th>
+            <th>
+              Manager seksi
+              <br />
+              (proses) yang diaudit
+            </th>
+            <th>
+              Management
+              <br />
+              Representative
+            </th>
+          </tr>
+          <tr className="signature-names">
+            <td>{value(signerName)}</td>
+            <td>{value(report.manager_signatory_name ?? context.scope_section.kepala_seksi)}</td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section className="form015-route">
+        <h2>[Rute laporan]</h2>
+        <div className="route-flow">
+          <div>
+            <b>Leader audit</b>
+            <span>Membuat laporan internal audit</span>
+          </div>
+          <i aria-hidden="true">→</i>
+          <div>
+            <b>Penanggung jawab seksi auditee</b>
+            <span>Cek laporan internal audit &amp; tulis nama dan approval jika tidak ada masalah</span>
+          </div>
+          <i aria-hidden="true">→</i>
+          <div>
+            <b>Management Representative</b>
+            <span>
+              Cek efektivitas hasil audit, cek apakah ada yang belum tertulis, lalu tuliskan nama dan approval
+            </span>
+          </div>
+        </div>
+        <p>Kirimkan salinan ke leader audit dan penanggung jawab seksi auditee</p>
+      </section>
+
+      <section className="form015-documents">
+        <b>[Dokumen lainnya]</b>
+        <p>{context.checklist_presence.sistem ? '☑' : '☐'} Checklist internal audit (untuk menulis hasil)</p>
+        <p>
+          {context.checklist_presence.manufaktur_shift ? '☑' : '☐'} Checklist audit proses manufaktur &amp; shift
+          (jika ada)
+        </p>
+        <p>{context.checklist_presence.produk ? '☑' : '☐'} Checklist audit produk (jika ada)</p>
+      </section>
+    </>
+  );
+}
 
 export function InternalAuditReportPrintView({
   context,
@@ -22,46 +238,21 @@ export function InternalAuditReportPrintView({
   report: InternalAuditReport;
   preview?: boolean;
 }) {
-  const subLeader = context.team_members.find(
-    (auditor) => auditor.id === report.sub_leader_auditor_id,
-  );
+  const subLeader = context.team_members.find((auditor) => auditor.id === report.sub_leader_auditor_id);
   const selectedSigner = [context.team_leader, subLeader].find(
     (auditor) => auditor?.id === report.leader_signatory_auditor_id,
   );
   const signer = selectedSigner ?? (!report.leader_signatory_auditor_id ? context.team_leader : null);
-  const members = context.team_members.filter(
-    (auditor) => auditor.id !== report.sub_leader_auditor_id,
-  );
+  const members = context.team_members.filter((auditor) => auditor.id !== report.sub_leader_auditor_id);
   const assistants = context.agenda?.asisten_auditor_pendamping ?? [];
+  const findingPages = chunkFindings(context.finding_summary_groups);
+  const hasContinuation = findingPages.length > 1;
 
   return (
     <div className="form015-preview">
-      <article
-        className="form015-document"
-        aria-label="Q-120-ISE-001-FORM-015 Laporan Internal Audit"
-      >
-        {preview && <div className="form015-watermark">DRAFT / PREVIEW</div>}
-
-        <header className="form015-header">
-          <h1>Laporan Internal Audit</h1>
-        </header>
-
-        <table className="form015-table-fixed form015-meta-table">
-          <colgroup>
-            <col style={{ width: '19%' }} />
-            <col style={{ width: '31%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '32%' }} />
-          </colgroup>
-          <tbody>
-            <tr>
-              <th>No. audit</th>
-              <td className="strong">{context.row.kode_audit}</td>
-              <th>Tanggal Terbit</th>
-              <td>{date(report.tanggal_terbit)}</td>
-            </tr>
-          </tbody>
-        </table>
+      <article className="form015-document form015-page" aria-label="Q-120-ISE-001-FORM-015 Laporan Internal Audit">
+        <Watermark preview={preview} />
+        <DocumentHeader context={context} report={report} />
 
         <table className="form015-table-fixed form015-context-table">
           <colgroup>
@@ -144,9 +335,7 @@ export function InternalAuditReportPrintView({
             <tr>
               <td>{context.team ? value(context.team.nama_tim || context.team.kode_tim) : '-'}</td>
               <td className="pre">{lines([context.team_leader?.nama, subLeader?.nama])}</td>
-              <td className="pre">
-                {members.length ? members.map((auditor) => auditor.nama).join('\n') : '-'}
-              </td>
+              <td className="pre">{members.length ? members.map((auditor) => auditor.nama).join('\n') : '-'}</td>
               <td className="pre">
                 {assistants.length
                   ? assistants.map((assistant) => `${assistant.nama} / ${assistant.seksi}`).join('\n')
@@ -167,157 +356,32 @@ export function InternalAuditReportPrintView({
           </div>
         </section>
 
-        <table className="finding-table form015-table-fixed">
-          <colgroup>
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '31%' }} />
-            <col style={{ width: '17%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th rowSpan={2}>No. Ketidaksesuaian</th>
-              <th colSpan={2}>Item kejadian ketidaksesuaian</th>
-              <th rowSpan={2}>Seksi tempat kejadian</th>
-              <th colSpan={3}>Jumlah Ketidaksesuaian</th>
-            </tr>
-            <tr>
-              <th>Klausul</th>
-              <th>Persyaratan</th>
-              <th>Major</th>
-              <th>Minor</th>
-              <th>Peluang Improvement</th>
-            </tr>
-          </thead>
-          <tbody>
-            {context.finding_summary_groups.length ? (
-              context.finding_summary_groups.map((group, index) => (
-                <tr key={index}>
-                  <td>{group.finding_numbers.join(' & ')}</td>
-                  <td>{value(group.reference)}</td>
-                  <td className="pre">{value(group.requirement)}</td>
-                  <td>{value(group.location)}</td>
-                  <td>{group.counts.A || '-'}</td>
-                  <td>{group.counts.B || '-'}</td>
-                  <td>{group.counts.C || '-'}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="form015-empty-row">
-                  Tidak terdapat ketidaksesuaian / peluang improvement.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <FindingBlock groups={findingPages[0]} empty={!context.finding_summary_groups.length} />
 
-        <p className="form015-note">
-          *Lihat lampiran “Q-120-ISE-001-FORM-008 Daftar Ketidaksesuaian/Peluang Perbaikan”
-          untuk detail ketidaksesuaian
-        </p>
-
-        <table className="form015-table-fixed form015-followup-table">
-          <colgroup>
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '35%' }} />
-            <col style={{ width: '27%' }} />
-          </colgroup>
-          <tbody>
-            <tr>
-              <th rowSpan={Math.max(1, report.follow_up_items.length + 1)}>Saran perbaikan</th>
-              <td>{report.follow_up_required ? '☑ Ada   ☐ Tidak' : '☐ Ada   ☑ Tidak'}</td>
-              <th>Seksi pelaksana audit follow-up</th>
-              <th>Jadwal audit follow-up</th>
-            </tr>
-            {report.follow_up_required &&
-              report.follow_up_items.map((item, index) => (
-                <tr key={index}>
-                  <td>{value(item.seksi)}</td>
-                  <td>{value(item.seksi_pelaksana_follow_up)}</td>
-                  <td>{date(item.jadwal_follow_up)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-
-        <table className="signature-table form015-table-fixed">
-          <colgroup>
-            <col style={{ width: '54%' }} />
-            <col style={{ width: '15.33%' }} />
-            <col style={{ width: '15.33%' }} />
-            <col style={{ width: '15.34%' }} />
-          </colgroup>
-          <tbody>
-            <tr>
-              <td rowSpan={2} className="notes">
-                <b>[Catatan]</b>
-                <p>{value(report.catatan)}</p>
-              </td>
-              <th>
-                Leader/sub-leader
-                <br />
-                tim audit
-              </th>
-              <th>
-                Manager seksi
-                <br />
-                (proses) yang diaudit
-              </th>
-              <th>
-                Management
-                <br />
-                Representative
-              </th>
-            </tr>
-            <tr className="signature-names">
-              <td>{value(signer?.nama)}</td>
-              <td>{value(report.manager_signatory_name ?? context.scope_section.kepala_seksi)}</td>
-              <td>-</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <section className="form015-route">
-          <h2>[Rute laporan]</h2>
-          <div className="route-flow">
-            <div>
-              <b>Leader audit</b>
-              <span>Membuat laporan internal audit</span>
-            </div>
-            <i aria-hidden="true">→</i>
-            <div>
-              <b>Penanggung jawab seksi auditee</b>
-              <span>Cek laporan internal audit &amp; tulis nama dan approval jika tidak ada masalah</span>
-            </div>
-            <i aria-hidden="true">→</i>
-            <div>
-              <b>Management Representative</b>
-              <span>
-                Cek efektivitas hasil audit, cek apakah ada yang belum tertulis, lalu tuliskan nama dan
-                approval
-              </span>
-            </div>
-          </div>
-          <p>Kirimkan salinan ke leader audit dan penanggung jawab seksi auditee</p>
-        </section>
-
-        <section className="form015-documents">
-          <b>[Dokumen lainnya]</b>
-          <p>{context.checklist_presence.sistem ? '☑' : '☐'} Checklist internal audit (untuk menulis hasil)</p>
-          <p>
-            {context.checklist_presence.manufaktur_shift ? '☑' : '☐'} Checklist audit proses manufaktur &amp;
-            shift (jika ada)
-          </p>
-          <p>{context.checklist_presence.produk ? '☑' : '☐'} Checklist audit produk (jika ada)</p>
-        </section>
-
+        {!hasContinuation && <ClosingSections context={context} report={report} signerName={signer?.nama} />}
         <footer className="form015-code-footer">{report.kode_dokumen}</footer>
       </article>
+
+      {findingPages.slice(1).map((groups, index) => {
+        const pageNumber = index + 2;
+        const isLastPage = pageNumber === findingPages.length;
+        return (
+          <article
+            key={pageNumber}
+            className="form015-document form015-page form015-continuation-page"
+            aria-label={`Q-120-ISE-001-FORM-015 Laporan Internal Audit halaman ${pageNumber}`}
+          >
+            <Watermark preview={preview} />
+            <DocumentHeader context={context} report={report} />
+            <div className="form015-continuation-heading">
+              Ringkasan Temuan — Lanjutan ({pageNumber}/{findingPages.length})
+            </div>
+            <FindingBlock groups={groups} />
+            {isLastPage && <ClosingSections context={context} report={report} signerName={signer?.nama} />}
+            <footer className="form015-code-footer">{report.kode_dokumen}</footer>
+          </article>
+        );
+      })}
     </div>
   );
 }
