@@ -11,7 +11,7 @@
   width: 210mm;
   min-height: 297mm;
   margin: auto;
-  padding: 12mm 12mm 14mm;
+  padding: 12mm 12mm 18mm;
   overflow: hidden;
   background: #fff;
   color: #000;
@@ -35,7 +35,7 @@
   justify-content: center;
   border: 1.5px solid #000;
   border-bottom: 0;
-  padding: 5px 54px 5px 8px;
+  padding: 5px 8px;
   text-align: center;
 }
 
@@ -46,13 +46,14 @@
   line-height: 1.1;
 }
 
-.form015-code {
+.form015-code-footer {
   position: absolute;
-  top: 5px;
-  right: 6px;
-  max-width: 48mm;
+  right: 12mm;
+  bottom: 6mm;
+  max-width: 60mm;
   font-size: 7.5px;
   font-weight: 600;
+  line-height: 1.2;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -289,7 +290,7 @@
     width: 210mm;
     min-height: 297mm;
     margin: 0;
-    padding: 12mm 12mm 14mm;
+    padding: 12mm 12mm 18mm;
     overflow: visible;
     box-shadow: none;
   }
