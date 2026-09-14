@@ -142,9 +142,7 @@ export function InternalAuditReportPrintView({
           </thead>
           <tbody>
             <tr>
-              <td className="pre">
-                {context.team ? `${context.team.kode_tim}\n${context.team.nama_tim}` : '-'}
-              </td>
+              <td>{context.team ? value(context.team.nama_tim || context.team.kode_tim) : '-'}</td>
               <td className="pre">{lines([context.team_leader?.nama, subLeader?.nama])}</td>
               <td className="pre">
                 {members.length ? members.map((auditor) => auditor.nama).join('\n') : '-'}
