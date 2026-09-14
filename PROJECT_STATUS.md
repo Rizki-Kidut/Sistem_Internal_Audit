@@ -2434,7 +2434,7 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 ### Implemented repository scope
 
 - Added the single additive migration `supabase/migrations/20260914120000_create_batch9a_weakness_analysis.sql`
-  (SHA-256 `c75ecd04516daf44e1149d69a4a86069eafb21a3fe24ededf3173266b0bf686e`). It adds normalized report, persisted population, reusable
+  (corrected pre-application SHA-256 `57eee2d2c124ad9fc82600a445bebda4218b29f8ef44dce3b8441a144c58220d`; the former hash is obsolete). It adds normalized report, persisted population, reusable
   approved LTP classification, append-only AI suggestion, systemic Why 1–4, and multi-action tables.
 - Batch 9a database access is exactly `public.is_admin_identity() OR
   public.current_auditor_is_lead_auditor()` through `can_manage_weakness_analysis()`. RLS limits reads to
@@ -2469,10 +2469,19 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The migration is intentionally unapplied and the Edge Function intentionally undeployed. Staging schema,
   constraints, RLS, the full authorization matrix, transactional blockers/stale revision, manual/AI Accepted/
   AI Edited flows, real OpenAI request, and browser A3 pagination/no-watermark behavior remain unverified.
-- The repository has no authoritative general employee master. PROGRAM mode derives PJ QMS from
-  `audit_programs.penanggung_jawab_qms`; multi-program DATE_RANGE PJ QMS selection and population-derived
-  Team Leader candidate selection require Staging/browser verification and refinement if multiple candidates
-  are present. No arbitrary identity source was invented.
+- The correction pass replaced the invalid `audit_programs.nama_program` query with the established
+  `jenis_ronde`, `nomor_ke`, `tahun`, `status`, and `penanggung_jawab_qms` DTO and a TypeScript label such as
+  `Berkala ke-1 · FY2026`. Program reports no longer display a raw UUID.
+- Team Leader candidates now resolve uniquely through persisted report Finding → Instruction row → Team
+  Master member `is_team_leader` → Auditor. PJ QMS candidates resolve from Programs represented by persisted
+  population. Draft-save and Finalize validate both candidate sets in the database; zero candidates normalize
+  to NULL, one auto-selects in the UI, and multiple candidates use restricted selectors.
+- Classification approval is scoped by a Draft report-item ID. The database validates an optional suggestion
+  against that report/canonical LTP and derives `MANUAL`, `AI_ACCEPTED`, or `AI_EDITED`; client-supplied
+  provenance was removed. Finding `seksi_auditee_id` now resolves to `seksi.nama` for UI and AI context.
+- FORM-010 screen and print share deterministic chart components: Process-stacked Major/Minor/OFI with totals,
+  SVG donut distributions for clause/DIS/4M+1E, and an A–E bar chart with legend. Why rows persist only 1–4
+  nonblank contiguous levels, allowing unused trailing Why columns.
 - OpenAI documentation lookup was unavailable from the environment (documentation tooling/web access returned
   authorization failure); the Responses API payload therefore requires deployment smoke verification.
 - Batch 9b was not implemented. Historical migrations and nested `/project` were not changed.
