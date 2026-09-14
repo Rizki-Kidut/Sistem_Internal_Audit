@@ -83,6 +83,17 @@ export type LtpSystemRevisionCategory = (typeof LTP_SYSTEM_REVISION_CATEGORY)[ke
 export const KLASIFIKASI_DIS = { DOKUMEN: 'Dokumen', IMPLEMENTASI: 'Implementasi', SISTEM: 'Sistem' } as const;
 export type KlasifikasiDIS = (typeof KLASIFIKASI_DIS)[keyof typeof KLASIFIKASI_DIS];
 
+export const WEAKNESS_STATUS={DRAFT:'Draft',FINAL:'Final'} as const;
+export const WEAKNESS_SOURCE_MODE={DATE_RANGE:'DATE_RANGE',PROGRAM:'PROGRAM'} as const;
+export const WEAKNESS_4M1E={MAN:'MAN',MACHINE:'MACHINE',METHOD:'METHOD',MATERIAL:'MATERIAL',ENVIRONMENT:'ENVIRONMENT'} as const;
+export const WEAKNESS_DIS={DOKUMEN:'DOKUMEN',IMPLEMENTASI:'IMPLEMENTASI',SISTEM:'SISTEM'} as const;
+export const WEAKNESS_PROBLEM_TYPE={A:'A',B:'B',C:'C',D:'D',E:'E'} as const;
+export const WEAKNESS_APPROVAL_SOURCE={MANUAL:'MANUAL',AI_ACCEPTED:'AI_ACCEPTED',AI_EDITED:'AI_EDITED'} as const;
+export const WEAKNESS_ACTION_STATUS={NOT_STARTED:'Belum Mulai',IN_PROGRESS:'Berjalan',DONE:'Selesai'} as const;
+export const WEAKNESS_4M1E_LABEL:Record<string,string>={MAN:'Man',MACHINE:'Machine',METHOD:'Method',MATERIAL:'Material',ENVIRONMENT:'Environment'};
+export const WEAKNESS_DIS_LABEL:Record<string,string>={DOKUMEN:'Dokumen',IMPLEMENTASI:'Implementasi',SISTEM:'Sistem'};
+export const WEAKNESS_PROBLEM_LABEL:Record<string,string>={A:'Tidak Patuh Peraturan',B:'Inkonsisten terhadap Peraturan',C:'Aturan Belum Mencukupi',D:'Aturannya Tidak Ada',E:'Perubahan Peraturan Tanpa Koordinasi'};
+
 // Status checklist item hasil
 export const HASIL_CHECKLIST = {
   SESUAI: 'O', // Sesuai — tidak memicu temuan
