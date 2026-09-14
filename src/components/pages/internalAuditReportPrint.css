@@ -175,10 +175,16 @@
 }
 
 .form015-placeholder-cell {
-  text-align: center !important;
-  vertical-align: middle !important;
-  font-size: 14px;
-  font-weight: 700;
+  color: transparent !important;
+  background-image: linear-gradient(
+    to bottom right,
+    transparent 49.55%,
+    #000 49.8%,
+    #000 50.2%,
+    transparent 50.45%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 .signature-table .notes {
@@ -191,11 +197,20 @@
   white-space: pre-line;
 }
 
+.signature-table .notes.form015-placeholder-notes {
+  background-image: linear-gradient(
+    to bottom right,
+    transparent 49.55%,
+    #000 49.8%,
+    #000 50.2%,
+    transparent 50.45%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
 .signature-table .notes.form015-placeholder-notes p {
-  margin-top: 12mm;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
+  visibility: hidden;
 }
 
 .signature-table .signature-names td {
