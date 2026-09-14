@@ -52,6 +52,25 @@ async function hash(value: string) {
   return [...new Uint8Array(bytes)].map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL_REDACTED]")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, "[UUID_REDACTED]")
+    .replace(/\b(NIK|NIP|employee\s*id|no\.?\s*karyawan)\s*[:#-]?\s*[A-Za-z0-9._/-]+/gi, "$1 [ID_REDACTED]")
+    .replace(/\b(PIC\s+atas\s+nama|atas\s+nama)\s+([A-Z][A-Za-z.'-]{1,30})(?:\s+([A-Z][A-Za-z.'-]{1,30}))?/g, "$1 [NAMA_REDACTED]");
+}
+
+function sanitizeForExternalAI(value: unknown): unknown {
+  if (typeof value === "string") return redactSensitiveText(value);
+  if (Array.isArray(value)) return value.map(sanitizeForExternalAI);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nested]) => [key, sanitizeForExternalAI(nested)]),
+    );
+  }
+  return value;
+}
+
 type OpenAIResponse = {
   id?: string;
   output_text?: unknown;
@@ -130,9 +149,7 @@ Deno.serve(async (req) => {
 
   const { data: item } = await admin
     .from("weakness_analysis_report_items")
-    .select(
-      "id,car_id,report_id,finding:findings(kategori,reference,problem,objective_evidence,instruction_row_id,seksi_auditee_id),car:cars(status)",
-    )
+    .select("id,car_id,report_id,finding:findings(kategori,reference,problem,objective_evidence),car:cars(status)")
     .eq("id", body.report_item_id)
     .maybeSingle();
   if (!item) return respond({ error: "Item Analisa tidak ditemukan" }, 404);
@@ -145,9 +162,7 @@ Deno.serve(async (req) => {
   if (report?.status !== "Draft") return respond({ error: "AI hanya tersedia untuk Analisa Draft" }, 409);
 
   const finding = item.finding as unknown as Record<string, unknown>;
-  const [{ data: instruction }, { data: section }, { data: why }, { data: actions }] = await Promise.all([
-    admin.from("audit_instruction_rows").select("proses:proses(nama_proses)").eq("id", finding.instruction_row_id).single(),
-    admin.from("seksi").select("nama").eq("id", finding.seksi_auditee_id).maybeSingle(),
+  const [{ data: why }, { data: actions }] = await Promise.all([
     admin.from("car_why_analysis").select("level,teks").eq("car_id", item.car_id).order("level"),
     admin
       .from("car_actions")
@@ -157,23 +172,21 @@ Deno.serve(async (req) => {
       .order("sort_order"),
   ]);
 
-  const context = {
-    process: (instruction?.proses as unknown as { nama_proses?: string })?.nama_proses ?? null,
-    section: section?.nama ?? null,
+  const providerContext = sanitizeForExternalAI({
     category: finding.kategori,
     reference: finding.reference,
     problem: finding.problem,
     objective_evidence: finding.objective_evidence,
     why: why ?? [],
     actions: actions ?? [],
-  };
+  });
 
   const promptVersion = Deno.env.get("OPENAI_PROMPT_VERSION") ?? "batch9a-v1";
   const model =
     body.mode === "DEEP"
       ? Deno.env.get("OPENAI_MODEL_DEEP") ?? "gpt-5.6-terra"
       : Deno.env.get("OPENAI_MODEL_FAST") ?? "gpt-5.6-luna";
-  const inputHash = await hash(normalize(context));
+  const inputHash = await hash(normalize(providerContext));
 
   if (!body.force) {
     const { data: cached } = await admin
@@ -207,7 +220,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model,
         instructions,
-        input: `Klasifikasikan data audit JSON berikut:\n${JSON.stringify(context)}`,
+        input: `Klasifikasikan data audit JSON berikut:\n${JSON.stringify(providerContext)}`,
+        store: false,
+        background: false,
         text: {
           format: {
             type: "json_schema",
