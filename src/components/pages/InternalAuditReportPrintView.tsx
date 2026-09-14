@@ -1,4 +1,5 @@
 import type {
+  Auditor,
   InternalAuditReport,
   InternalAuditReportContext,
   InternalAuditReportFindingSummaryGroup,
@@ -52,6 +53,126 @@ function DocumentHeader({ context, report }: { context: InternalAuditReportConte
           </tr>
         </tbody>
       </table>
+    </>
+  );
+}
+
+function AuditContextSections({
+  context,
+  report,
+  subLeader,
+  members,
+  assistants,
+}: {
+  context: InternalAuditReportContext;
+  report: InternalAuditReport;
+  subLeader: Auditor | null | undefined;
+  members: Auditor[];
+  assistants: { nama: string; seksi: string }[];
+}) {
+  return (
+    <>
+      <table className="form015-table-fixed form015-context-table">
+        <colgroup>
+          <col style={{ width: '27%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '31%' }} />
+          <col style={{ width: '17%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Proses yang diaudit</th>
+            <th>Manager seksi (proses) yang diaudit</th>
+            <th>Tujuan dan lingkup audit (proses)</th>
+            <th>Waktu &amp; tanggal audit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{value(context.proses?.nama_proses)}</td>
+            <td>
+              {value(context.scope_section.kepala_seksi)}
+              <br />
+              {context.scope_section.nama}
+            </td>
+            <td className="pre">{value(context.agenda?.tujuan_lingkup_audit)}</td>
+            <td>{context.audit_time_range}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table className="form015-table-fixed form015-auditee-table">
+        <colgroup>
+          <col style={{ width: '16%' }} />
+          <col style={{ width: '38%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '28%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th rowSpan={3}>Auditee / Seksi</th>
+            <td rowSpan={3} className="pre">
+              {report.auditee_hadir.length
+                ? report.auditee_hadir
+                    .map((attendee) => `${value(attendee.nama)} / ${value(attendee.seksi)}`)
+                    .join('\n')
+                : '-'}
+            </td>
+            <th>Nama customer</th>
+            <td>{value(report.nama_customer)}</td>
+          </tr>
+          <tr>
+            <th>Nama produk</th>
+            <td>{value(report.nama_produk)}</td>
+          </tr>
+          <tr>
+            <th>Nama line</th>
+            <td>{value(report.nama_line)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table className="form015-table-fixed form015-team-table">
+        <colgroup>
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '26%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Audit team</th>
+            <th>Leader &amp; sub-leader audit/seksi</th>
+            <th>Member Audit/Seksi</th>
+            <th>Asisten auditor pendamping/seksi</th>
+            <th>Item lain yang dicek</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{context.team ? value(context.team.nama_tim || context.team.kode_tim) : '-'}</td>
+            <td className="pre">{lines([context.team_leader?.nama, subLeader?.nama])}</td>
+            <td className="pre">{members.length ? members.map((auditor) => auditor.nama).join('\n') : '-'}</td>
+            <td className="pre">
+              {assistants.length
+                ? assistants.map((assistant) => `${assistant.nama} / ${assistant.seksi}`).join('\n')
+                : '-'}
+            </td>
+            <td className="pre">{value(context.agenda?.item_lain_yang_dicek)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section className="form015-bordered form015-observation-section">
+        <h2>Hasil pengamatan/evaluasi</h2>
+        <div>
+          <b>[Hasil pengamatan]</b>
+          <p>{value(report.hasil_pengamatan)}</p>
+          <b>[Evaluasi]</b>
+          <p>{value(report.evaluasi)}</p>
+        </div>
+      </section>
     </>
   );
 }
@@ -246,137 +367,28 @@ export function InternalAuditReportPrintView({
   const members = context.team_members.filter((auditor) => auditor.id !== report.sub_leader_auditor_id);
   const assistants = context.agenda?.asisten_auditor_pendamping ?? [];
   const findingPages = chunkFindings(context.finding_summary_groups);
-  const hasContinuation = findingPages.length > 1;
 
   return (
     <div className="form015-preview">
-      <article className="form015-document form015-page" aria-label="Q-120-ISE-001-FORM-015 Laporan Internal Audit">
-        <Watermark preview={preview} />
-        <DocumentHeader context={context} report={report} />
-
-        <table className="form015-table-fixed form015-context-table">
-          <colgroup>
-            <col style={{ width: '27%' }} />
-            <col style={{ width: '25%' }} />
-            <col style={{ width: '31%' }} />
-            <col style={{ width: '17%' }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Proses yang diaudit</th>
-              <th>Manager seksi (proses) yang diaudit</th>
-              <th>Tujuan dan lingkup audit (proses)</th>
-              <th>Waktu &amp; tanggal audit</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{value(context.proses?.nama_proses)}</td>
-              <td>
-                {value(context.scope_section.kepala_seksi)}
-                <br />
-                {context.scope_section.nama}
-              </td>
-              <td className="pre">{value(context.agenda?.tujuan_lingkup_audit)}</td>
-              <td>{context.audit_time_range}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table className="form015-table-fixed form015-auditee-table">
-          <colgroup>
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '38%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '28%' }} />
-          </colgroup>
-          <tbody>
-            <tr>
-              <th rowSpan={3}>Auditee / Seksi</th>
-              <td rowSpan={3} className="pre">
-                {report.auditee_hadir.length
-                  ? report.auditee_hadir
-                      .map((attendee) => `${value(attendee.nama)} / ${value(attendee.seksi)}`)
-                      .join('\n')
-                  : '-'}
-              </td>
-              <th>Nama customer</th>
-              <td>{value(report.nama_customer)}</td>
-            </tr>
-            <tr>
-              <th>Nama produk</th>
-              <td>{value(report.nama_produk)}</td>
-            </tr>
-            <tr>
-              <th>Nama line</th>
-              <td>{value(report.nama_line)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table className="form015-table-fixed form015-team-table">
-          <colgroup>
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '26%' }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Audit team</th>
-              <th>Leader &amp; sub-leader audit/seksi</th>
-              <th>Member Audit/Seksi</th>
-              <th>Asisten auditor pendamping/seksi</th>
-              <th>Item lain yang dicek</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{context.team ? value(context.team.nama_tim || context.team.kode_tim) : '-'}</td>
-              <td className="pre">{lines([context.team_leader?.nama, subLeader?.nama])}</td>
-              <td className="pre">{members.length ? members.map((auditor) => auditor.nama).join('\n') : '-'}</td>
-              <td className="pre">
-                {assistants.length
-                  ? assistants.map((assistant) => `${assistant.nama} / ${assistant.seksi}`).join('\n')
-                  : '-'}
-              </td>
-              <td className="pre">{value(context.agenda?.item_lain_yang_dicek)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <section className="form015-bordered form015-observation-section">
-          <h2>Hasil pengamatan/evaluasi</h2>
-          <div>
-            <b>[Hasil pengamatan]</b>
-            <p>{value(report.hasil_pengamatan)}</p>
-            <b>[Evaluasi]</b>
-            <p>{value(report.evaluasi)}</p>
-          </div>
-        </section>
-
-        <FindingBlock groups={findingPages[0]} empty={!context.finding_summary_groups.length} />
-
-        {!hasContinuation && <ClosingSections context={context} report={report} signerName={signer?.nama} />}
-        <footer className="form015-code-footer">{report.kode_dokumen}</footer>
-      </article>
-
-      {findingPages.slice(1).map((groups, index) => {
-        const pageNumber = index + 2;
+      {findingPages.map((groups, index) => {
+        const pageNumber = index + 1;
         const isLastPage = pageNumber === findingPages.length;
         return (
           <article
             key={pageNumber}
-            className="form015-document form015-page form015-continuation-page"
+            className="form015-document form015-page"
             aria-label={`Q-120-ISE-001-FORM-015 Laporan Internal Audit halaman ${pageNumber}`}
           >
             <Watermark preview={preview} />
             <DocumentHeader context={context} report={report} />
-            <div className="form015-continuation-heading">
-              Ringkasan Temuan — Lanjutan ({pageNumber}/{findingPages.length})
-            </div>
-            <FindingBlock groups={groups} />
+            <AuditContextSections
+              context={context}
+              report={report}
+              subLeader={subLeader}
+              members={members}
+              assistants={assistants}
+            />
+            <FindingBlock groups={groups} empty={!context.finding_summary_groups.length} />
             {isLastPage && <ClosingSections context={context} report={report} signerName={signer?.nama} />}
             <footer className="form015-code-footer">{report.kode_dokumen}</footer>
           </article>
