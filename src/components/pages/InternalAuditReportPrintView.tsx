@@ -245,11 +245,18 @@ function ClosingSections({
   context,
   report,
   signerName,
+  populated,
 }: {
   context: InternalAuditReportContext;
   report: InternalAuditReport;
   signerName: string | null | undefined;
+  populated: boolean;
 }) {
+  const placeholderRows = Math.max(1, report.follow_up_required ? report.follow_up_items.length : 1);
+  const followUpRowSpan = populated
+    ? Math.max(1, report.follow_up_items.length + 1)
+    : placeholderRows + 1;
+
   return (
     <>
       <table className="form015-table-fixed form015-followup-table">
@@ -261,19 +268,29 @@ function ClosingSections({
         </colgroup>
         <tbody>
           <tr>
-            <th rowSpan={Math.max(1, report.follow_up_items.length + 1)}>Saran perbaikan</th>
-            <td>{report.follow_up_required ? '☑ Ada   ☐ Tidak' : '☐ Ada   ☑ Tidak'}</td>
+            <th rowSpan={followUpRowSpan}>Saran perbaikan</th>
+            <td className={populated ? undefined : 'form015-placeholder-cell'}>
+              {populated ? (report.follow_up_required ? '☑ Ada   ☐ Tidak' : '☐ Ada   ☑ Tidak') : '/'}
+            </td>
             <th>Seksi pelaksana audit follow-up</th>
             <th>Jadwal audit follow-up</th>
           </tr>
-          {report.follow_up_required &&
-            report.follow_up_items.map((item, index) => (
-              <tr key={index}>
-                <td>{value(item.seksi)}</td>
-                <td>{value(item.seksi_pelaksana_follow_up)}</td>
-                <td>{date(item.jadwal_follow_up)}</td>
-              </tr>
-            ))}
+          {populated
+            ? report.follow_up_required &&
+              report.follow_up_items.map((item, index) => (
+                <tr key={index}>
+                  <td>{value(item.seksi)}</td>
+                  <td>{value(item.seksi_pelaksana_follow_up)}</td>
+                  <td>{date(item.jadwal_follow_up)}</td>
+                </tr>
+              ))
+            : Array.from({ length: placeholderRows }).map((_, index) => (
+                <tr key={`placeholder-follow-up-${index}`}>
+                  <td className="form015-placeholder-cell">/</td>
+                  <td className="form015-placeholder-cell">/</td>
+                  <td className="form015-placeholder-cell">/</td>
+                </tr>
+              ))}
         </tbody>
       </table>
 
@@ -286,9 +303,9 @@ function ClosingSections({
         </colgroup>
         <tbody>
           <tr>
-            <td rowSpan={2} className="notes">
+            <td rowSpan={2} className={`notes${populated ? '' : ' form015-placeholder-notes'}`}>
               <b>[Catatan]</b>
-              <p>{value(report.catatan)}</p>
+              <p>{populated ? value(report.catatan) : '/'}</p>
             </td>
             <th>
               Leader/sub-leader
@@ -307,9 +324,13 @@ function ClosingSections({
             </th>
           </tr>
           <tr className="signature-names">
-            <td>{value(signerName)}</td>
-            <td>{value(report.manager_signatory_name ?? context.scope_section.kepala_seksi)}</td>
-            <td>-</td>
+            <td className={populated ? undefined : 'form015-placeholder-cell'}>
+              {populated ? value(signerName) : '/'}
+            </td>
+            <td className={populated ? undefined : 'form015-placeholder-cell'}>
+              {populated ? value(report.manager_signatory_name ?? context.scope_section.kepala_seksi) : '/'}
+            </td>
+            <td className={populated ? undefined : 'form015-placeholder-cell'}>{populated ? '-' : '/'}</td>
           </tr>
         </tbody>
       </table>
@@ -389,7 +410,12 @@ export function InternalAuditReportPrintView({
               assistants={assistants}
             />
             <FindingBlock groups={groups} empty={!context.finding_summary_groups.length} />
-            {isLastPage && <ClosingSections context={context} report={report} signerName={signer?.nama} />}
+            <ClosingSections
+              context={context}
+              report={report}
+              signerName={signer?.nama}
+              populated={isLastPage}
+            />
             <footer className="form015-code-footer">{report.kode_dokumen}</footer>
           </article>
         );
