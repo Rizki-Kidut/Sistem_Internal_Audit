@@ -238,14 +238,18 @@
 
 .form015-watermark {
   position: absolute;
-  top: 34mm;
-  left: 39mm;
+  top: 50%;
+  left: 50%;
   z-index: 2;
-  transform: rotate(-20deg);
+  width: 100%;
+  transform: translate(-50%, -50%) rotate(-32deg);
   pointer-events: none;
-  font: 700 27px Arial, sans-serif;
   color: #c00;
-  opacity: 0.18;
+  font: 700 76px/1 Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0.12;
 }
 
 .form015-print-only {
