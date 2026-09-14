@@ -2346,7 +2346,7 @@ Batch 8a    VERIFIED_COMPLETE — MERGED (PR #20; approved head 553f50a54a4429d1
             squash merge 109250c3f2554bc1de2ad4ee8b671bf07a6775cf)
 Batch 8b1   VERIFIED_COMPLETE — MERGED (PR #21; squash merge 752d503e116186812201692d57aa77278088634b)
 Batch 8b2a  VERIFIED_COMPLETE — MERGED (PR #22; squash merge 2141204d0e65d3c5be08b8b3dd5597d2f17dcdd9)
-Batch 8b2   NOT_STARTED
+Batch 8b2   IMPLEMENTED_UNVERIFIED
 ```
 
 Sequence allocation, advisory locking, duplicate protection, functional serialization, successful and
@@ -2398,3 +2398,29 @@ choice remain product follow-up items, but are not regressions introduced by thi
 
 The stabilization status, Batch 5b, Batch 5c, Batch 5d, and Batch 6a are `VERIFIED_COMPLETE` after the
 recorded CertiTrack-Staging database, security, runtime, cleanup, and manual browser verification.
+
+---
+
+## Batch 8b2 — Internal Audit Report Finalization & Official FORM-015 — 11 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED` (base `956e77519f12be300ecb92def1ac181bc2572544`; Staging migration/runtime and real-browser A4 print smoke remain required.)
+
+### Implementation
+
+- [x] Added the single additive migration `supabase/migrations/20260911120000_finalize_batch8b2_internal_audit_reports.sql` (SHA-256 `566a930ed44bbeb51255dc91bfb50d2022ee4e49b92b681eaf3452ece1ff8c44`). Historical Batch 8b1 and Batch 8b2a migrations remain unchanged.
+- [x] The database-authoritative `finalize_internal_audit_report(report_id, expected_revision)` RPC authenticates an Admin, locks the report `FOR UPDATE`, accepts only Draft at the expected revision, and atomically transitions that same row to `Final`, records `finalized_at`, snapshots the authoritative scoped Manager name when available, and increments the revision exactly once.
+- [x] Finalization rejects a missing/out-of-scope Section, active unassigned QA Finding, pending scoped Finding, blank Hasil Pengamatan, blank Evaluasi, unspecified follow-up decision, inconsistent empty/nonempty follow-up data, incomplete follow-up Section/context, implementing Section or schedule, and a missing/invalid Leader signatory when the Team source exists. Formal Findings remain only `PUBLISHED` / `LEGACY_ESTABLISHED`; `ANNULLED` is excluded.
+- [x] Final report-owned fields are immutable through the existing/new Draft save guards. Final reports open directly in the read-only document view and expose no Generate, edit, Save Draft, or Final action. Draft finalization is disabled until current edits have been saved, preserving optimistic revision semantics.
+- [x] Added report-owned historical signatory fields only for selected Team Leader/Sub Leader identity and the scoped Manager-name snapshot. The Leader selector is restricted in both UI and database to the Team Leader or selected same-Team Sub Leader. The Manager is derived only from `report.seksi_id`. No repository evidence establishes an authoritative Management Representative identity: its official box remains `-`, and no employee master or inferred QMS equivalence was invented.
+- [x] Added a dedicated responsive/A4 `InternalAuditReportPrintView` and print stylesheet for the FORM-015 title/header, audit context, Auditee/Product context, Team, persisted Hasil/Evaluasi, formal Section-scoped Finding summary, follow-up, Catatan/signatures, route diagram, and highlighted Dokumen lainnya section. The finding preview/print consumes the existing `groupInternalAuditReportFindings()` result, preserves zero-Finding reports, and excludes pending/annulled Findings through the existing service semantics.
+- [x] Follow-up Draft controls now edit all three required values (`seksi`, `seksi_pelaksana_follow_up`, and `jadwal_follow_up`) and the print view renders every persisted item with Indonesian dates. Checklist marks in Dokumen lainnya are computed from actual System, Manufacturing/Shift, and Product checklist presence.
+- [x] Draft reports provide a clearly watermarked FORM-015 preview; Final reports provide the clean persisted view. `Cetak / Simpan PDF` uses `window.print()` with `@page A4 portrait`, application chrome suppression, internal document margins, repeating Finding table headers, and break-safe formal sections without a PDF dependency.
+- [x] PR #24 review corrections preserve authenticated access to the established 13-argument Draft-save RPC during staged rollout; make explicit Muat Ulang replace local report/form state with the authoritative revision after a stale-write conflict; restore Level-1 eligibility explanations; clear a signer when switching to a different Sub Leader; keep live scoped Manager context separate from the final signature snapshot; validate follow-up schedules as ISO dates; reset application content wrappers for print; and allow the Finding table (but not its rows) to split with repeated headers. The migration remains unapplied to Staging.
+
+### Verification remaining
+
+- [x] Static verification: `npm run typecheck`, changed-file ESLint, `npm run build`, and `git diff --check` passed locally (build advisories, if any, are recorded in the PR report).
+- [ ] Apply and exercise the new migration/RPC on Staging, including every blocker and stale-revision rollback.
+- [ ] Complete real-browser Draft/Final/read-only and A4 Portrait 100% print/Save-as-PDF smoke against representative zero-, one-, and multi-page Finding reports.
+
+Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print verification above prevents `VERIFIED_COMPLETE`.
