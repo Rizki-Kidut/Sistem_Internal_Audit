@@ -33,4 +33,27 @@ export function normalizeWhyLevels(levels:WeaknessWhy['levels']){let last=-1;lev
 export async function saveWeaknessDraft(report:WeaknessReport,kesimpulan:string,leader:string|null,pj:string|null,why:WeaknessWhy[]){const normalized=why.map(row=>({...row,levels:normalizeWhyLevels(row.levels)}));const{data,error}=await supabase.rpc('save_weakness_analysis_draft',{p_report_id:report.id,p_expected_revision:report.revision_version,p_kesimpulan:kesimpulan,p_leader:leader,p_pj_qms:pj,p_why:normalized});fail(error);return data as number;}
 export async function regenerateWeaknessPopulation(report:WeaknessReport){const{data,error}=await supabase.rpc('populate_weakness_report',{p_report_id:report.id});fail(error);return data as number;}
 export async function finalizeWeaknessReport(report:WeaknessReport){const{data,error}=await supabase.rpc('finalize_weakness_analysis',{p_report_id:report.id,p_expected_revision:report.revision_version});fail(error);return data as number;}
-export async function requestAiSuggestion(reportItemId:string,mode:'FAST'|'DEEP',force=false){const{data,error}=await supabase.functions.invoke('weakness-ai-classify',{body:{report_item_id:reportItemId,mode,force}});if(error){const status=(error as {context?:{status?:number}}).context?.status;if(status===401)throw new Error('Sesi tidak valid');if(status===403)throw new Error('Anda tidak memiliki akses ke AI Weakness Analysis');if(status===429)throw new Error('Layanan AI sedang mencapai batas penggunaan. Coba kembali nanti.');throw new Error('AI Suggestion gagal diproses. Klasifikasi manual tetap dapat digunakan.');}return data;}
+
+async function safeFunctionErrorMessage(error:unknown):Promise<string|null>{
+  const context=(error as {context?:unknown})?.context;
+  if(!(context instanceof Response))return null;
+  try{
+    const payload=await context.clone().json() as {error?:unknown};
+    return typeof payload.error==='string'&&payload.error.trim()?payload.error.trim():null;
+  }catch{return null;}
+}
+
+export async function requestAiSuggestion(reportItemId:string,mode:'FAST'|'DEEP',force=false){
+  const{data,error}=await supabase.functions.invoke('weakness-ai-classify',{body:{report_item_id:reportItemId,mode,force}});
+  if(error){
+    const context=(error as {context?:{status?:number}}).context;
+    const status=context?.status;
+    if(status===401)throw new Error('Sesi tidak valid');
+    if(status===403)throw new Error('Anda tidak memiliki akses ke AI Weakness Analysis');
+    if(status===429)throw new Error('Layanan AI sedang mencapai batas penggunaan. Coba kembali nanti.');
+    const safeMessage=await safeFunctionErrorMessage(error);
+    if(safeMessage)throw new Error(safeMessage);
+    throw new Error('AI Suggestion gagal diproses. Klasifikasi manual tetap dapat digunakan.');
+  }
+  return data;
+}
