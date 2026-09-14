@@ -21,6 +21,10 @@
   box-shadow: 0 2px 12px #0003;
 }
 
+.form015-page + .form015-page {
+  margin-top: 20px;
+}
+
 .form015-document *,
 .form015-document *::before,
 .form015-document *::after {
@@ -134,6 +138,15 @@
 .form015-bordered p {
   margin: 4px 0 10px;
   white-space: pre-line;
+}
+
+.form015-continuation-heading {
+  border: 1px solid #000;
+  border-top: 0;
+  padding: 4px 6px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .form015-empty-row {
@@ -297,6 +310,20 @@
     padding: 12mm 12mm 18mm;
     overflow: visible;
     box-shadow: none;
+  }
+
+  .form015-page + .form015-page {
+    margin-top: 0;
+  }
+
+  .form015-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .form015-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   .form015-document tr,
