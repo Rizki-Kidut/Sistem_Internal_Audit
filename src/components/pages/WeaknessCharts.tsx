@@ -260,8 +260,8 @@ export function WeaknessChartSet({ charts }: { charts: Charts }) {
         values={charts.dis}
         labels={WEAKNESS_DIS_LABEL}
       />
-      <DonutChart title="4. Analisa berdasarkan 4M + 1E" values={charts.fourM} labels={WEAKNESS_4M1E_LABEL} />
       <ProblemTypeChart values={charts.problems} />
+      <DonutChart title="4. Analisa berdasarkan 4M + 1E" values={charts.fourM} labels={WEAKNESS_4M1E_LABEL} />
     </div>
   );
 }
