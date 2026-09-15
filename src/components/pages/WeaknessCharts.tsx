@@ -3,13 +3,30 @@ import type { buildWeaknessCharts } from '../../lib/weaknessAnalysis';
 
 type Charts = ReturnType<typeof buildWeaknessCharts>;
 const COLORS = ['#1d4ed8', '#0f766e', '#d97706', '#be123c', '#7c3aed', '#0891b2', '#4d7c0f', '#64748b'];
+const MAJOR_COLOR = '#b91c1c';
+const MINOR_COLOR = '#d97706';
+const OFI_COLOR = '#2563eb';
 
 export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
   const totals = data.reduce(
     (acc, value) => ({ A: acc.A + value.A, B: acc.B + value.B, C: acc.C + value.C }),
     { A: 0, B: 0, C: 0 },
   );
-  const max = Math.max(1, ...data.map((value) => value.A + value.B + value.C));
+  const maxTotal = Math.max(1, ...data.map((value) => value.A + value.B + value.C));
+  const tickStep = Math.max(1, Math.ceil(maxTotal / 5));
+  const yMax = Math.max(tickStep, Math.ceil(maxTotal / tickStep) * tickStep);
+  const ticks = Array.from({ length: Math.floor(yMax / tickStep) + 1 }, (_, index) => index * tickStep);
+  if (ticks[ticks.length - 1] !== yMax) ticks.push(yMax);
+
+  const chartWidth = Math.max(720, data.length * 84 + 90);
+  const chartHeight = 255;
+  const plotLeft = 42;
+  const plotTop = 10;
+  const plotBottom = 174;
+  const plotHeight = plotBottom - plotTop;
+  const plotRight = chartWidth - 10;
+  const slotWidth = (plotRight - plotLeft) / Math.max(1, data.length);
+  const barWidth = Math.min(44, slotWidth * 0.56);
 
   return (
     <div className="weakness-chart weakness-chart-primary">
@@ -19,35 +36,95 @@ export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
         <span className="minor">Minor</span>
         <span className="ofi">Peluang Improvement</span>
       </div>
-      <div className="stack-plot">
-        {data.length ? (
-          data.map((value) => (
-            <div className="stack-row" key={value.process}>
-              <span>{value.process}</span>
-              <div className="stack-track">
-                <i className="major" style={{ width: `${(value.A / max) * 100}%` }} title={`Major ${value.A}`}>
-                  {value.A || ''}
-                </i>
-                <i className="minor" style={{ width: `${(value.B / max) * 100}%` }} title={`Minor ${value.B}`}>
-                  {value.B || ''}
-                </i>
-                <i className="ofi" style={{ width: `${(value.C / max) * 100}%` }} title={`OFI ${value.C}`}>
-                  {value.C || ''}
-                </i>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p>Belum ada Finding dalam populasi.</p>
-        )}
-      </div>
-      <div className="finding-summary">
-        <b>Total ketidaksesuaian</b>
-        <span>Berat (Major) = {totals.A}</span>
-        <span>Ringan (Minor) = {totals.B}</span>
-        <span>Peluang Improvement = {totals.C}</span>
-        <span>Total ketidaksesuaian = {totals.A + totals.B + totals.C}</span>
-      </div>
+
+      {data.length ? (
+        <div className="process-chart-layout">
+          <div className="process-chart-plot">
+            <svg
+              className="process-stacked-svg"
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              role="img"
+              aria-label="Diagram jumlah ketidaksesuaian per process"
+            >
+              {ticks.map((tick) => {
+                const y = plotBottom - (tick / yMax) * plotHeight;
+                return (
+                  <g key={tick}>
+                    <line className="process-grid-line" x1={plotLeft} x2={plotRight} y1={y} y2={y} />
+                    <text className="process-axis-label" x={plotLeft - 7} y={y + 3} textAnchor="end">
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
+              <line className="process-axis-line" x1={plotLeft} x2={plotLeft} y1={plotTop} y2={plotBottom} />
+              <line className="process-axis-line" x1={plotLeft} x2={plotRight} y1={plotBottom} y2={plotBottom} />
+
+              {data.map((value, index) => {
+                const centerX = plotLeft + slotWidth * index + slotWidth / 2;
+                const x = centerX - barWidth / 2;
+                let cursorY = plotBottom;
+                const segments = [
+                  { key: 'C', label: 'Peluang Improvement', value: value.C, color: OFI_COLOR },
+                  { key: 'B', label: 'Minor', value: value.B, color: MINOR_COLOR },
+                  { key: 'A', label: 'Major', value: value.A, color: MAJOR_COLOR },
+                ].map((segment) => {
+                  const height = (segment.value / yMax) * plotHeight;
+                  cursorY -= height;
+                  return { ...segment, y: cursorY, height };
+                });
+
+                return (
+                  <g key={value.process}>
+                    {segments.map((segment) =>
+                      segment.value > 0 ? (
+                        <g key={segment.key}>
+                          <rect
+                            x={x}
+                            y={segment.y}
+                            width={barWidth}
+                            height={segment.height}
+                            fill={segment.color}
+                          >
+                            <title>{`${value.process} — ${segment.label}: ${segment.value}`}</title>
+                          </rect>
+                          <text
+                            className="process-segment-value"
+                            x={centerX}
+                            y={segment.y + segment.height / 2 + 3}
+                            textAnchor="middle"
+                          >
+                            {segment.value}
+                          </text>
+                        </g>
+                      ) : null,
+                    )}
+                    <text
+                      className="process-name-label"
+                      x={centerX}
+                      y={plotBottom + 15}
+                      textAnchor="end"
+                      transform={`rotate(-45 ${centerX} ${plotBottom + 15})`}
+                    >
+                      {value.process}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <div className="finding-summary">
+            <b>Total ketidaksesuaian</b>
+            <span>Berat (Major) = {totals.A}</span>
+            <span>Ringan (Minor) = {totals.B}</span>
+            <span>Peluang Improvement = {totals.C}</span>
+            <span>Total ketidaksesuaian = {totals.A + totals.B + totals.C}</span>
+          </div>
+        </div>
+      ) : (
+        <p>Belum ada Finding dalam populasi.</p>
+      )}
     </div>
   );
 }
