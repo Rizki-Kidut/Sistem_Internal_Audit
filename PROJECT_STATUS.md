@@ -2485,3 +2485,39 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - OpenAI documentation lookup was unavailable from the environment (documentation tooling/web access returned
   authorization failure); the Responses API payload therefore requires deployment smoke verification.
 - Batch 9b was not implemented. Historical migrations and nested `/project` were not changed.
+
+## Batch 9a — FORM-010 ECharts presentation pass — 15 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues PR #27 from remote head
+`fa9cfa688935e7efbd2bc452e152708fbfaf8d06`; Batch 9a is not `VERIFIED_COMPLETE`.
+
+- Migrated all five shared FORM-010 chart views to installed Apache ECharts **6.1.0**,
+  using modular BarChart, PieChart, GridComponent, LegendComponent, and SVGRenderer registration.
+  Every chart uses **SVG**, with animation disabled; no extra dependency or lockfile update.
+- Added a reusable wrapper with positive-size initialization, option updates, ResizeObserver,
+  immediate beforeprint and print-media resize, deferred follow-up resize, afterprint recovery,
+  and complete listener/observer/instance cleanup for hidden layouts and React StrictMode.
+- Chart #1 is a vertical stacked column: OFI blue / Minor orange / Major red, bottom to top,
+  integer count axis, every Process label at 45 degrees, positive segment labels, and retained HTML totals.
+- Charts #2–#4 now use restrained full **2D pies**, replacing faux-3D donuts. Printed HTML legends
+  beside each pie include category, authoritative count, and rounded percentage, including single slices.
+- Chart #5 remains vertical A–E columns with integer labels, zero categories retained when populated,
+  and the existing explanatory taxonomy below. Empty charts show plain contextual text without shapes.
+- Order remains **1 / (2,3) / (5,4)**. `buildWeaknessCharts`, clause grouping, approved-only classification
+  inputs for Charts #3–#5, Finding/LTP, AI, authorization, and finalization semantics are unchanged.
+- Improved A3 full-height composition using a flex page/main section, proportional chart grid rows,
+  and proportionally stretched Why-Why/Action sections. Preserved the safe **419mm × 296mm** minimum
+  sheet footprint, conclusion/footer order, approval design, and Draft-only watermark. Sparse one-page
+  pagination, clipping, and populated overflow still require real-browser acceptance.
+- The circular overlay was confirmed externally as the **Vercel Toolbar**, resolved by disabling that
+  Toolbar. No application/CSS workaround was added. **QR approval remains deferred**; Batch 9b excluded.
+- Files changed: `src/components/pages/WeaknessCharts.tsx`, new
+  `src/components/pages/WeaknessEChart.tsx`, `src/components/pages/weaknessCharts.css`,
+  `src/components/pages/weaknessAnalysisPrint.css`, and `PROJECT_STATUS.md`.
+  `WeaknessAnalysisPrintView.tsx` is unchanged and included in targeted lint.
+- Validation: typecheck, production build, targeted ESLint, and `git diff --check` passed.
+  Build retains non-blocking >500 kB chunk and outdated Browserslist advisories; no application-wide
+  chunking or dependency updates. No migration, Edge Function, package manifest/lockfile, or nested
+  `/project` changes against the supplied head.
+- Required manual gates: browser visual review, one-page sparse A3 Landscape Print Preview,
+  Save as PDF, Draft watermark, Final no-watermark, and populated/overflow report testing.

@@ -1,16 +1,19 @@
 @page{size:A3 landscape;margin:0}
 .form010{display:none}
-.form010-page{position:relative;background:white;color:#111;width:419mm;min-height:296mm;padding:6mm;box-sizing:border-box;font:9pt Arial}
+.form010-page{position:relative;display:flex;flex-direction:column;background:white;color:#111;width:419mm;min-height:296mm;padding:6mm;box-sizing:border-box;font:9pt Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .form010 header{display:flex;justify-content:space-between;align-items:flex-start;border:1px solid #111;padding:4px;gap:6px}
 .form010 header>div{flex:1;min-width:0}
 .form010 header>table{width:44%;flex:none}
 .form010-approval th,.form010-approval td{text-align:center;vertical-align:middle}
 .form010 table{border-collapse:collapse;width:100%;table-layout:fixed}
 .form010 th,.form010 td{border:1px solid #222;padding:3px;vertical-align:top;overflow-wrap:anywhere}
-.form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:start}
+.form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:stretch;flex:1;min-height:0}
 .form010-analysis,.form010-analysis-detail{min-width:0}
-.form010-analysis-detail{display:flex;flex-direction:column;gap:3px}
-.form010-table-section{break-inside:avoid}
+.form010-analysis{display:flex}
+.form010-analysis-detail{display:grid;grid-template-rows:minmax(min-content,1.2fr) minmax(min-content,1fr);gap:3px}
+.form010-table-section{break-inside:avoid;display:flex;flex-direction:column;min-height:0}
+.form010-table-section table{flex:1}
+.form010 header,.form010-conclusion,.form010 footer{flex-shrink:0}
 .form010 h3{margin:4px 0}
 .form010-blank-why{height:12mm}
 .form010-blank-action{height:11mm}
@@ -28,7 +31,7 @@
 html,body,#root,main,main>div{margin:0!important;padding:0!important;max-width:none!important;overflow:visible!important;background:#fff!important}
 .no-print,nav{display:none!important}
 .form010{display:block!important}
-.form010 aside{display:flex!important}
+.form010 aside{display:grid!important}
 .form010-page{break-after:auto;page-break-after:auto}
 .form010 tr,.form010-table-section,.form010-box,.weakness-chart{break-inside:avoid}
 .form010-grid{grid-template-columns:minmax(0,58fr) minmax(0,42fr)!important;gap:3mm!important}
@@ -36,5 +39,5 @@ html,body,#root,main,main>div{margin:0!important;padding:0!important;max-width:n
 .form010-conclusion-body{min-height:11mm}
 .form010-blank-why{height:12mm}
 .form010-blank-action{height:11mm}
-.weakness-chart-primary{min-height:36mm}
+
 }
