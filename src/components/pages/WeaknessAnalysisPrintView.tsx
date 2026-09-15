@@ -35,18 +35,21 @@ export function WeaknessAnalysisPrintView({
             <b>Analisa Ketidaksesuaian Hasil Internal Audit</b>
             <div>A. Hasil Audit Sistem</div>
           </div>
-          <table>
-            <tbody>
+          <table className="form010-approval">
+            <thead>
+              <tr>
+                <th colSpan={3}>Persetujuan</th>
+              </tr>
               <tr>
                 <th>Tanggal</th>
-                <td>{report.tanggal}</td>
-              </tr>
-              <tr>
                 <th>Audit Team Leader</th>
-                <td>{report.audit_team_leader_name_snapshot || '-'}</td>
-              </tr>
-              <tr>
                 <th>PJ QMS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{report.tanggal}</td>
+                <td>{report.audit_team_leader_name_snapshot || '-'}</td>
                 <td>{report.pj_qms_snapshot || report.pj_qms || '-'}</td>
               </tr>
             </tbody>
