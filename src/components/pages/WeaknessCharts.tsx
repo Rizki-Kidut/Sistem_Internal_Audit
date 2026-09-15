@@ -5,6 +5,13 @@ import { WeaknessEChart } from './WeaknessEChart';
 
 type Charts = ReturnType<typeof buildWeaknessCharts>;
 const COLORS = ['#2563eb', '#0f766e', '#d97706', '#be123c', '#7c3aed', '#0891b2', '#4d7c0f', '#64748b'];
+// One SVG gradient per slice supplies the bevel; no duplicated pie/depth series.
+const PIE_TONES = [
+  ['#719af2', '#1b49ae'], ['#589f99', '#0b5751'],
+  ['#e6a65d', '#a15804'], ['#d4637e', '#8d0d2c'],
+  ['#aa7ef3', '#5c2baf'], ['#5bc0cc', '#067f84'],
+  ['#89aa60', '#395c0b'], ['#96a2b2', '#4a5567'],
+];
 const TEXT = { fontFamily: 'Inter, Arial, sans-serif', fontSize: 10, color: '#334155' };
 const COUNT_AXIS = {
   type: 'value', min: 0, minInterval: 1,
@@ -70,10 +77,34 @@ export function PieDistributionChart({ title, values, labels = {} }: {
   const option: EChartsCoreOption = {
     animation: false, textStyle: TEXT, color: COLORS,
     series: [{
-      type: 'pie', animation: false, silent: true, radius: '85%', center: ['50%', '50%'],
+      type: 'pie', animation: false, silent: true,
+      // A balanced, thick annulus also gives a single category a defined inner rim.
+      radius: ['36%', '78%'], center: ['50%', '50%'],
+      emphasis: { disabled: true },
       label: { show: false }, labelLine: { show: false },
-      itemStyle: { borderColor: '#fff', borderWidth: 1.5 },
-      data: entries.map(([key, value]) => ({ name: key, value })),
+      itemStyle: { borderColor: '#fff', borderWidth: 1.25, borderRadius: 2 },
+      data: entries.map(([key, value], index) => {
+        const color = COLORS[index % COLORS.length];
+        const [highlight, edge] = PIE_TONES[index % PIE_TONES.length];
+        return {
+          name: key, value,
+          itemStyle: {
+            // Native SVG vector stops remain crisp without a blur/filter or raster layer.
+            color: {
+              type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: edge },
+                { offset: 0.035, color: highlight },
+                { offset: 0.12, color: highlight },
+                { offset: 0.3, color },
+                { offset: 0.78, color },
+                { offset: 0.94, color: edge },
+                { offset: 1, color: edge },
+              ],
+            },
+          },
+        };
+      }),
     }],
   };
   return (

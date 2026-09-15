@@ -2521,3 +2521,29 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   `/project` changes against the supplied head.
 - Required manual gates: browser visual review, one-page sparse A3 Landscape Print Preview,
   Save as PDF, Draft watermark, Final no-watermark, and populated/overflow report testing.
+
+## Batch 9a — FORM-010 beveled pie refinement — 15 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; browser acceptance remains required. Base:
+`0e91ac5c84f2f20ad20661257986b0a956792964`, existing PR #27.
+
+- Charts #2–#4 now use a print-oriented pseudo-3D / beveled donut treatment instead of flat pies:
+  one ECharts pie series, thick centered annulus, restrained palette-matched SVG linear gradients,
+  narrow top highlight, darker lower edge, thin white slice borders, and slightly rounded corners.
+  No duplicate stacked pies, perspective distortion, raster layer, blur filter, or new modules.
+- Single-category datasets retain the same centered 36%/78% inner/outer radius and bevel,
+  avoiding an oversized solid circle. Count/percentage legends remain the primary explanation.
+  Plain text empty states and existing legend/data ordering are unchanged.
+- Apache ECharts **6.1.0**, **SVGRenderer**, `animation: false`, print resize handling, and exact
+  print-color CSS remain in use. Charts #1/#5, card sizes, A3 page structure, chart order
+  **1 / (2,3) / (5,4)**, approval structure, and watermark behavior are unchanged.
+- No aggregation/business logic, approved classification sourcing, dependency, DB, migration,
+  Edge Function, AI, auth, Finding/LTP workflow, or finalization changes. QR approval remains
+  deferred. No Vercel Toolbar workaround. Nested `/project` is untouched.
+- Files changed: `src/components/pages/WeaknessCharts.tsx` and `PROJECT_STATUS.md` only.
+- Validation: `npm run typecheck`, `npm run build`, targeted ESLint for `WeaknessCharts.tsx`,
+  and `git diff --check` passed. Backend/package baseline diff is empty. Build retains the
+  non-blocking >500 kB chunk and outdated Browserslist advisories.
+- Required manual gates: browser visual review (including one-slice/multi-slice bevel acceptance),
+  sparse one-page A3 Print Preview, Save as PDF, Draft watermark, Final no-watermark,
+  and populated/overflow report testing. No browser/PDF acceptance is claimed by this pass.
