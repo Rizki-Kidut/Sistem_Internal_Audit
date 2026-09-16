@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { WeaknessItem, WeaknessReport, WeaknessWhy } from '../../services/weaknessAnalysisService';
 import { WEAKNESS_AUDIT_TYPE_LABEL } from '../../lib/enums';
 import { formatAuditExecutionDates, formatTanggal, parseDate } from '../../lib/utils';
@@ -92,24 +93,23 @@ export function WeaknessAnalysisPrintView({
                       <td>{entry.akar_permasalahan}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+              {whyPadding > 0 && (
+                <div
+                  className="form010-blank-grid form010-why-blank-grid"
+                  style={{ '--form010-blank-row-count': whyPadding } as CSSProperties}
+                  aria-hidden="true"
+                >
                   {Array.from({ length: whyPadding }, (_, index) => (
-                    <tr className="form010-blank-row form010-blank-why" key={`blank-why-${index}`}>
-                      {Array.from({ length: 7 }, (__, cellIndex) => (
-                        <td key={cellIndex}>{empty ? '-' : '\u00a0'}</td>
+                    <div className="form010-blank-grid-row form010-blank-why" key={`blank-why-${index}`}>
+                      {Array.from({ length: 7 }, (_, cellIndex) => (
+                        <span className="form010-blank-cell" key={cellIndex}>{empty ? '-' : '\u00a0'}</span>
                       ))}
-                    </tr>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-              <table className="form010-fill-table" aria-hidden="true">
-                <tbody>
-                  <tr className="form010-fill-row">
-                    {Array.from({ length: 7 }, (_, cellIndex) => (
-                      <td key={cellIndex} />
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+                </div>
+              )}
             </section>
 
             <section className="form010-table-section form010-action-section">
@@ -136,24 +136,23 @@ export function WeaknessAnalysisPrintView({
                       <td>{action.status}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+              {actionPadding > 0 && (
+                <div
+                  className="form010-blank-grid form010-action-blank-grid"
+                  style={{ '--form010-blank-row-count': actionPadding } as CSSProperties}
+                  aria-hidden="true"
+                >
                   {Array.from({ length: actionPadding }, (_, index) => (
-                    <tr className="form010-blank-row form010-blank-action" key={`blank-action-${index}`}>
-                      {Array.from({ length: 6 }, (__, cellIndex) => (
-                        <td key={cellIndex}>{empty ? '-' : '\u00a0'}</td>
+                    <div className="form010-blank-grid-row form010-blank-action" key={`blank-action-${index}`}>
+                      {Array.from({ length: 6 }, (_, cellIndex) => (
+                        <span className="form010-blank-cell" key={cellIndex}>{empty ? '-' : '\u00a0'}</span>
                       ))}
-                    </tr>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-              <table className="form010-fill-table" aria-hidden="true">
-                <tbody>
-                  <tr className="form010-fill-row">
-                    {Array.from({ length: 6 }, (_, cellIndex) => (
-                      <td key={cellIndex} />
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+                </div>
+              )}
             </section>
           </aside>
         </div>

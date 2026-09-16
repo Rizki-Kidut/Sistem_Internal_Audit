@@ -2794,3 +2794,33 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   `git diff --check`. Build retained only the existing outdated Browserslist and >500 kB chunk
   advisories. The automated regression verifies markup and CSS invariants, not Chrome pagination;
   authoritative one-page A3 Print Preview and sparse zero-Finding visual acceptance remain required.
+
+## Batch 9a — FORM-010 equal blank rows and bounded print charts — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`f205da73ddc50626ce5d74f0bd3aa93b60564e21`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Removed the one-row flexible filler table introduced by the prior presentation pass. Why-Why and
+  Action now keep an intrinsic table for headers and actual data only, followed by a CSS Grid template
+  area whose existing minimum blank rows divide all remaining section height equally. Matching
+  seven-column Why and six-column Action grids preserve the table border/column structure.
+- The minimum remains four total visible Why rows and three total visible Action rows: one real Why
+  produces three equal blank tracks, while one real Action produces two. Each blank track uses
+  `minmax(8mm, 1fr)`; no extra rows are measured or dynamically added, and no fake data is created.
+  Populated rows remain explicit `height:auto`, outside the flexible blank grid.
+- FORM-010 chart rows are now deterministic and bounded at `52mm / 41mm / 41mm`, with
+  `flex: 0 0 auto` and no `fr` tracks. This supersedes the expandable `minmax(56mm,1.15fr) /
+  minmax(45mm,1fr) / minmax(45mm,1fr)` sizing that could still consume the full page height.
+  The normal Analysis-tab chart grid remains unchanged at `280/230/230px`.
+- Narrative wrapping, the 60/40 Why/Action ratio, A3 landscape `419mm × 296mm` geometry,
+  conclusion/footer spacing, Draft watermark, approval header, title, and all chart semantics remain
+  unchanged. Full real content is never clipped; genuinely excessive content may continue naturally.
+- Files changed: `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/pages/weaknessCharts.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No backend, migration, Edge Function,
+  package/lockfile, or nested `/project` file changed.
+- Static validation passed: the presentation regression suite in default, Asia/Jakarta, and
+  America/Los_Angeles time zones; `npm run typecheck`; `npm run build`; targeted ESLint for
+  `WeaknessAnalysisPrintView.tsx`; and `git diff --check`. Build retained only the existing outdated
+  Browserslist and >500 kB chunk advisories. These checks verify markup/CSS invariants, not Chrome
+  pagination; one-page A3 Print Preview remains the manual authority.

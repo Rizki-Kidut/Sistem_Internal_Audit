@@ -16,15 +16,15 @@
 .form010-analysis-detail{display:grid;grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr);gap:3px}
 .form010-table-section{break-inside:avoid;display:flex;flex-direction:column;min-height:0}
 .form010-table-section>.form010-data-table{flex:0 0 auto;height:auto}
-.form010-table-section>.form010-fill-table{flex:1 1 0;height:auto;min-height:0;margin-top:-1px}
 .form010-data-row{height:auto}
-.form010-fill-row{height:100%}
-.form010-fill-row td{padding:0}
+.form010-blank-grid{flex:1 1 0;display:grid;grid-template-rows:repeat(var(--form010-blank-row-count),minmax(8mm,1fr));min-height:0}
+.form010-blank-grid-row{display:grid;min-height:8mm}
+.form010-why-blank-grid .form010-blank-grid-row{grid-template-columns:repeat(7,minmax(0,1fr))}
+.form010-action-blank-grid .form010-blank-grid-row{grid-template-columns:repeat(6,minmax(0,1fr))}
+.form010-blank-cell{border-left:1px solid #222;border-bottom:1px solid #222;padding:0 3px;overflow-wrap:anywhere}
+.form010-blank-cell:last-child{border-right:1px solid #222}
 .form010 header,.form010-conclusion,.form010 footer{flex-shrink:0}
 .form010 h3{margin:4px 0}
-.form010-blank-why{height:12mm}
-.form010-blank-action{height:11mm}
-.form010-blank-row td{padding:0 3px}
 .form010-box{border:1px solid #222;padding:4px;break-inside:avoid}
 .form010-conclusion{margin-top:4px;min-height:18mm}
 .form010-conclusion-body{min-height:11mm;margin-top:3px;white-space:pre-wrap}
@@ -40,11 +40,8 @@ html,body,#root,main,main>div{margin:0!important;padding:0!important;max-width:n
 .form010{display:block!important;max-width:none;overflow:visible}
 .form010 aside{display:grid!important}
 .form010-page{break-after:auto;page-break-after:auto}
-.form010 tr,.form010-table-section,.form010-box,.weakness-chart{break-inside:avoid}
+.form010 tr,.form010-blank-grid-row,.form010-table-section,.form010-box,.weakness-chart{break-inside:avoid}
 .form010-grid{grid-template-columns:minmax(0,58fr) minmax(0,42fr)!important;gap:3mm!important}
 .form010-conclusion{min-height:18mm}
 .form010-conclusion-body{min-height:11mm}
-.form010-blank-why{height:12mm}
-.form010-blank-action{height:11mm}
-
 }

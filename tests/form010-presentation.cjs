@@ -64,7 +64,9 @@ for (const [audit_type, label, audit_execution_dates, dateLabel] of types) {
     assert(html.includes('Peluang Improvement = -'));
     assert(html.includes('Total ketidaksesuaian = -'));
     assert.equal(html.includes('DRAFT / PREVIEW'), preview);
-    assert((html.match(/<td>-<\/td>/g) || []).length >= 46);
+    assert((html.match(/class="form010-blank-cell">-<\/span>/g) || []).length >= 46);
+    assert(html.includes('6. Kesimpulan Sumber Permasalahan'));
+    assert(html.includes('Q-120-ISE-001-FORM-010-REV.0'));
     const order = ['1. Berdasarkan', '2. Analisa', '3. Analisa', '5. Jenis', '4. Analisa'].map(title => html.indexOf(title));
     assert.deepEqual(order, [...order].sort((a, b) => a - b));
     // A mismatching item's source must never choose/change the report's header identity.
@@ -81,14 +83,19 @@ assert(css.includes('size:A3 landscape'));
 assert(css.includes('width:419mm;min-height:296mm'));
 assert(css.includes('grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr)'));
 assert(css.includes('.form010-data-row{height:auto}'));
-assert(css.includes('.form010-table-section>.form010-fill-table{flex:1 1 0;height:auto;min-height:0;margin-top:-1px}'));
+assert(css.includes('.form010-blank-grid{flex:1 1 0;display:grid;grid-template-rows:repeat(var(--form010-blank-row-count),minmax(8mm,1fr));min-height:0}'));
+assert(!css.includes('form010-fill-row'));
+assert(!css.includes('form010-fill-table'));
 const narrativeRule = css.match(/\.form010-why-section td,\.form010-action-section td\{([^}]+)\}/)?.[1] || '';
 for (const declaration of ['white-space:pre-wrap', 'overflow-wrap:anywhere', 'word-break:break-word', 'vertical-align:top']) {
   assert(narrativeRule.includes(declaration));
 }
 for (const clipping of ['overflow:hidden', 'max-height']) assert(!narrativeRule.includes(clipping));
 assert(chartCss.includes('.weakness-chart-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(280px,1.25fr) repeat(2,minmax(230px,1fr))'));
-assert(chartCss.includes('.form010 .weakness-chart-grid{flex:1;grid-template-rows:minmax(56mm,1.15fr) repeat(2,minmax(45mm,1fr));gap:2mm}'));
+const formChartRule = chartCss.match(/\.form010 \.weakness-chart-grid\{([^}]+)\}/)?.[1] || '';
+assert(formChartRule.includes('flex:0 0 auto'));
+assert(formChartRule.includes('grid-template-rows:52mm 41mm 41mm'));
+assert(!formChartRule.includes('fr'));
 
 const populatedReport = { audit_type: 'ChecklistSistem', audit_execution_dates: ['2026-09-16'], judul: 'Row sizing', tanggal: '2026-09-16' };
 const populatedItems = [{ process: 'Process', finding: { source_type: 'ChecklistSistem', kategori: 'B' }, classification: {} }];
@@ -109,7 +116,9 @@ const populatedHtml = renderToStaticMarkup(React.createElement(WeaknessAnalysisP
 assert.equal((populatedHtml.match(/class="form010-data-row"/g) || []).length, 2);
 assert.equal((populatedHtml.match(/form010-blank-why/g) || []).length, 3);
 assert.equal((populatedHtml.match(/form010-blank-action/g) || []).length, 2);
-assert.equal((populatedHtml.match(/class="form010-fill-row"/g) || []).length, 2);
-assert.equal((populatedHtml.match(/class="form010-fill-table"/g) || []).length, 2);
+assert(populatedHtml.includes('--form010-blank-row-count:3'));
+assert(populatedHtml.includes('--form010-blank-row-count:2'));
+assert(!populatedHtml.includes('form010-fill-row'));
+assert(!populatedHtml.includes('form010-fill-table'));
 
-console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; intrinsic data rows with minimum blanks and dedicated fillers; compact FORM-010 chart grid; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);
+console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; intrinsic data rows with equal blank-grid tracks; deterministic FORM-010 chart rows; conclusion/footer; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);
