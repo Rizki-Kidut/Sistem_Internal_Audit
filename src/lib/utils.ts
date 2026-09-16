@@ -95,3 +95,29 @@ export function validateRequired(fields: Record<string, unknown>, names: Record<
 export function safe<T>(value: T | null | undefined, fallback: T): T {
   return value ?? fallback;
 }
+
+// Exact execution dates: group only adjacent days; never imply an audit on a missing day.
+export function formatAuditExecutionDates(values: readonly string[] | null | undefined): string {
+  const dates = [...new Set(values ?? [])].filter(value => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }).sort();
+  if (!dates.length) return '-';
+  const groups: string[][] = [];
+  for (const value of dates) {
+    const last = groups[groups.length - 1];
+    if (last && Date.parse(value) - Date.parse(last[last.length - 1]) === 86400000) last.push(value);
+    else groups.push([value]);
+  }
+  const sameMonth = dates.every(value => value.slice(0, 7) === dates[0].slice(0, 7));
+  if (sameMonth) {
+    const days = groups.map(group => {
+      const first = Number(group[0].slice(8));
+      const last = Number(group[group.length - 1].slice(8));
+      return first === last ? `${first}` : `${first}–${last}`;
+    }).join(' & ');
+    return `${days} ${NAMA_BULAN_LENGKAP[Number(dates[0].slice(5, 7)) - 1]} ${dates[0].slice(0, 4)}`;
+  }
+  return groups.map(group => formatRentangTanggal(group[0], group[group.length - 1])).join(' & ');
+}

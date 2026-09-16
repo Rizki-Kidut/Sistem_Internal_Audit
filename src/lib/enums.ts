@@ -57,6 +57,12 @@ export const FINDING_SOURCE_TYPE = {
   SISTEM: 'ChecklistSistem', PRODUK: 'ChecklistProduk', MANUFAKTUR_SHIFT: 'ChecklistManufakturShift',
 } as const;
 export type FindingSourceType = (typeof FINDING_SOURCE_TYPE)[keyof typeof FINDING_SOURCE_TYPE];
+export const WEAKNESS_AUDIT_TYPE_LABEL: Record<FindingSourceType, string> = {
+  [FINDING_SOURCE_TYPE.SISTEM]: 'Audit Sistem',
+  [FINDING_SOURCE_TYPE.MANUFAKTUR_SHIFT]: 'Audit Proses Manufaktur',
+  [FINDING_SOURCE_TYPE.PRODUK]: 'Audit Produk',
+};
+
 export const FINDING_STATUS = { OPEN:'Open', CAR_SUBMITTED:'CAR Submitted', VERIFIKASI:'Verifikasi', CLOSED:'Closed', OVERDUE:'Overdue' } as const;
 export type FindingStatus = (typeof FINDING_STATUS)[keyof typeof FINDING_STATUS];
 export const FINDING_REVIEW_STATUS = { DRAFT:'DRAFT', LEAD_REVIEW:'LEAD_REVIEW', REVISION_REQUIRED:'REVISION_REQUIRED', READY_FOR_RELEASE:'READY_FOR_RELEASE', PUBLISHED:'PUBLISHED', ANNULLED:'ANNULLED', LEGACY_ESTABLISHED:'LEGACY_ESTABLISHED' } as const;

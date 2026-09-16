@@ -2594,3 +2594,124 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Remaining manual gates: browser visual review; sparse one-page A3 Landscape Print Preview;
   Save as PDF; Draft watermark; Final no-watermark; populated/overflow reports for **each** of
   Audit Sistem, Audit Proses Manufaktur, and Audit Produk.
+
+## Batch 9a — Explicit audit family and authoritative execution dates — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues PR #27 from
+`77f1efbdff4926487df0cece7d3970777a5befe1`. Implementation and the Staging SQL matrix passed; real-browser acceptance remains pending.
+
+- Supersedes the prior program-only scope limitation: new reports explicitly persist one of
+  `ChecklistSistem`, `ChecklistManufakturShift`, or `ChecklistProduk`. Existing legacy reports
+  retain NULL type and their original populations and are presented read-only.
+- New additive migration: `supabase/migrations/20260916021204_scope_form010_audit_type_dates.sql`.
+  Adds audit_type, audit_execution_dates (normalized distinct sorted date[]), audit_date_start,
+  audit_date_end, typed Program uniqueness, and checklist-context population/signatory/Final rules.
+- System and Manufacturing dates come only from represented Instruction execution dates. Product
+  uses tanggal_audit_produk first, falling back only to that same row's tanggal_pelaksanaan_audit.
+  Date-range scope uses these same family-specific dates. Final snapshots never refresh from live dates.
+- Zero-Finding Draft requires actual checklist context; Final additionally requires every represented
+  row's authoritative cek_selesai and exact current population validation. No LTP/classification/AI
+  is fabricated. Empty analysis content uses '-', while real metadata is retained.
+- Frontend creation requires audit type; list/workspace expose type and dates; the FORM-010 header
+  reads report identity/snapshot directly. Exact-date formatting groups only contiguous dates.
+- Pareto #1, no reference line, beveled #2–#4, vertical #5, SVGRenderer, ECharts 6.1.0, centered 14pt
+  title, A3 sheet structure and watermark behavior remain. QR approval is deferred. The external
+  ZDR production gate is unchanged. Browser/Print Preview/PDF acceptance is still required.
+- Static checks so far: typecheck and all changed TS/TSX-file ESLint passed. Migration SHA256,
+  actual Staging ledger entry, full test matrix, final static/build results and file list follow below.
+
+
+### Audit-family correction — applied migration and verification closeout
+
+- Exactly one new additive migration was applied successfully to **CertiTrack-Staging**
+  (`wlsmqufirefmscjwaoka`): `20260916021204_scope_form010_audit_type_dates.sql`.
+  Repository SHA256: `4d857f3592210af972d303c1b1da34475edcd9f9917a4481738b46e5f864d631`.
+  Actual Staging ledger: **20260916023952 · scope_form010_audit_type_dates**.
+  The file is immutable after this application. Both earlier applied migration files remain
+  byte-for-byte unchanged from `77f1efbdff4926487df0cece7d3970777a5befe1`.
+- Four nullable columns were added to `weakness_analysis_reports`: `audit_type text`,
+  `audit_date_start date`, `audit_date_end date`, `audit_execution_dates date[]`.
+  Type CHECK accepts only `ChecklistSistem`, `ChecklistManufakturShift`, `ChecklistProduk` when
+  non-null. Typed rows require normalized, distinct, sorted, non-null date arrays (empty array
+  permitted when dates are unavailable), with start/end matching the first/last dates.
+  Partial unique index `weakness_program_audit_type_unique` prevents another typed Draft/Final
+  for the same Program. Legacy NULL rows are excluded; no archive/reissue lifecycle was invented.
+- `create_weakness_analysis` requires explicit `p_audit_type`, validates scope and real checklist
+  context, and atomically inserts/populates/snapshots the report. Its old five-argument signature
+  now safely rejects stale clients. `populate_weakness_report` uses only formal
+  PUBLISHED/LEGACY_ESTABLISHED Findings of that family and the canonical `cars.finding_id` link.
+  The helper resolves checklists / checklist_manufaktur_shift / checklist_produk through row_id,
+  never through the presence of Findings. Date-range scoping uses the same authoritative date.
+- `weakness_team_leader_candidates` derives the Team Master leaders of the exact represented
+  checklist rows, including zero-Finding rows. PJ QMS remains Program-authoritative, with
+  date-range candidates derived from represented Programs. The company management capability
+  remains exactly `is_admin_identity() OR current_auditor_is_lead_auditor()`; no RLS was changed.
+- Draft assertions lock and recheck report state and reject legacy edits. Save retains revision,
+  signatory and Why/Action validation; empty reports save '-' and no systemic children. Final
+  retains all non-zero CLOSED-LTP/classification/structural blockers, validates exact population
+  membership (including omitted Findings and missing canonical LTPs), rejects changed dates until
+  explicit regeneration, and requires all exact audit-context rows completed for zero Findings.
+  Classification provenance is unchanged; the approval RPC adds only the locked Draft assertion.
+- Legacy report `31f59999-8a79-4b60-90aa-91bb586404ab` and the other legacy Draft were preserved.
+  Before/after legacy-column and population hashes match. Protected fixture hashes:
+  report `407fb4ff830224af9b65766813c63ef5`, population `41959f6003f01e6a35b3b81f3d1cb711`.
+  The UI labels legacy reports read-only instead of guessing a family or rewriting their items.
+- `tests/form010-audit-type-staging.sql`: **32 grouped Staging checks PASS** in a rolled-back
+  transaction with newly generated synthetic programs, teams, checklist contexts and Findings.
+  Seeded prerequisite workflow states are synthetic; this is a FORM-010 RPC/constraint test, not
+  a repeat of the complete Finding/LTP workflow. Execution completion for zero-Finding rows used
+  the existing guarded `complete_audit_execution` RPC with triggers enabled.
+  The same-Program scenario uses synthetic FY2097 metadata and the exact requested September
+  2026 execution dates; no old mixed FY2099 fixture supplies the test population.
+
+| Staging verification | Result |
+| --- | --- |
+| System with Findings: create, manual approval, save, Final | PASS |
+| System zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Manufacturing with Findings: isolated population, save, Final | PASS |
+| Manufacturing zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Product with Findings: dedicated dates, isolated population, save, Final | PASS |
+| Product zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Same Program: System 7–11 Sep / Manufacturing 9–10 Sep / Product 11 Sep | PASS |
+| Manufacturing non-contiguous exact snapshot [9 Sep, 11 Sep] | PASS |
+| Product DATE_RANGE primary date; same-row fallback; generic-date exclusion | PASS |
+| All six cross-family exclusions and injected cross-family Final rejection | PASS |
+| Missing audit context: create and Final rejected | PASS |
+| Non-CLOSED LTP, unapproved classification, stale revision blockers | PASS |
+| Omitted population cannot masquerade as zero | PASS |
+| Draft date drift blocks Final; explicit regeneration refreshes dates | PASS |
+| Type-specific Team Leader candidates; arbitrary signer rejection | PASS |
+| Duplicate Program + type; authenticated direct mutation denied | PASS |
+| Final report/type/dates/signatory, population, Why/levels/Actions immutable | PASS |
+| Later upstream date changes and later Draft classification approval preserve Final snapshots | PASS |
+| Legacy regenerate/Final rejected without mutation | PASS |
+| Admin / Company Lead accepted; ordinary Auditor and inactive Company Lead denied | PASS |
+
+- Post-test cleanup queries returned zero synthetic profiles, auditors and typed test reports.
+  All five Weakness tables retain RLS, internal helpers are not executable by authenticated users,
+  and the new create RPC is not executable by anon. Security Advisor reports the intentional
+  guarded authenticated SECURITY DEFINER RPC category (50 functions across the application),
+  plus disabled leaked-password protection; no policy or Auth configuration was changed.
+  References: [guarded function exposure advisory](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+  and [password-protection advisory](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- `tests/form010-presentation.cjs` passed nine exact-date cases, all three families with both
+  Draft/Final and empty/populated markup, '-' result content, real metadata, chart order,
+  Pareto 100%/no reference line, beveled SVG-option geometry and A–E bars. Runs in UTC/default,
+  Asia/Jakarta and America/Los_Angeles passed. A timezone test caught and corrected only the
+  FORM-010 approval-date call site to parse its date-only value locally before formatting.
+- Final static validation: typecheck, production build, targeted ESLint for all six changed
+  TS/TSX files, and `git diff --check` passed. Build retains the existing outdated Browserslist
+  and >500 kB chunk advisories. No new dependency, package/lockfile, Edge Function, historical
+  migration, Instruksi UI, or nested `/project` change. WeaknessEChart.tsx and both chart/print
+  stylesheets remain unchanged in this pass; ECharts 6.1.0 and SVGRenderer remain in use.
+- Changed files: `src/lib/enums.ts`, `src/lib/utils.ts`,
+  `src/services/weaknessAnalysisService.ts`, `src/components/pages/WeaknessAnalysisPage.tsx`,
+  `src/components/pages/WeaknessAnalysisPrintView.tsx`, `src/components/pages/WeaknessCharts.tsx`,
+  the one new migration above, `tests/form010-audit-type-staging.sql`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`.
+- Remaining acceptance: real browser visual review and access/create/save flows for all three
+  types; sparse one-page A3 Landscape Print Preview; Save as PDF; Draft watermark; Final
+  no-watermark; populated/overflow report tests for each type. SQL/markup tests do not establish
+  browser pagination. Batch 9a remains **IMPLEMENTED_UNVERIFIED**, PR #27 open/unmerged.
+  QR approval remains deferred; external production ZDR eligibility/approval remains a gate
+  and is not established by this correction. AI/privacy/Edge Function behavior is unchanged.

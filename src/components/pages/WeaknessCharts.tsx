@@ -19,7 +19,7 @@ const COUNT_AXIS = {
   splitLine: { lineStyle: { color: '#e2e8f0' } },
 };
 
-export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
+export function ProcessStackedChart({ data, emptyReport = false }: { data: Charts['processes']; emptyReport?: boolean }) {
   const totals = data.reduce(
     (acc, value) => ({ A: acc.A + value.A, B: acc.B + value.B, C: acc.C + value.C }),
     { A: 0, B: 0, C: 0 },
@@ -87,15 +87,25 @@ export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
             <span>Total ketidaksesuaian = {totals.A + totals.B + totals.C}</span>
           </div>
         </div>
+      ) : emptyReport ? (
+        <div className="process-chart-layout">
+          <p className="self-center text-center">-</p>
+          <div className="finding-summary">
+            <b>Total ketidaksesuaian</b>
+            <span>Berat (Major) = -</span><span>Ringan (Minor) = -</span>
+            <span>Peluang Improvement = -</span><span>Total ketidaksesuaian = -</span>
+          </div>
+        </div>
       ) : <p>Belum ada Finding dalam populasi.</p>}
     </div>
   );
 }
 
-export function PieDistributionChart({ title, values, labels = {} }: {
+export function PieDistributionChart({ title, values, labels = {}, emptyReport = false }: {
   title: string;
   values: Record<string, number>;
   labels?: Record<string, string>;
+  emptyReport?: boolean;
 }) {
   const entries = Object.entries(values).filter(([, value]) => value > 0);
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
@@ -147,12 +157,12 @@ export function PieDistributionChart({ title, values, labels = {} }: {
             ))}
           </div>
         </div>
-      ) : <p>Belum ada data terklasifikasi.</p>}
+      ) : <p>{emptyReport ? '-' : 'Belum ada data terklasifikasi.'}</p>}
     </div>
   );
 }
 
-export function ProblemTypeChart({ values }: { values: Record<string, number> }) {
+export function ProblemTypeChart({ values, emptyReport = false }: { values: Record<string, number>; emptyReport?: boolean }) {
   const keys = Object.keys(WEAKNESS_PROBLEM_LABEL);
   const option: EChartsCoreOption = {
     animation: false, textStyle: TEXT,
@@ -170,27 +180,27 @@ export function ProblemTypeChart({ values }: { values: Record<string, number> })
       <h3>5. Jenis Ketidakpatuhan</h3>
       {keys.some((key) => (values[key] ?? 0) > 0)
         ? <WeaknessEChart option={option} ariaLabel="Jenis Ketidakpatuhan A sampai E" />
-        : <p>Belum ada data terklasifikasi.</p>}
-      <div className="problem-legend">
+        : <p>{emptyReport ? '-' : 'Belum ada data terklasifikasi.'}</p>}
+      {!emptyReport && <div className="problem-legend">
         {Object.entries(WEAKNESS_PROBLEM_LABEL).map(([key, label]) => (
           <span key={key}><b>{key}</b> — {label}</span>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
 
-export function WeaknessChartSet({ charts }: { charts: Charts }) {
+export function WeaknessChartSet({ charts, emptyReport = false }: { charts: Charts; emptyReport?: boolean }) {
   return (
     <div className="weakness-chart-grid">
-      <ProcessStackedChart data={charts.processes} />
-      <PieDistributionChart
+      <ProcessStackedChart data={charts.processes} emptyReport={emptyReport} />
+      <PieDistributionChart emptyReport={emptyReport}
         title="2. Analisa berdasarkan klausul IATF 16949" values={charts.clauses}
         labels={{ '4': 'Konteks Organisasi', '5': 'Kepemimpinan', '6': 'Perencanaan', '7': 'Proses Pendukung', '8': 'Operasional', '9': 'Evaluasi Performa', '10': 'Peningkatan' }}
       />
-      <PieDistributionChart title="3. Analisa berdasarkan ISO 19011 / DIS (Dokumen, Implementasi, Sistem)" values={charts.dis} labels={WEAKNESS_DIS_LABEL} />
-      <ProblemTypeChart values={charts.problems} />
-      <PieDistributionChart title="4. Analisa berdasarkan 4M + 1E" values={charts.fourM} labels={WEAKNESS_4M1E_LABEL} />
+      <PieDistributionChart emptyReport={emptyReport} title="3. Analisa berdasarkan ISO 19011 / DIS (Dokumen, Implementasi, Sistem)" values={charts.dis} labels={WEAKNESS_DIS_LABEL} />
+      <ProblemTypeChart values={charts.problems} emptyReport={emptyReport} />
+      <PieDistributionChart emptyReport={emptyReport} title="4. Analisa berdasarkan 4M + 1E" values={charts.fourM} labels={WEAKNESS_4M1E_LABEL} />
     </div>
   );
 }

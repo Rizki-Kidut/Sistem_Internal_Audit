@@ -1,5 +1,6 @@
 import type { WeaknessItem, WeaknessReport, WeaknessWhy } from '../../services/weaknessAnalysisService';
-import { FINDING_SOURCE_TYPE } from '../../lib/enums';
+import { WEAKNESS_AUDIT_TYPE_LABEL } from '../../lib/enums';
+import { formatAuditExecutionDates, formatTanggal, parseDate } from '../../lib/utils';
 import { buildWeaknessCharts } from '../../lib/weaknessAnalysis';
 import { WeaknessChartSet } from './WeaknessCharts';
 import './weaknessCharts.css';
@@ -19,17 +20,14 @@ export function WeaknessAnalysisPrintView({
   why: WeaknessWhy[];
   preview: boolean;
 }) {
-  const auditTypes = [
-    { source: FINDING_SOURCE_TYPE.SISTEM, label: 'Audit Sistem' },
-    { source: FINDING_SOURCE_TYPE.MANUFAKTUR_SHIFT, label: 'Audit Proses Manufaktur' },
-    { source: FINDING_SOURCE_TYPE.PRODUK, label: 'Audit Produk' },
-  ].filter(({ source }) => items.some((item) => item.finding.source_type === source));
-  const auditContext = auditTypes.map(({ label }) => label).join(' / ') || 'Internal Audit';
+  const auditContext = report.audit_type ? WEAKNESS_AUDIT_TYPE_LABEL[report.audit_type] : 'Legacy sebelum pemisahan jenis audit';
+  const empty = items.length === 0;
+  const analysisWhy = empty ? [] : why;
   const charts = buildWeaknessCharts(items.map(toChart));
-  const actions = why.flatMap((entry) =>
+  const actions = analysisWhy.flatMap((entry) =>
     entry.actions.map((action) => ({ ...action, root: entry.akar_permasalahan })),
   );
-  const whyPadding = Math.max(0, MIN_WHY_ROWS - why.length);
+  const whyPadding = Math.max(0, MIN_WHY_ROWS - analysisWhy.length);
   const actionPadding = Math.max(0, MIN_ACTION_ROWS - actions.length);
 
   return (
@@ -40,7 +38,7 @@ export function WeaknessAnalysisPrintView({
         <header>
           <h1 className="form010-title">Analisa Ketidaksesuaian Hasil Internal Audit</h1>
           <div>
-            <div>A. Hasil {auditContext}</div>
+            <div>A. Hasil {auditContext} ({formatAuditExecutionDates(report.audit_execution_dates)})</div>
             <div className="form010-context">{report.judul}</div>
           </div>
           <table className="form010-approval">
@@ -56,7 +54,7 @@ export function WeaknessAnalysisPrintView({
             </thead>
             <tbody>
               <tr>
-                <td>{report.tanggal}</td>
+                <td>{formatTanggal(parseDate(report.tanggal))}</td>
                 <td>{report.audit_team_leader_name_snapshot || '-'}</td>
                 <td>{report.pj_qms_snapshot || report.pj_qms || '-'}</td>
               </tr>
@@ -66,7 +64,7 @@ export function WeaknessAnalysisPrintView({
 
         <div className="form010-grid">
           <main className="form010-analysis">
-            <WeaknessChartSet charts={charts} />
+            <WeaknessChartSet charts={charts} emptyReport={empty} />
           </main>
 
           <aside className="form010-analysis-detail">
@@ -84,7 +82,7 @@ export function WeaknessAnalysisPrintView({
                   </tr>
                 </thead>
                 <tbody>
-                  {why.map((entry) => (
+                  {analysisWhy.map((entry) => (
                     <tr key={entry.sort_order}>
                       <td>{entry.nomor}</td>
                       <td>{entry.problem}</td>
@@ -97,7 +95,7 @@ export function WeaknessAnalysisPrintView({
                   {Array.from({ length: whyPadding }, (_, index) => (
                     <tr className="form010-blank-row form010-blank-why" key={`blank-why-${index}`}>
                       {Array.from({ length: 7 }, (__, cellIndex) => (
-                        <td key={cellIndex}>&nbsp;</td>
+                        <td key={cellIndex}>{empty ? '-' : '\u00a0'}</td>
                       ))}
                     </tr>
                   ))}
@@ -132,7 +130,7 @@ export function WeaknessAnalysisPrintView({
                   {Array.from({ length: actionPadding }, (_, index) => (
                     <tr className="form010-blank-row form010-blank-action" key={`blank-action-${index}`}>
                       {Array.from({ length: 6 }, (__, cellIndex) => (
-                        <td key={cellIndex}>&nbsp;</td>
+                        <td key={cellIndex}>{empty ? '-' : '\u00a0'}</td>
                       ))}
                     </tr>
                   ))}
@@ -144,7 +142,7 @@ export function WeaknessAnalysisPrintView({
 
         <section className="form010-box form010-conclusion">
           <b>6. Kesimpulan Sumber Permasalahan</b>
-          <div className="form010-conclusion-body">{report.kesimpulan || '\u00a0'}</div>
+          <div className="form010-conclusion-body">{empty ? '-' : report.kesimpulan || '\u00a0'}</div>
         </section>
 
         <footer>Q-120-ISE-001-FORM-010-REV.0</footer>
