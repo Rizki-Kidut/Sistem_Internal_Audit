@@ -13,9 +13,13 @@
 .form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:stretch;flex:1;min-height:0}
 .form010-analysis,.form010-analysis-detail{min-width:0}
 .form010-analysis{display:flex}
-.form010-analysis-detail{display:grid;grid-template-rows:minmax(min-content,1.2fr) minmax(min-content,1fr);gap:3px}
+.form010-analysis-detail{display:grid;grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr);gap:3px}
 .form010-table-section{break-inside:avoid;display:flex;flex-direction:column;min-height:0}
-.form010-table-section table{flex:0 0 auto;height:auto}
+.form010-table-section>.form010-data-table{flex:0 0 auto;height:auto}
+.form010-table-section>.form010-fill-table{flex:1 1 0;height:auto;min-height:0;margin-top:-1px}
+.form010-data-row{height:auto}
+.form010-fill-row{height:100%}
+.form010-fill-row td{padding:0}
 .form010 header,.form010-conclusion,.form010 footer{flex-shrink:0}
 .form010 h3{margin:4px 0}
 .form010-blank-why{height:12mm}

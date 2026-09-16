@@ -74,7 +74,42 @@ for (const [audit_type, label, audit_execution_dates, dateLabel] of types) {
   }
 }
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/weaknessAnalysisPrint.css'), 'utf8');
+const chartCss = fs.readFileSync(path.join(__dirname, '../src/components/pages/weaknessCharts.css'), 'utf8');
 assert(css.includes('font-size:14pt;font-weight:700'));
 assert(css.includes('text-align:center;white-space:nowrap'));
 assert(css.includes('size:A3 landscape'));
-console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);
+assert(css.includes('width:419mm;min-height:296mm'));
+assert(css.includes('grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr)'));
+assert(css.includes('.form010-data-row{height:auto}'));
+assert(css.includes('.form010-table-section>.form010-fill-table{flex:1 1 0;height:auto;min-height:0;margin-top:-1px}'));
+const narrativeRule = css.match(/\.form010-why-section td,\.form010-action-section td\{([^}]+)\}/)?.[1] || '';
+for (const declaration of ['white-space:pre-wrap', 'overflow-wrap:anywhere', 'word-break:break-word', 'vertical-align:top']) {
+  assert(narrativeRule.includes(declaration));
+}
+for (const clipping of ['overflow:hidden', 'max-height']) assert(!narrativeRule.includes(clipping));
+assert(chartCss.includes('.weakness-chart-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(280px,1.25fr) repeat(2,minmax(230px,1fr))'));
+assert(chartCss.includes('.form010 .weakness-chart-grid{flex:1;grid-template-rows:minmax(56mm,1.15fr) repeat(2,minmax(45mm,1fr));gap:2mm}'));
+
+const populatedReport = { audit_type: 'ChecklistSistem', audit_execution_dates: ['2026-09-16'], judul: 'Row sizing', tanggal: '2026-09-16' };
+const populatedItems = [{ process: 'Process', finding: { source_type: 'ChecklistSistem', kategori: 'B' }, classification: {} }];
+const populatedWhy = [{
+  nomor: 1,
+  sort_order: 1,
+  problem: 'Problem narrative',
+  akar_permasalahan: 'Root narrative',
+  levels: [{ level: 1, teks: 'Why narrative' }],
+  actions: [{ rencana_tindakan: 'Action narrative', pic: 'PIC', due_date: '2026-09-30', status: 'Berjalan' }],
+}];
+const populatedHtml = renderToStaticMarkup(React.createElement(WeaknessAnalysisPrintView, {
+  report: populatedReport,
+  items: populatedItems,
+  why: populatedWhy,
+  preview: true,
+}));
+assert.equal((populatedHtml.match(/class="form010-data-row"/g) || []).length, 2);
+assert.equal((populatedHtml.match(/form010-blank-why/g) || []).length, 3);
+assert.equal((populatedHtml.match(/form010-blank-action/g) || []).length, 2);
+assert.equal((populatedHtml.match(/class="form010-fill-row"/g) || []).length, 2);
+assert.equal((populatedHtml.match(/class="form010-fill-table"/g) || []).length, 2);
+
+console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; intrinsic data rows with minimum blanks and dedicated fillers; compact FORM-010 chart grid; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);

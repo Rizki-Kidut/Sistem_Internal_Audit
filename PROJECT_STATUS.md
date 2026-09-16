@@ -2764,3 +2764,33 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   `tests/form010-presentation.cjs` regression check, and `git diff --check`. Build retained only the
   existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
   because no TS/TSX file changed.
+
+## Batch 9a — FORM-010 A3 chart and blank-row balance — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`027b0bcfaf47a36aa6ac0adadd5e78a0e85162ad`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Reduced only the FORM-010 Preview/Print chart-grid minimums from `65/55/55mm` to
+  `56/45/45mm`, retaining flexible proportions at `1.15fr/1fr/1fr`. The normal Analysis-tab chart
+  grid remains unchanged at `280/230/230px`; chart components, ECharts SVG rendering, Pareto data,
+  cumulative axis, beveled donuts, vertical taxonomy, legends, and aggregation logic are unchanged.
+- Balanced the right column at approximately 60% Why-Why and 40% Actions. Each section now has an
+  intrinsic data table containing content-driven populated rows and the existing controlled minimum
+  blank rows, followed by one border-aligned flexible filler table row. Only that empty filler absorbs
+  available section height; populated narrative rows remain `height:auto` and cannot receive flex growth.
+- Existing minimum template behavior remains four total Why rows and three total Action rows before
+  the dedicated filler. Blank Why rows retain `12mm`; blank Action rows retain `11mm`. Zero-Finding
+  content continues to render `-` without creating fake Why or Action data.
+- Narrative wrapping remains `white-space: pre-wrap`, `overflow-wrap: anywhere`,
+  `word-break: break-word`, and top-aligned, with no clipping or maximum height. A3 remains landscape
+  at the safe `419mm × 296mm` footprint; conclusion, footer, watermark, header, and approval structure
+  are unchanged. Genuinely excessive content may still continue naturally rather than being hidden.
+- Files changed: `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/pages/weaknessCharts.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No backend, migration, Edge Function,
+  package/lockfile, or nested `/project` file changed.
+- Static validation passed: `npm run typecheck`, `npm run build`, targeted ESLint for
+  `WeaknessAnalysisPrintView.tsx`, the extended `tests/form010-presentation.cjs`, and
+  `git diff --check`. Build retained only the existing outdated Browserslist and >500 kB chunk
+  advisories. The automated regression verifies markup and CSS invariants, not Chrome pagination;
+  authoritative one-page A3 Print Preview and sparse zero-Finding visual acceptance remain required.

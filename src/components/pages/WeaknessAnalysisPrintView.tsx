@@ -70,7 +70,7 @@ export function WeaknessAnalysisPrintView({
           <aside className="form010-analysis-detail">
             <section className="form010-table-section form010-why-section">
               <h3>B. Why Why Analysis</h3>
-              <table>
+              <table className="form010-data-table">
                 <thead>
                   <tr>
                     <th>No</th>
@@ -83,7 +83,7 @@ export function WeaknessAnalysisPrintView({
                 </thead>
                 <tbody>
                   {analysisWhy.map((entry) => (
-                    <tr key={entry.sort_order}>
+                    <tr className="form010-data-row" key={entry.sort_order}>
                       <td>{entry.nomor}</td>
                       <td>{entry.problem}</td>
                       {[1, 2, 3, 4].map((level) => (
@@ -101,11 +101,20 @@ export function WeaknessAnalysisPrintView({
                   ))}
                 </tbody>
               </table>
+              <table className="form010-fill-table" aria-hidden="true">
+                <tbody>
+                  <tr className="form010-fill-row">
+                    {Array.from({ length: 7 }, (_, cellIndex) => (
+                      <td key={cellIndex} />
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </section>
 
             <section className="form010-table-section form010-action-section">
               <h3>C. Tindakan</h3>
-              <table>
+              <table className="form010-data-table">
                 <thead>
                   <tr>
                     <th>No</th>
@@ -118,7 +127,7 @@ export function WeaknessAnalysisPrintView({
                 </thead>
                 <tbody>
                   {actions.map((action, index) => (
-                    <tr key={`${action.root}-${index}`}>
+                    <tr className="form010-data-row" key={`${action.root}-${index}`}>
                       <td>{index + 1}</td>
                       <td>{action.root}</td>
                       <td>{action.rencana_tindakan}</td>
@@ -134,6 +143,15 @@ export function WeaknessAnalysisPrintView({
                       ))}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+              <table className="form010-fill-table" aria-hidden="true">
+                <tbody>
+                  <tr className="form010-fill-row">
+                    {Array.from({ length: 6 }, (_, cellIndex) => (
+                      <td key={cellIndex} />
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </section>
