@@ -2715,3 +2715,31 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   browser pagination. Batch 9a remains **IMPLEMENTED_UNVERIFIED**, PR #27 open/unmerged.
   QR approval remains deferred; external production ZDR eligibility/approval remains a gate
   and is not established by this correction. AI/privacy/Edge Function behavior is unchanged.
+
+## Batch 9a — Why-Why and action auto-growing editors — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`0b55d35afa498083d44c85dacc2d1c132eeb959c`; browser/PDF visual acceptance remains pending.
+
+- Added a controlled reusable `AutoGrowTextarea` that starts at one row, resets its height to auto,
+  then measures `scrollHeight` whenever its value changes. It grows downward for added content and
+  shrinks after deletion without a fixed maximum height. Width remains constrained to its grid cell,
+  both overflow axes are hidden, and long unbroken text wraps with `overflow-wrap: anywhere` plus
+  `word-break: break-word`. Disabled/read-only behavior continues through native textarea props.
+- Converted only the narrative Weakness fields: Problem, Why 1–4, Akar Permasalahan, and Rencana
+  Tindakan. PIC, Due Date, and Status remain their existing single-line Input/date Input/Select.
+  Why and Action grids now align controls at the top as narrative rows grow.
+- Why/Action state, persistence payloads, Draft/Final behavior, contiguous Why validation, maximum
+  Why depth 4, and existing add/remove handlers are unchanged. Tab switching still retains the same
+  workspace state, and Final mode renders the full controlled text in disabled auto-growing editors.
+- FORM-010 Why and Action body cells now explicitly use `white-space: pre-wrap`,
+  `overflow-wrap: anywhere`, `word-break: break-word`, and top alignment. The fixed table layout and
+  existing 419mm × 296mm A3 page definition remain unchanged; rows may grow vertically to preserve
+  all narrative text.
+- Files changed: `src/components/pages/WeaknessAnalysisPage.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/ui/Field.tsx`, and
+  `PROJECT_STATUS.md`.
+- Static validation passed: `npm run typecheck`, `npm run build`, targeted ESLint for both changed
+  TS/TSX files, and `git diff --check`. Build retained only the existing outdated Browserslist and
+  >500 kB chunk advisories. Backend, migrations, Edge Functions, packages/lockfile, and nested
+  `/project` are untouched.

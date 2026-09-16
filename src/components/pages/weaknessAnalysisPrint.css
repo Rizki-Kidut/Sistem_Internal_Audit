@@ -9,6 +9,7 @@
 .form010-approval th,.form010-approval td{text-align:center;vertical-align:middle}
 .form010 table{border-collapse:collapse;width:100%;table-layout:fixed}
 .form010 th,.form010 td{border:1px solid #222;padding:3px;vertical-align:top;overflow-wrap:anywhere}
+.form010-why-section td,.form010-action-section td{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}
 .form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:stretch;flex:1;min-height:0}
 .form010-analysis,.form010-analysis-detail{min-width:0}
 .form010-analysis{display:flex}
