@@ -1,11 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
 import * as echarts from 'echarts/core';
-import { BarChart, PieChart } from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import { GridComponent, LegendComponent } from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
 import type { EChartsCoreOption } from 'echarts/core';
 
-echarts.use([BarChart, PieChart, GridComponent, LegendComponent, SVGRenderer]);
+echarts.use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, SVGRenderer]);
 
 export function WeaknessEChart({ option, className = '', ariaLabel }: {
   option: EChartsCoreOption;

@@ -1,4 +1,5 @@
 import type { WeaknessItem, WeaknessReport, WeaknessWhy } from '../../services/weaknessAnalysisService';
+import { FINDING_SOURCE_TYPE } from '../../lib/enums';
 import { buildWeaknessCharts } from '../../lib/weaknessAnalysis';
 import { WeaknessChartSet } from './WeaknessCharts';
 import './weaknessCharts.css';
@@ -18,6 +19,12 @@ export function WeaknessAnalysisPrintView({
   why: WeaknessWhy[];
   preview: boolean;
 }) {
+  const auditTypes = [
+    { source: FINDING_SOURCE_TYPE.SISTEM, label: 'Audit Sistem' },
+    { source: FINDING_SOURCE_TYPE.MANUFAKTUR_SHIFT, label: 'Audit Proses Manufaktur' },
+    { source: FINDING_SOURCE_TYPE.PRODUK, label: 'Audit Produk' },
+  ].filter(({ source }) => items.some((item) => item.finding.source_type === source));
+  const auditContext = auditTypes.map(({ label }) => label).join(' / ') || 'Internal Audit';
   const charts = buildWeaknessCharts(items.map(toChart));
   const actions = why.flatMap((entry) =>
     entry.actions.map((action) => ({ ...action, root: entry.akar_permasalahan })),
@@ -31,9 +38,10 @@ export function WeaknessAnalysisPrintView({
         {preview && <div className="form010-watermark">DRAFT / PREVIEW</div>}
 
         <header>
+          <h1 className="form010-title">Analisa Ketidaksesuaian Hasil Internal Audit</h1>
           <div>
-            <b>Analisa Ketidaksesuaian Hasil Internal Audit</b>
-            <div>A. Hasil Audit Sistem</div>
+            <div>A. Hasil {auditContext}</div>
+            <div className="form010-context">{report.judul}</div>
           </div>
           <table className="form010-approval">
             <thead>

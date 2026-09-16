@@ -24,17 +24,32 @@ export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
     (acc, value) => ({ A: acc.A + value.A, B: acc.B + value.B, C: acc.C + value.C }),
     { A: 0, B: 0, C: 0 },
   );
+  // Sort a copy for presentation only; upstream aggregation stays authoritative.
+  const sorted = [...data].sort((a, b) => (b.A + b.B + b.C) - (a.A + a.B + a.C));
+  const total = totals.A + totals.B + totals.C;
+  let cumulative = 0;
+  const percentages = sorted.map((value) => {
+    cumulative += value.A + value.B + value.C;
+    return total > 0 ? cumulative / total * 100 : 0;
+  });
   const option: EChartsCoreOption = {
     animation: false, textStyle: TEXT,
     legend: { top: 0, selectedMode: false, itemWidth: 12, itemHeight: 9, textStyle: TEXT },
-    grid: { left: 32, right: 12, top: 32, bottom: 8, containLabel: true },
+    grid: { left: 12, right: 12, top: 64, bottom: 8, containLabel: true },
     xAxis: {
-      type: 'category', data: data.map((value) => value.process),
+      type: 'category', data: sorted.map((value) => value.process),
       axisLabel: { interval: 0, rotate: 45, fontSize: 9 },
       axisTick: { alignWithLabel: true }, axisLine: { lineStyle: { color: '#94a3b8' } },
     },
-    yAxis: COUNT_AXIS,
-    series: [
+    yAxis: [
+      { ...COUNT_AXIS, name: 'Jumlah temuan', nameTextStyle: TEXT },
+      {
+        type: 'value', name: 'Kumulatif (%)', position: 'right', min: 0, max: 100,
+        interval: 25, nameTextStyle: TEXT,
+        axisLabel: { formatter: '{value}%', fontSize: 10 }, splitLine: { show: false },
+      },
+    ],
+    series: [...[
       { key: 'C' as const, name: 'Peluang Improvement', color: '#2563eb' },
       { key: 'B' as const, name: 'Minor', color: '#f59e0b' },
       { key: 'A' as const, name: 'Major', color: '#dc2626' },
@@ -45,15 +60,25 @@ export function ProcessStackedChart({ data }: { data: Charts['processes'] }) {
         show: true, position: 'inside', color: key === 'B' ? '#422006' : '#fff', fontSize: 10,
         formatter: ({ value }: { value: unknown }) => Number(value) > 0 ? String(value) : '',
       },
-      data: data.map((value) => value[key]),
-    })),
+      data: sorted.map((value) => value[key]),
+    })), {
+      type: 'line', name: 'Kumulatif (%)', yAxisIndex: 1,
+      animation: false, silent: true, smooth: false, symbol: 'circle', symbolSize: 5,
+      lineStyle: { color: '#0f766e', width: 2 }, itemStyle: { color: '#0f766e' },
+      label: {
+        show: true, position: 'top', fontSize: 9, color: '#115e59',
+        backgroundColor: '#fff', padding: [1, 2],
+        formatter: ({ value }: { value: unknown }) => `${Number(Number(value).toFixed(1))}%`,
+      },
+      data: percentages,
+    }],
   };
   return (
     <div className="weakness-chart weakness-chart-primary">
       <h3>1. Berdasarkan temuan ketidaksesuaian</h3>
       {totals.A + totals.B + totals.C > 0 ? (
         <div className="process-chart-layout">
-          <WeaknessEChart option={option} ariaLabel="Jumlah ketidaksesuaian per Process: Peluang Improvement, Minor, Major" />
+          <WeaknessEChart option={option} ariaLabel="Pareto ketidaksesuaian per proses: Peluang Improvement, Minor, Major dan persentase kumulatif" />
           <div className="finding-summary">
             <b>Total ketidaksesuaian</b>
             <span>Berat (Major) = {totals.A}</span>

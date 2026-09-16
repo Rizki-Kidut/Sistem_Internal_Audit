@@ -2547,3 +2547,50 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Required manual gates: browser visual review (including one-slice/multi-slice bevel acceptance),
   sparse one-page A3 Print Preview, Save as PDF, Draft watermark, Final no-watermark,
   and populated/overflow report testing. No browser/PDF acceptance is claimed by this pass.
+
+## Batch 9a — FORM-010 Pareto and audit-context presentation — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; existing PR #27 remains open/unmerged. Base:
+`28884e08ea3e6276bc5043ec338a02edbeb4bfcc`. Browser acceptance is still required.
+
+- Chart #1 is now a Pareto chart: a copied presentation array sorts processes descending by
+  Major + Minor + OFI; original blue OFI / orange Minor / red Major stacked columns, numeric
+  labels, and compact totals remain. A green cumulative percentage line uses a secondary right
+  axis fixed at 0–100%; the last populated point is 100%. No 80% or other reference line was added.
+- Added only modular LineChart registration. Installed Apache ECharts remains **6.1.0**, with
+  **SVGRenderer** and `animation: false`. Charts #2–#4 retain their pseudo-3D / beveled SVG gradients;
+  Chart #5 and order **1 / (2,3) / (5,4)** are unchanged. Aggregation/counting semantics are unchanged.
+- The formal title is now a full-header-width centered 14pt/700 h1 (previously inherited 9pt bold),
+  with no title wrapping. Context and approval table remain beneath it in the header. The A3
+  landscape 419mm × 296mm minimum sheet, flexible chart area, plain text empty states, and
+  Draft-only watermark are retained; browser pagination is not claimed as verified.
+- Fixed the hidden screen preview (`display:none` previously applied outside print): the existing
+  Preview FORM-010 tab now shows a horizontally scrollable sheet, with overflow reset for print.
+- Reviewed `analisa` routing/sidebar, list/create/load services, Findings source types, and existing
+  population RPC read-only. No System-only route/query filter exists. Each report ID owns its
+  persisted population, Why/Actions and conclusion; the existing program/date-range scope is retained.
+  Replaced the hard-coded “A. Hasil Audit Sistem” with headings derived from persisted Findings:
+  **Audit Sistem**, **Audit Proses Manufaktur** (including Shift), and **Audit Produk**. All three
+  use the same FORM-010 preview/print structure. The report's own title is also displayed as context.
+- Scope limitation: programs/date ranges can contain more than one audit type, and the current
+  report schema/RPC has no persisted audit-type selector. Existing mixed populations are labeled
+  with their actual types, never silently filtered or newly merged. Separate reports for existing
+  single-type program/date contexts are supported. Strict separate type-specific persisted reports
+  inside a mixed program would require a separately authorized model/RPC change; this pass does
+  not claim to provide that capability. Empty populations use the neutral “Internal Audit” heading.
+- No DB/schema/migration/RPC/RLS, AI classification/cache/provenance/ZDR, auth, Edge Function,
+  Finding/LTP workflow, package, or nested `/project` changes. No service change was necessary.
+  QR approval remains deferred; Batch 9b excluded; no Vercel Toolbar workaround.
+- Files changed: `src/components/pages/WeaknessCharts.tsx`,
+  `src/components/pages/WeaknessEChart.tsx`, `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, and `PROJECT_STATUS.md`.
+- Validation: typecheck, build, requested four-file ESLint (including unchanged
+  `src/services/weaknessAnalysisService.ts`), and `git diff --check` passed. An in-memory component
+  check passed descending ordering, cumulative 62.5/87.5/100%, right axis, input nonmutation,
+  absence of markLine, empty text, and all three audit-type headings with Draft/Final watermark
+  markup. These are not browser/SVG layout acceptance tests. Build retains non-blocking outdated
+  Browserslist and >500 kB chunk advisories. Backend/package baseline diff is empty; nested
+  `/project` remains untouched.
+- Remaining manual gates: browser visual review; sparse one-page A3 Landscape Print Preview;
+  Save as PDF; Draft watermark; Final no-watermark; populated/overflow reports for **each** of
+  Audit Sistem, Audit Proses Manufaktur, and Audit Produk.
