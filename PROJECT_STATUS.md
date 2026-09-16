@@ -2743,3 +2743,24 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   TS/TSX files, and `git diff --check`. Build retained only the existing outdated Browserslist and
   >500 kB chunk advisories. Backend, migrations, Edge Functions, packages/lockfile, and nested
   `/project` are untouched.
+
+## Batch 9a — FORM-010 intrinsic narrative row sizing — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`3210dafacbb7fcbd88ab86a70c52967f0226ce2a`; real-browser Preview/Print acceptance remains pending.
+
+- Corrected the FORM-010 Why-Why and Action tables so they retain intrinsic height instead of growing
+  to consume the full grid-section allocation. Surplus section height now remains section whitespace
+  rather than being distributed into populated narrative rows.
+- Populated rows remain content-driven with the existing compact 3px cell padding, top alignment,
+  `white-space: pre-wrap`, `overflow-wrap: anywhere`, and `word-break: break-word`. Long narrative text
+  can still wrap and grow vertically without clipping, fixed heights, or overflow suppression.
+- Existing blank template rows retain their controlled `12mm` Why and `11mm` Action heights. The
+  419mm × 296mm A3 landscape page, charts, header, approval table, conclusion, watermark, and screen
+  `AutoGrowTextarea` implementation are unchanged.
+- Files changed: `src/components/pages/weaknessAnalysisPrint.css` and `PROJECT_STATUS.md`. No TS/TSX,
+  backend, migration, Edge Function, package/lockfile, or nested `/project` file changed.
+- Static validation passed: `npm run typecheck`, `npm run build`, the existing
+  `tests/form010-presentation.cjs` regression check, and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed.
