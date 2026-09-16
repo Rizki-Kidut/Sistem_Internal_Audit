@@ -82,6 +82,8 @@ assert(css.includes('text-align:center;white-space:nowrap'));
 assert(css.includes('size:A3 landscape'));
 assert(css.includes('width:419mm;min-height:296mm'));
 assert(css.includes('grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr)'));
+assert(css.includes('.form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:stretch;flex:1;min-height:0}'));
+assert(css.includes('.form010-analysis,.form010-analysis-detail{min-width:0;min-height:0}'));
 assert(css.includes('.form010-data-row{height:auto}'));
 assert(css.includes('.form010-blank-grid{flex:1 1 0;display:grid;grid-template-rows:repeat(var(--form010-blank-row-count),minmax(8mm,1fr));min-height:0}'));
 assert(!css.includes('form010-fill-row'));
@@ -93,9 +95,15 @@ for (const declaration of ['white-space:pre-wrap', 'overflow-wrap:anywhere', 'wo
 for (const clipping of ['overflow:hidden', 'max-height']) assert(!narrativeRule.includes(clipping));
 assert(chartCss.includes('.weakness-chart-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(280px,1.25fr) repeat(2,minmax(230px,1fr))'));
 const formChartRule = chartCss.match(/\.form010 \.weakness-chart-grid\{([^}]+)\}/)?.[1] || '';
-assert(formChartRule.includes('flex:0 0 auto'));
-assert(formChartRule.includes('grid-template-rows:52mm 41mm 41mm'));
-assert(!formChartRule.includes('fr'));
+assert(formChartRule.includes('flex:1 1 0'));
+assert(formChartRule.includes('height:100%'));
+assert(formChartRule.includes('min-height:0'));
+assert(formChartRule.includes('grid-template-rows:minmax(0,1.25fr) repeat(2,minmax(0,1fr))'));
+const formChartRows = formChartRule.match(/grid-template-rows:([^;]+)/)?.[1] || '';
+assert(!formChartRows.includes('mm'));
+assert(!formChartRows.includes('52mm 41mm 41mm'));
+assert(chartCss.includes('.weakness-chart{display:flex;flex-direction:column;border:1px solid #cbd5e1;border-radius:4px;padding:10px;background:#fff;break-inside:avoid;min-width:0;min-height:0'));
+assert(chartCss.includes('.weakness-echart{width:100%;min-width:0;min-height:0;flex:1'));
 
 const populatedReport = { audit_type: 'ChecklistSistem', audit_execution_dates: ['2026-09-16'], judul: 'Row sizing', tanggal: '2026-09-16' };
 const populatedItems = [{ process: 'Process', finding: { source_type: 'ChecklistSistem', kategori: 'B' }, classification: {} }];
@@ -121,4 +129,4 @@ assert(populatedHtml.includes('--form010-blank-row-count:2'));
 assert(!populatedHtml.includes('form010-fill-row'));
 assert(!populatedHtml.includes('form010-fill-table'));
 
-console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; intrinsic data rows with equal blank-grid tracks; deterministic FORM-010 chart rows; conclusion/footer; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);
+console.log(`PASS: ${cases.length} exact-date cases; all three families × Draft/Final empty/populated headers; dash-only analysis; intrinsic data rows with equal blank-grid tracks; parent-bounded FORM-010 chart rows; conclusion/footer; metadata/watermarks; retained Pareto/beveled/A–E options. TZ=${process.env.TZ || 'default'}`);

@@ -2824,3 +2824,31 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   `WeaknessAnalysisPrintView.tsx`; and `git diff --check`. Build retained only the existing outdated
   Browserslist and >500 kB chunk advisories. These checks verify markup/CSS invariants, not Chrome
   pagination; one-page A3 Print Preview remains the manual authority.
+
+## Batch 9a — FORM-010 parent-bounded chart balance — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`592bcefb60b63c7036f82a38452bb34ce9e4140d`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Replaced the undersized fixed FORM-010 chart rows (`52mm / 41mm / 41mm`) with parent-bounded
+  `minmax(0, 1.25fr) / minmax(0, 1fr) / minmax(0, 1fr)` tracks. The chart grid now uses
+  `flex: 1 1 0`, `height: 100%`, and `min-height: 0`, so it shares only the vertical allocation
+  already owned by `.form010-grid` instead of adding intrinsic millimetre minimum pressure.
+- Completed the zero-minimum height chain by adding `min-height: 0` to both FORM-010 analysis columns;
+  `.form010-grid`, chart cards, ECharts containers, chart sub-layouts, and the existing flexible right
+  sections already retain their zero-minimum safeguards. Chart #1 remains dominant at roughly 38.5%,
+  while the two secondary rows each receive roughly 30.75% before gaps.
+- The normal Analysis-tab chart grid remains `280/230/230px`. The accepted intrinsic narrative rows,
+  equal Why/Action blank-grid tracks, 60/40 section ratio, conclusion/footer spacing, A3 landscape
+  `419mm × 296mm` geometry, title, approval header, and watermark are unchanged.
+- Pareto sorting/stacks/cumulative axis, the 100% endpoint and absence of an 80% reference line,
+  beveled donut charts, vertical A–E chart, legends, ECharts SVGRenderer, resize safeguards, and all
+  data semantics remain unchanged. Zero-Finding cards use the same balanced geometry.
+- Files changed: `src/components/pages/weaknessCharts.css`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `tests/form010-presentation.cjs`, and
+  `PROJECT_STATUS.md`. No TS/TSX, backend, migration, Edge Function, package/lockfile, or nested
+  `/project` file changed.
+- Static validation passed: the presentation suite in default, Asia/Jakarta, and America/Los_Angeles
+  time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed. These checks do not replace authoritative Chrome Print Preview.
