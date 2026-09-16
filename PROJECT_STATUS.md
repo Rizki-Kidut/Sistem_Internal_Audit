@@ -2852,3 +2852,31 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
   existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
   because no TS/TSX file changed. These checks do not replace authoritative Chrome Print Preview.
+
+## Batch 9a — FORM-010 phantom print-page safety buffer — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`099b30ccfe75cd8213d5709406e00e0446b88fa5`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Real Chrome showed every FORM-010 element, including the footer, on page 1 while still reporting an
+  empty page 2. Investigation found only a 1mm physical buffer inside A3 (`419mm × 296mm`) plus an
+  application-shell `min-h-screen` on `#root > div`, with no FORM-010-specific print height reset.
+  No actual content-overflow or forced FORM-010 page-break rule was found.
+- Added a conservative physical rounding buffer by changing only the sheet footprint to
+  `418mm × min-height:294mm`, leaving 2mm horizontal and 3mm vertical safety inside A3 landscape.
+  The page remains content-growing rather than fixed-height; 6mm padding, footer margin, conclusion,
+  chart proportions, and all accepted content layout remain unchanged. No overflow clipping was added.
+- Added a FORM-010-scoped print override that clears `height`/`min-height` pressure on `html`, `body`,
+  `#root`, the `min-h-screen` app-shell child, `main`, and its content wrapper. The FORM-010 page itself
+  is deliberately excluded. The local print rule also explicitly hides the Sidebar `aside` alongside
+  existing no-print/navigation elements.
+- Parent-bounded `1.25fr / 1fr / 1fr` charts, normal `280/230/230px` screen charts, intrinsic populated
+  Why/Action rows, equal blank-row grids, header, approval table, title, conclusion, footer, and Draft
+  watermark are unchanged. `break-after:auto` / `page-break-after:auto` remain in force.
+- Files changed: `src/components/pages/weaknessAnalysisPrint.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No chart/component logic, TS/TSX, backend,
+  migration, Edge Function, package/lockfile, or nested `/project` file changed.
+- Static validation passed: the presentation suite in default, Asia/Jakarta, and America/Los_Angeles
+  time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed. Chrome Print Preview remains the page-count authority.

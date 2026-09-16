@@ -1,6 +1,6 @@
 @page{size:A3 landscape;margin:0}
 .form010{display:block;max-width:100%;overflow-x:auto}
-.form010-page{position:relative;display:flex;flex-direction:column;background:white;color:#111;width:419mm;min-height:296mm;padding:6mm;box-sizing:border-box;font:9pt Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.form010-page{position:relative;display:flex;flex-direction:column;background:white;color:#111;width:418mm;min-height:294mm;padding:6mm;box-sizing:border-box;font:9pt Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .form010 header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;border:1px solid #111;padding:4px;gap:6px}
 .form010 header>div{flex:1;min-width:0;align-self:center}
 .form010-title{flex:0 0 100%;margin:0 0 1mm;font-size:14pt;font-weight:700;line-height:1.2;text-align:center;white-space:nowrap}
@@ -36,7 +36,8 @@
 .mini-row em{font-style:normal}
 @media print{
 html,body,#root,main,main>div{margin:0!important;padding:0!important;max-width:none!important;overflow:visible!important;background:#fff!important}
-.no-print,nav{display:none!important}
+html:has(.form010),body:has(.form010),body:has(.form010) #root,body:has(.form010) #root>div,body:has(.form010) main,body:has(.form010) main>div{height:auto!important;min-height:0!important}
+.no-print,aside,nav{display:none!important}
 .form010{display:block!important;max-width:none;overflow:visible}
 .form010 aside{display:grid!important}
 .form010-page{break-after:auto;page-break-after:auto}
