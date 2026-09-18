@@ -92,6 +92,46 @@ SELECT pg_temp.assert_true((SELECT catatan='B9 Catatan' FROM public.rangkuman_ha
 SELECT pg_temp.expect_error(format('SELECT public.save_rangkuman_hasil_audit_draft(%L,1,%L,%L::jsonb)',(SELECT report_id FROM b9_result),'x','{}'),'FORM014_STALE_REVISION');
 SELECT pg_temp.expect_error(format('SELECT public.save_rangkuman_hasil_audit_draft(%L,NULL,%L,%L::jsonb)',(SELECT report_id FROM b9_result),'x','{}'),'FORM014_STALE_REVISION');
 
+-- Draft Keterangan preservation across regeneration and population changes.
+SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
+SELECT public.save_rangkuman_hasil_audit_draft(r.report_id,x.revision_version,'B9 Catatan',jsonb_build_object('bb000000-0000-0000-0000-000000000001','Keep A')) FROM b9_result r JOIN public.rangkuman_hasil_audit_reports x ON x.id=r.report_id;
+SELECT public.form014_refresh_population(report_id) FROM b9_result;
+SELECT pg_temp.assert_true((SELECT keterangan='Keep A' FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000001'),'Keterangan must survive Regenerate for an existing Finding');
+
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.findings DISABLE TRIGGER trg_prepare_draft_finding_insert;
+INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)
+VALUES('bb000000-0000-0000-0000-000000000005','ba000000-0000-0000-0000-000000000002','QA-S2','B9/SYS/005',2,'ChecklistSistem','bc000000-0000-0000-0000-000000000005','C','Problem C','Lokasi C','Bukti C','ISO 5','2026-09-19','PUBLISHED');
+ALTER TABLE public.findings ENABLE TRIGGER trg_prepare_draft_finding_insert;
+
+SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
+SELECT public.form014_refresh_population(report_id) FROM b9_result;
+SELECT pg_temp.assert_true((SELECT keterangan='Keep A' FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000001'),'existing Finding Keterangan must remain after adding a Finding');
+SELECT pg_temp.assert_true((SELECT keterangan IS NULL FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000005'),'new Finding must not inherit another Finding Keterangan');
+
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.findings DISABLE TRIGGER trg_protect_finding_update;
+UPDATE public.findings SET review_status='ANNULLED' WHERE id='bb000000-0000-0000-0000-000000000001';
+ALTER TABLE public.findings ENABLE TRIGGER trg_protect_finding_update;
+
+SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
+SELECT public.form014_refresh_population(report_id) FROM b9_result;
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000001'),'Finding leaving formal population must be removed on Regenerate');
+SELECT pg_temp.assert_true((SELECT keterangan IS NULL FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000005'),'removed Finding Keterangan must not transfer');
+
+-- LTP snapshot fixture: latest targets and CLOSE_TO_ADMIN verification only.
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+INSERT INTO public.cars(id,finding_id,kode_car,status) VALUES('bd000000-0000-0000-0000-000000000001','bb000000-0000-0000-0000-000000000002','CAR-B9-001','CLOSED');
+INSERT INTO public.car_actions(id,car_id,action_type,description,due_date,sort_order) VALUES
+('be000000-0000-0000-0000-000000000001','bd000000-0000-0000-0000-000000000001','TEMPORARY','Temp 1','2026-09-21',1),
+('be000000-0000-0000-0000-000000000002','bd000000-0000-0000-0000-000000000001','TEMPORARY','Temp 2','2026-09-25',2),
+('be000000-0000-0000-0000-000000000003','bd000000-0000-0000-0000-000000000001','CORRECTIVE','Corrective','2026-10-01',1),
+('be000000-0000-0000-0000-000000000004','bd000000-0000-0000-0000-000000000001','PREVENTIVE','Preventive','2026-10-05',1);
+INSERT INTO public.car_workflow_events(id,car_id,event_type,actor_user_id,actor_identity_type,created_at) VALUES
+('bf000000-0000-0000-0000-000000000001','bd000000-0000-0000-0000-000000000001','AUDITOR_VERIFIED_CLOSE_TO_ADMIN','b9000000-0000-0000-0000-000000000002','AUDITOR','2026-09-20T01:00:00Z'),
+('bf000000-0000-0000-0000-000000000002','bd000000-0000-0000-0000-000000000001','AUDITOR_VERIFIED_OPEN_TO_AUDITEE','b9000000-0000-0000-0000-000000000002','AUDITOR','2026-09-21T01:00:00Z'),
+('bf000000-0000-0000-0000-000000000003','bd000000-0000-0000-0000-000000000001','AUDITOR_VERIFIED_CLOSE_TO_ADMIN','b9000000-0000-0000-0000-000000000002','AUDITOR','2026-09-22T01:00:00Z');
+
 -- Real fail-closed Product/Manufacturing context execution using persisted composite rows.
 RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,tanggal_pelaksanaan_audit,tanggal_audit_produk,team_master_id)VALUES
@@ -147,9 +187,44 @@ SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT public.form014_refresh_population(report_id)FROM b9_result;
 SELECT public.finalize_rangkuman_hasil_audit(r.report_id,x.revision_version)FROM b9_result r JOIN public.rangkuman_hasil_audit_reports x ON x.id=r.report_id;
 SELECT pg_temp.assert_true((SELECT status='Final' AND finalized_at IS NOT NULL AND lead_auditor_name_snapshot='B9 Company Lead' AND pj_qms_snapshot='B9 PJ QMS' FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id),'valid Final snapshot failed');
+SELECT pg_temp.assert_true((SELECT temporary_target_snapshot='2026-09-25'::date AND permanent_target_snapshot='2026-10-05'::date AND verification_date_snapshot='2026-09-22T01:00:00Z'::timestamptz AND car_status_snapshot='CLOSED' FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000002'),'Final LTP snapshot must use max targets, latest CLOSE_TO_ADMIN, and CAR status');
+SELECT pg_temp.assert_true((SELECT temporary_target_snapshot IS NULL AND permanent_target_snapshot IS NULL AND verification_date_snapshot IS NULL AND car_status_snapshot='MISSING' FROM public.rangkuman_hasil_audit_items i,b9_result r WHERE i.report_id=r.report_id AND i.finding_id='bb000000-0000-0000-0000-000000000005'),'formal Finding without CAR must remain with MISSING snapshot');
+
+CREATE TEMP TABLE b9_frozen AS
+SELECT r.id report_id,r.tahun_fiskal,r.audit_date_start,r.audit_date_end,r.lead_auditor_name_snapshot,r.pj_qms_snapshot,
+       g.id group_id,g.label_snapshot,g.process_owner_snapshot,g.related_sections_snapshot,
+       i.id item_id,i.finding_id,i.problem_snapshot,i.location_snapshot,i.reference_snapshot,i.kategori_snapshot,
+       i.temporary_target_snapshot,i.permanent_target_snapshot,i.verification_date_snapshot,i.car_status_snapshot,i.keterangan
+FROM public.rangkuman_hasil_audit_reports r
+JOIN public.rangkuman_hasil_audit_groups g ON g.report_id=r.id
+JOIN public.rangkuman_hasil_audit_items i ON i.group_id=g.id
+WHERE r.id=(SELECT report_id FROM b9_result)
+  AND i.finding_id='bb000000-0000-0000-0000-000000000002';
 SELECT pg_temp.expect_error(format('UPDATE public.rangkuman_hasil_audit_reports SET catatan=%L WHERE id=%L','mutate',(SELECT report_id FROM b9_result)),'');
 SELECT pg_temp.expect_error(format('DELETE FROM public.rangkuman_hasil_audit_reports WHERE id=%L',(SELECT report_id FROM b9_result)),'');
 SELECT pg_temp.expect_error(format('SELECT public.form014_refresh_population(%L)',(SELECT report_id FROM b9_result)),'Final tidak dapat diregenerasi');
 SELECT pg_temp.expect_error(format('SELECT public.save_rangkuman_hasil_audit_draft(%L,%s,%L,%L::jsonb)',(SELECT report_id FROM b9_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id),'x','{}'),'Final bersifat immutable');
 SELECT pg_temp.expect_error(format('INSERT INTO public.rangkuman_hasil_audit_groups(report_id,group_key,group_sort_order,qa_code,completed)VALUES(%L,%L,99,%L,true)',(SELECT report_id FROM b9_result),'late','late'),'');
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','b9000000-0000-0000-0000-000000000001',true); SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000001','role','authenticated')::text,true);
+SELECT pg_temp.expect_error(format('UPDATE public.rangkuman_hasil_audit_groups SET label_snapshot=%L WHERE id=%L','mutated',(SELECT group_id FROM b9_frozen)),'Final bersifat immutable');
+SELECT pg_temp.expect_error(format('DELETE FROM public.rangkuman_hasil_audit_groups WHERE id=%L',(SELECT group_id FROM b9_frozen)),'Final bersifat immutable');
+SELECT pg_temp.expect_error(format('UPDATE public.rangkuman_hasil_audit_items SET keterangan=%L WHERE id=%L','mutated',(SELECT item_id FROM b9_frozen)),'Final bersifat immutable');
+SELECT pg_temp.expect_error(format('DELETE FROM public.rangkuman_hasil_audit_items WHERE id=%L',(SELECT item_id FROM b9_frozen)),'Final bersifat immutable');
+SELECT pg_temp.expect_error(format('INSERT INTO public.rangkuman_hasil_audit_items(report_id,group_id,finding_id,finding_sort_order)VALUES(%L,%L,%L,99)',(SELECT report_id FROM b9_result),(SELECT group_id FROM b9_frozen),'bb000000-0000-0000-0000-000000000003'),'Final bersifat immutable');
+SELECT pg_temp.expect_error(format('DELETE FROM public.rangkuman_hasil_audit_group_rows WHERE id=(SELECT id FROM public.rangkuman_hasil_audit_group_rows WHERE group_id=%L LIMIT 1)',(SELECT group_id FROM b9_frozen)),'Final bersifat immutable');
+
+-- Upstream changes after Final must not alter frozen FORM-014 snapshots.
+ALTER TABLE public.findings DISABLE TRIGGER trg_protect_finding_update;
+ALTER TABLE public.findings DISABLE TRIGGER trg_protect_completed_audit_plor;
+UPDATE public.findings SET problem='Changed after Final',location='Changed location',reference='Changed ref',kategori='C' WHERE id='bb000000-0000-0000-0000-000000000002';
+ALTER TABLE public.findings ENABLE TRIGGER trg_protect_completed_audit_plor;
+ALTER TABLE public.findings ENABLE TRIGGER trg_protect_finding_update;
+UPDATE public.proses SET nama_proses='Changed Process' WHERE id='b9300000-0000-0000-0000-000000000001';
+UPDATE public.seksi SET nama='Changed Owner' WHERE id='b9200000-0000-0000-0000-000000000001';
+UPDATE public.car_actions SET due_date='2027-01-01' WHERE id='be000000-0000-0000-0000-000000000002';
+INSERT INTO public.car_workflow_events(id,car_id,event_type,actor_user_id,actor_identity_type,created_at)
+VALUES('bf000000-0000-0000-0000-000000000004','bd000000-0000-0000-0000-000000000001','AUDITOR_VERIFIED_CLOSE_TO_ADMIN','b9000000-0000-0000-0000-000000000002','AUDITOR','2027-01-02T01:00:00Z');
+
+SELECT pg_temp.assert_true((SELECT i.problem_snapshot=f.problem_snapshot AND i.location_snapshot=f.location_snapshot AND i.reference_snapshot=f.reference_snapshot AND i.kategori_snapshot=f.kategori_snapshot AND i.temporary_target_snapshot=f.temporary_target_snapshot AND i.permanent_target_snapshot=f.permanent_target_snapshot AND i.verification_date_snapshot=f.verification_date_snapshot AND i.car_status_snapshot=f.car_status_snapshot FROM public.rangkuman_hasil_audit_items i JOIN b9_frozen f ON f.item_id=i.id),'Final item snapshots must remain stable after upstream mutation');
+SELECT pg_temp.assert_true((SELECT g.label_snapshot=f.label_snapshot AND g.process_owner_snapshot=f.process_owner_snapshot AND g.related_sections_snapshot=f.related_sections_snapshot FROM public.rangkuman_hasil_audit_groups g JOIN b9_frozen f ON f.group_id=g.id),'Final group snapshots must remain stable after upstream mutation');
 ROLLBACK;
