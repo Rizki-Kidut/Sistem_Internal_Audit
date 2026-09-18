@@ -2940,3 +2940,13 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Page-2+ approval geometry now separates role headers from the body and draws a true bottom-left-to-top-right CSS gradient line. Print CSS resets application shell pressure, hides navigation, keeps overflow visible, and uses buffered A3 dimensions.
 - `supabase/tests/batch9b_form014_regression.sql` now creates rollback-only identities and domain fixtures and executes real authorization, identity, grouping, zero-Finding, optimistic revision, fail-closed context, completion, and FY-drift paths. It remains intentionally unexecuted until the migration is approved for an isolated database.
 - Pagination remains a conservative deterministic heuristic; Chrome A3 visual acceptance with short, medium, and very long narratives is still required. No hosted Staging or Production mutation occurred.
+
+### Batch 9b correction pass 3 — 18 Sep 2026
+
+**Status remains:** `IMPLEMENTED_UNVERIFIED — PRE-STAGING CORRECTIONS COMPLETE`.
+
+- Draft preview and Finalization now share private `form014_active_company_lead_auditor()`, matching the global capability semantics: linked Lead, active profile, `identity_type='AUDITOR'`, and active Auditor master. The regression fixture exercises valid Lead creation plus inactive profile, inactive Auditor master, and non-Auditor linked-profile Final blockers.
+- Manufacturing source-state comparison now stores a deduplicated, deterministically Plant/Shift-sorted context instead of raw JSON order. Product unique Plants remain deterministically sorted. A rollback fixture asserts duplicate/reordered equivalent Manufacturing marks do not create false drift.
+- The rollback SQL suite now uses explicit `RESET ROLE` boundaries around privileged fixture mutations, exercises active Lead RPC success, real formal/non-formal and cross-type Finding filtering, and actual Product/Manufacturing report generation with distinct zero-Finding groups.
+- The suite is still not exhaustive for every requested mutation: Keterangan add/remove-transfer, multi-action LTP snapshots, the full individual source-drift matrix, every Final child operation, and post-Final upstream snapshot-stability mutations remain for the hosted pre-merge regression expansion. No claim of full runtime coverage is made.
+- Static checks pass locally. The unapplied migration and regression SQL could not be parsed/executed locally because PostgreSQL/Supabase CLI is unavailable. Hosted Staging and Production remain untouched; Chrome A3 acceptance remains pending.
