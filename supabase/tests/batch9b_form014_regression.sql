@@ -45,11 +45,13 @@ SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
 SELECT set_config('certitrack.execution_completion','',true);
 SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.findings DISABLE TRIGGER trg_prepare_draft_finding_insert;
 INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)VALUES
 ('bb000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000001','QA-S1','B9/SYS/001',1,'ChecklistSistem','bc000000-0000-0000-0000-000000000001','A','Problem A','Lokasi A','Bukti A','ISO 1','2026-09-18','PUBLISHED'),
 ('bb000000-0000-0000-0000-000000000002','ba000000-0000-0000-0000-000000000002','QA-S2','B9/SYS/002',1,'ChecklistSistem','bc000000-0000-0000-0000-000000000002','B','Problem B','Lokasi B','Bukti B','ISO 2','2026-09-19','LEGACY_ESTABLISHED'),
 ('bb000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000001','QA-S1',NULL,2,'ChecklistSistem','bc000000-0000-0000-0000-000000000003','A',NULL,NULL,NULL,NULL,'2026-09-18','DRAFT'),
 ('bb000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000001','QA-S1','B9/MFG/001',3,'ChecklistManufakturShift','bc000000-0000-0000-0000-000000000004','A','MFG','MFG','MFG','MFG','2026-09-18','PUBLISHED');
+ALTER TABLE public.findings ENABLE TRIGGER trg_prepare_draft_finding_insert;
 
 -- Authoritative Lead semantics: active AUDITOR succeeds; inactive profile/master and non-AUDITOR fail.
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.form014_active_company_lead_auditor()),'active AUDITOR Lead must resolve');
