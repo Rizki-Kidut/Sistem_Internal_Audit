@@ -2928,3 +2928,15 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Draft CAR loading now follows Finding → `cars.finding_id` in batched queries; Draft signatories resolve through a guarded read RPC; Finding order is ranked once across every represented row in a group.
 - Pagination remains a conservative deterministic narrative-length heuristic with CSS row-break protection and no clipping; real DOM measurement is not claimed. Short/medium/very-long browser print acceptance remains required.
 - Added rollback-safe pre-Staging SQL contract/regression file `supabase/tests/batch9b_form014_regression.sql`. Static validation is separate from database/runtime validation. The migration and SQL suite remain unapplied/unexecuted on Staging by instruction.
+
+### Batch 9b correction pass 2 — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — PRE-STAGING CORRECTIONS COMPLETE` after static validation; hosted migration/runtime/browser verification remains pending.
+
+- Optimistic revision checks now use `IS DISTINCT FROM`, including fail-closed NULL rejection. Final UI confirms, saves current Catatan/Keterangan first, finalizes with the returned revision, prevents repeat submission, and reloads after success or partial save/finalize failure.
+- Manufacturing context validation now checks every raw deduplicated Plant/Shift pair, valid UUID/master rows, and Shift ownership by the selected Plant. Product checks every raw Plant mark while allowing multiple Target Models under one valid Plant.
+- Source state now includes authoritative Fiscal Year and normalized Product/Manufacturing context. Regeneration refreshes Draft FY; Finalization never refreshes its snapshot and rejects null-safe source drift.
+- DATE fields and verification timestamptz use separate formatters; verification uses explicit `Asia/Jakarta`. TGL AUDIT uses the compact controlled Indonesian range format.
+- Page-2+ approval geometry now separates role headers from the body and draws a true bottom-left-to-top-right CSS gradient line. Print CSS resets application shell pressure, hides navigation, keeps overflow visible, and uses buffered A3 dimensions.
+- `supabase/tests/batch9b_form014_regression.sql` now creates rollback-only identities and domain fixtures and executes real authorization, identity, grouping, zero-Finding, optimistic revision, fail-closed context, completion, and FY-drift paths. It remains intentionally unexecuted until the migration is approved for an isolated database.
+- Pagination remains a conservative deterministic heuristic; Chrome A3 visual acceptance with short, medium, and very long narratives is still required. No hosted Staging or Production mutation occurred.
