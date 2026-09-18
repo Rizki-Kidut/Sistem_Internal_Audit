@@ -14,7 +14,7 @@ INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_co
 ('00000000-0000-0000-0000-000000000000','b9000000-0000-0000-0000-000000000005','authenticated','authenticated','b9-manager@test.local','',now(),'{}','{}',now(),now());
 INSERT INTO public.user_profiles(id,display_name,identity_type,status)VALUES
 ('b9000000-0000-0000-0000-000000000001','B9 Admin','ADMIN','Aktif'),('b9000000-0000-0000-0000-000000000002','B9 Lead','AUDITOR','Aktif'),('b9000000-0000-0000-0000-000000000003','B9 Auditor','AUDITOR','Aktif'),('b9000000-0000-0000-0000-000000000004','B9 Auditee','AUDITEE','Aktif'),('b9000000-0000-0000-0000-000000000005','B9 Manager','SECTION_MANAGER','Aktif');
-INSERT INTO public.auditors(id,nama,status)VALUES('b9100000-0000-0000-0000-000000000001','B9 Company Lead','Aktif'),('b9100000-0000-0000-0000-000000000002','B9 Ordinary','Aktif');
+INSERT INTO public.auditors(id,nama,tanggal_berlaku,status)VALUES('b9100000-0000-0000-0000-000000000001','B9 Company Lead','2027-12-31','Aktif'),('b9100000-0000-0000-0000-000000000002','B9 Ordinary','2027-12-31','Aktif');
 INSERT INTO public.user_auditor_links(user_id,auditor_id,is_lead_auditor)VALUES('b9000000-0000-0000-0000-000000000002','b9100000-0000-0000-0000-000000000001',true),('b9000000-0000-0000-0000-000000000003','b9100000-0000-0000-0000-000000000002',false);
 INSERT INTO public.seksi(id,nama)VALUES('b9200000-0000-0000-0000-000000000001','B9 Owner'),('b9200000-0000-0000-0000-000000000002','B9 Related');
 INSERT INTO public.proses(id,nama_proses,kode_proses)VALUES('b9300000-0000-0000-0000-000000000001','B9 System Process','B9-SYS');
@@ -23,15 +23,19 @@ INSERT INTO public.plants(id,nama)VALUES('b9400000-0000-0000-0000-000000000001',
 INSERT INTO public.shifts(id,plant_id,nama)VALUES('b9500000-0000-0000-0000-000000000001','b9400000-0000-0000-0000-000000000001','Shift 1'),('b9500000-0000-0000-0000-000000000002','b9400000-0000-0000-0000-000000000002','Shift 2'),('b9500000-0000-0000-0000-000000000003','b9400000-0000-0000-0000-000000000001','Shift 2');
 INSERT INTO public.target_models(id,plant_id,nama)VALUES('b9600000-0000-0000-0000-000000000001','b9400000-0000-0000-0000-000000000001','Model A'),('b9600000-0000-0000-0000-000000000002','b9400000-0000-0000-0000-000000000001','Model B');
 INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,penanggung_jawab_qms,status)VALUES('b9700000-0000-0000-0000-000000000001',2026,'2026-01-01','B9-PLAN','B9 PJ QMS','Approved');
+INSERT INTO public.audit_team_masters(id,kode_tim,nama_tim,status,plan_id,is_locked,locked_at)VALUES('b9750000-0000-0000-0000-000000000001','B9-TEAM','B9 Team','Aktif','b9700000-0000-0000-0000-000000000001',true,now());
+INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('b9750000-0000-0000-0000-000000000001','b9100000-0000-0000-0000-000000000001','Lead',1,true);
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('b9800000-0000-0000-0000-000000000001','b9700000-0000-0000-0000-000000000001','Berkala',1,2026,'2026-01-01','Approved');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000001','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000002','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES
 ('ba000000-0000-0000-0000-000000000001','b9900000-0000-0000-0000-000000000001','QA-S1','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000001","tipe":"target"}]','Reguler','2026-09-18',false,1),
 ('ba000000-0000-0000-0000-000000000002','b9900000-0000-0000-0000-000000000001','QA-S2','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000002","tipe":"terkait"}]','Reguler','2026-09-19',false,2);
+UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000001','QA-S1','B9'),('ba000000-0000-0000-0000-000000000002','QA-S2','B9');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES('ba000000-0000-0000-0000-000000000005','b9900000-0000-0000-0000-000000000002','QA-LEAD','b9300000-0000-0000-0000-000000000001','[]','Reguler','2026-09-20',false,1);
+UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id='ba000000-0000-0000-0000-000000000005';
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000005','QA-LEAD','B9 Lead');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
 INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)VALUES
@@ -87,6 +91,7 @@ UPDATE public.audit_instruction_rows SET tanggal_pelaksanaan_audit='2026-09-18',
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil)VALUES
 ('ba000000-0000-0000-0000-000000000006','b9900000-0000-0000-0000-000000000001','QA-P2','b9300000-0000-0000-0000-000000000001','AuditProduk','[{"plant_id":"b9400000-0000-0000-0000-000000000002","target_model_id":"b9600000-0000-0000-0000-000000000001"}]','[]','2026-09-20','2026-09-20',false,4),
 ('ba000000-0000-0000-0000-000000000007','b9900000-0000-0000-0000-000000000001','QA-M2','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000003"}]','2026-09-20',NULL,false,5);
+UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
 INSERT INTO public.checklist_produk(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000003','QA-P1'),('ba000000-0000-0000-0000-000000000006','QA-P2');
 INSERT INTO public.checklist_manufaktur_shift(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000004','QA-M1'),('ba000000-0000-0000-0000-000000000007','QA-M2');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
