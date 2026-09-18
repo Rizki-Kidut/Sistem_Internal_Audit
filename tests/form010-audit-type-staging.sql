@@ -208,7 +208,7 @@ BEGIN
   PERFORM pg_temp.expect_error(format('select public.populate_weakness_report(%L)',r.id),'sudah Final');
   PERFORM pg_temp.expect_error(format('select public.save_weakness_analysis_draft(%L,%s,%L,NULL,NULL,%L)',r.id,rev,'changed','[]'),'sudah Final');
   IF f.kind='with' THEN
-   ASSERT NOT EXISTS(SELECT 1 FROM public.weakness_analysis_report_items WHERE report_id=r.id AND final_4m1e IS DISTINCT FROM 'METHOD'),'missing classification snapshot';
+   ASSERT NOT EXISTS(SELECT 1 FROM public.weakness_analysis_report_items WHERE report_id=r.id AND (final_process_name IS NULL OR final_category IS DISTINCT FROM 'B' OR final_reference IS DISTINCT FROM '8.1' OR final_4m1e IS DISTINCT FROM 'METHOD' OR final_dis IS DISTINCT FROM 'SISTEM' OR final_problem_type IS DISTINCT FROM 'B')),'missing chart/classification snapshot';
    SELECT id INTO rid FROM public.weakness_analysis_report_items WHERE report_id=r.id LIMIT 1;
    PERFORM pg_temp.expect_error(format('select public.approve_ltp_analysis_classification(%L,%L,%L,%L,NULL)',rid,'MAN','DOKUMEN','A'),'Item tidak berada');
   END IF;
@@ -223,7 +223,7 @@ BEGIN
    PERFORM pg_temp.expect_error(format('update public.weakness_why_analysis set problem=%L where id=%L','mutated',rid),'immutable');
    PERFORM pg_temp.expect_error(format('update public.weakness_why_levels set teks=%L where why_analysis_id=%L','mutated',rid),'immutable');
    PERFORM pg_temp.expect_error(format('update public.weakness_actions set pic=%L where why_analysis_id=%L','mutated',rid),'immutable');
-   PERFORM pg_temp.expect_error(format('update public.weakness_analysis_report_items set final_dis=%L where report_id=%L','DOKUMEN',r.id),'immutable');
+   PERFORM pg_temp.expect_error(format('update public.weakness_analysis_report_items set final_reference=%L where report_id=%L','mutated',r.id),'immutable');
    SELECT other.id INTO arbitrary FROM public.weakness_analysis_report_items own
     JOIN public.weakness_analysis_report_items other ON other.car_id=own.car_id AND other.report_id<>own.report_id
     JOIN public.weakness_analysis_reports draft ON draft.id=other.report_id AND draft.status='Draft'
