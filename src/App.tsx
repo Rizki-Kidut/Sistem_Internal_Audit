@@ -18,6 +18,7 @@ import { UserManagementPage } from './components/pages/UserManagementPage';
 import { DaftarKetidaksesuaianPage } from './components/pages/DaftarKetidaksesuaianPage';
 import { LaporanInternalAuditPage } from './components/pages/LaporanInternalAuditPage';
 import { WeaknessAnalysisPage } from './components/pages/WeaknessAnalysisPage';
+import { RangkumanHasilAuditPage } from './components/pages/RangkumanHasilAuditPage';
 import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
@@ -78,6 +79,8 @@ function App() {
         return <LaporanInternalAuditPage />;
       case 'analisa':
         return <WeaknessAnalysisPage />;
+      case 'rangkuman-hasil':
+        return <RangkumanHasilAuditPage />;
       case 'team-master':
         return <AuditTeamMasterPage />;
       case 'plant-admin':

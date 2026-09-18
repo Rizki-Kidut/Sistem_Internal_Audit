@@ -2910,3 +2910,14 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   snapshots and immutable Final report items.
 - No authorization, RLS, AI/ZDR behavior, audit-type population semantics, page geometry,
   chart presentation, package dependency, or nested `/project` scope was changed.
+
+## Batch 9b — Rangkuman Hasil Internal Audit (FORM-014) — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED` on local base `bcc96bfb6d2a9cd1f68cc3c12ee7db13cba04d3f`; remote PR #28 content was unavailable in this checkout.
+
+- Added additive migration `20260918120000_create_batch9b_form014.sql`: report/group/group-row/item records, canonical Instruction + Audit Type uniqueness, guarded Admin/Company Lead Auditor RPCs, exact formal Finding population, QA-bound Manufacturing/Product validation, System process grouping, Draft regeneration preserving Keterangan/Catatan, optimistic revision checks, Final source snapshots, final immutability, and read-only capability-scoped RLS.
+- Added the authorized `Rangkuman Hasil Audit` navigation immediately after Analisa Weakness Point and a service-backed Indonesian workspace for Generate, Regenerate, Draft editing, Finalization, preview, and browser printing.
+- FORM-014 consumes Finding PLOR through the shared `formatFindingNarrative()` helper. LTP uses canonical `cars.finding_id`, maximum Temporary and Corrective/Preventive due dates, latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, and Closed/Open rendering; missing CAR retains the Finding as Open.
+- System groups use process identity. Manufacturing uses one QA = one Plant + Shift. Product uses one QA = one Plant. Invalid matrix contexts block rather than guess or duplicate. Completed empty contexts print `ZERO FINDING`; incomplete contexts never claim zero Finding and block Final.
+- Explicit A3 landscape pages use content-sensitive narrative-height chunking, keep each next group on a fresh page, and repeat the full shell. Only physical page 1 renders the global report-wide summary, Catatan, and approval names; later pages retain roles and use a CSS diagonal approval-body line.
+- Staging migration, rollback SQL regression, and real-browser/print acceptance remain required. The local environment had no Git remote or Staging credentials, so no hosted system was modified.

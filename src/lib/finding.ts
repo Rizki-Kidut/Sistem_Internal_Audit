@@ -9,7 +9,8 @@ export function isFindingPLORComplete(finding: Pick<Finding, 'kategori'|'problem
     ? filled(finding.saran_perbaikan)
     : filled(finding.reference));
 }
-export function formatFindingNarrative(finding: Finding): string {
+export type FindingNarrativeSource = Pick<Finding, 'kategori'|'problem'|'location'|'objective_evidence'|'reference'|'saran_perbaikan'>;
+export function formatFindingNarrative(finding: FindingNarrativeSource): string {
   const narrativeFieldsComplete = filled(finding.problem) && filled(finding.location)
     && filled(finding.objective_evidence) && (finding.kategori === 'C'
       ? filled(finding.saran_perbaikan)
