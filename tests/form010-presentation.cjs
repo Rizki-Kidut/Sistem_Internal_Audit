@@ -75,6 +75,19 @@ for (const [audit_type, label, audit_execution_dates, dateLabel] of types) {
     assert(populated.includes('data-chart'));
   }
 }
+const pageSource = fs.readFileSync(path.join(__dirname, '../src/components/pages/WeaknessAnalysisPage.tsx'), 'utf8');
+const printSource = fs.readFileSync(path.join(__dirname, '../src/components/pages/WeaknessAnalysisPrintView.tsx'), 'utf8');
+const serviceSource = fs.readFileSync(path.join(__dirname, '../src/services/weaknessAnalysisService.ts'), 'utf8');
+const snapshotMigration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/20260918094500_snapshot_form010_chart_inputs.sql'), 'utf8');
+for (const field of ['final_process_name', 'final_category', 'final_reference']) {
+  assert(serviceSource.includes(field));
+  assert(snapshotMigration.includes(field));
+}
+assert(pageSource.includes('frozen=v.final_process_name!==null'));
+assert(printSource.includes('const frozen = value.final_process_name !== null'));
+assert(snapshotMigration.includes('final_process_name=COALESCE(p.nama_proses'));
+assert(snapshotMigration.includes('final_category=f.kategori'));
+assert(snapshotMigration.includes('final_reference=f.reference'));
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/weaknessAnalysisPrint.css'), 'utf8');
 const chartCss = fs.readFileSync(path.join(__dirname, '../src/components/pages/weaknessCharts.css'), 'utf8');
 assert(css.includes('font-size:14pt;font-weight:700'));
