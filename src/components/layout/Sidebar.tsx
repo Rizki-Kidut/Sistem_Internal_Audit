@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
   { id: 'car', label: 'LTP', icon: <AlertTriangle size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'laporan', label: 'Laporan Internal Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
-  { id: 'analisa', label: 'Analisa Weakness Point', icon: <BarChart3 size={18} />, group: 'Pelaksanaan Internal Audit', disabled: true },
+  { id: 'analisa', label: 'Analisa Weakness Point', icon: <BarChart3 size={18} />, group: 'Pelaksanaan Internal Audit' },
 
   // Master data
   { id: 'seksi', label: 'Kelola Seksi', icon: <Settings size={18} />, group: 'Master Data' },
@@ -71,7 +71,7 @@ interface SidebarProps {
 export function Sidebar({ currentPage, onNavigate, profile, onLogout }: SidebarProps) {
   // Kelompokkan item berdasarkan group
   const groups: { group: string; items: NavItem[] }[] = [];
-  const visiblePages = allowedPages(profile.identity_type);
+  const visiblePages = allowedPages(profile.identity_type,profile.is_company_lead_auditor);
   for (const item of navItems.filter(item => visiblePages.includes(item.id))) {
     const groupName = item.group ?? 'Lainnya';
     let g = groups.find((g) => g.group === groupName);

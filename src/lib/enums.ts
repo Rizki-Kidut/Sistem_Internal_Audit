@@ -57,6 +57,12 @@ export const FINDING_SOURCE_TYPE = {
   SISTEM: 'ChecklistSistem', PRODUK: 'ChecklistProduk', MANUFAKTUR_SHIFT: 'ChecklistManufakturShift',
 } as const;
 export type FindingSourceType = (typeof FINDING_SOURCE_TYPE)[keyof typeof FINDING_SOURCE_TYPE];
+export const WEAKNESS_AUDIT_TYPE_LABEL: Record<FindingSourceType, string> = {
+  [FINDING_SOURCE_TYPE.SISTEM]: 'Audit Sistem',
+  [FINDING_SOURCE_TYPE.MANUFAKTUR_SHIFT]: 'Audit Proses Manufaktur',
+  [FINDING_SOURCE_TYPE.PRODUK]: 'Audit Produk',
+};
+
 export const FINDING_STATUS = { OPEN:'Open', CAR_SUBMITTED:'CAR Submitted', VERIFIKASI:'Verifikasi', CLOSED:'Closed', OVERDUE:'Overdue' } as const;
 export type FindingStatus = (typeof FINDING_STATUS)[keyof typeof FINDING_STATUS];
 export const FINDING_REVIEW_STATUS = { DRAFT:'DRAFT', LEAD_REVIEW:'LEAD_REVIEW', REVISION_REQUIRED:'REVISION_REQUIRED', READY_FOR_RELEASE:'READY_FOR_RELEASE', PUBLISHED:'PUBLISHED', ANNULLED:'ANNULLED', LEGACY_ESTABLISHED:'LEGACY_ESTABLISHED' } as const;
@@ -82,6 +88,17 @@ export const LTP_SYSTEM_REVISION_CATEGORY = { ISE:'Peraturan ISE', STANDARD:'Dok
 export type LtpSystemRevisionCategory = (typeof LTP_SYSTEM_REVISION_CATEGORY)[keyof typeof LTP_SYSTEM_REVISION_CATEGORY];
 export const KLASIFIKASI_DIS = { DOKUMEN: 'Dokumen', IMPLEMENTASI: 'Implementasi', SISTEM: 'Sistem' } as const;
 export type KlasifikasiDIS = (typeof KLASIFIKASI_DIS)[keyof typeof KLASIFIKASI_DIS];
+
+export const WEAKNESS_STATUS={DRAFT:'Draft',FINAL:'Final'} as const;
+export const WEAKNESS_SOURCE_MODE={DATE_RANGE:'DATE_RANGE',PROGRAM:'PROGRAM'} as const;
+export const WEAKNESS_4M1E={MAN:'MAN',MACHINE:'MACHINE',METHOD:'METHOD',MATERIAL:'MATERIAL',ENVIRONMENT:'ENVIRONMENT'} as const;
+export const WEAKNESS_DIS={DOKUMEN:'DOKUMEN',IMPLEMENTASI:'IMPLEMENTASI',SISTEM:'SISTEM'} as const;
+export const WEAKNESS_PROBLEM_TYPE={A:'A',B:'B',C:'C',D:'D',E:'E'} as const;
+export const WEAKNESS_APPROVAL_SOURCE={MANUAL:'MANUAL',AI_ACCEPTED:'AI_ACCEPTED',AI_EDITED:'AI_EDITED'} as const;
+export const WEAKNESS_ACTION_STATUS={NOT_STARTED:'Belum Mulai',IN_PROGRESS:'Berjalan',DONE:'Selesai'} as const;
+export const WEAKNESS_4M1E_LABEL:Record<string,string>={MAN:'Man',MACHINE:'Machine',METHOD:'Method',MATERIAL:'Material',ENVIRONMENT:'Environment'};
+export const WEAKNESS_DIS_LABEL:Record<string,string>={DOKUMEN:'Dokumen',IMPLEMENTASI:'Implementasi',SISTEM:'Sistem'};
+export const WEAKNESS_PROBLEM_LABEL:Record<string,string>={A:'Tidak Patuh Peraturan',B:'Inkonsisten terhadap Peraturan',C:'Aturan Belum Mencukupi',D:'Aturannya Tidak Ada',E:'Perubahan Peraturan Tanpa Koordinasi'};
 
 // Status checklist item hasil
 export const HASIL_CHECKLIST = {

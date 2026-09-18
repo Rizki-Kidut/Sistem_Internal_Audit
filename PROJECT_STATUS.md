@@ -2424,3 +2424,489 @@ recorded CertiTrack-Staging database, security, runtime, cleanup, and manual bro
 - [ ] Complete real-browser Draft/Final/read-only and A4 Portrait 100% print/Save-as-PDF smoke against representative zero-, one-, and multi-page Finding reports.
 
 Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print verification above prevents `VERIFIED_COMPLETE`.
+
+---
+
+## Batch 9a — Weakness Analysis and AI-assisted classification — 14 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED` (base `c3028cbf086708231bb13fa645cbcc1c919a343a`).
+
+### Implemented repository scope
+
+- Added the single additive migration `supabase/migrations/20260914120000_create_batch9a_weakness_analysis.sql`
+  (corrected pre-application SHA-256 `57eee2d2c124ad9fc82600a445bebda4218b29f8ef44dce3b8441a144c58220d`; the former hash is obsolete). It adds normalized report, persisted population, reusable
+  approved LTP classification, append-only AI suggestion, systemic Why 1–4, and multi-action tables.
+- Batch 9a database access is exactly `public.is_admin_identity() OR
+  public.current_auditor_is_lead_auditor()` through `can_manage_weakness_analysis()`. RLS limits reads to
+  that capability, authenticated table mutation is revoked, and guarded RPCs re-check authorization.
+  Ordinary Auditors, Team Master leaders without company capability, Sub Leaders, Auditees, Section
+  Managers, and inactive identities receive no Batch 9a authority from team membership.
+- Added guarded create/populate, classification approval, optimistic Draft save, and atomic Finalize RPCs.
+  Finalization locks the report, checks expected revision and Draft state, validates population/current
+  Finding-LTP relations, requires every LTP Closed and every taxonomy approved, requires a conclusion,
+  validates any existing Why/Action structures, snapshots approved classifications/signatory display
+  values, and increments the revision once. Final report-owned content and population are immutable.
+- Enabled the capability-aware `analisa` route/sidebar without granting every AUDITOR. Added list/create,
+  four-tab workspace, manual/AI Accepted/AI Edited classification, bounded-concurrency AI actions, five
+  deterministic chart views, robust IATF clause parsing, deterministic conclusion helper, systemic Why
+  and multiple Actions, blocker display, and Draft/Final controls.
+- Added dedicated A3 Landscape FORM-010 preview/print rendering with `DRAFT / PREVIEW` watermark only for
+  Draft, controlled document code `Q-120-ISE-001-FORM-010-REV.0`, sections A/B/C, break-safe rows, and
+  browser print. Native deterministic 2D bars were used because the requested Chart.js packages could not
+  be fetched in this environment (registry returned HTTP 403); no dependency/lockfile change was committed.
+- Added `supabase/functions/weakness-ai-classify/index.ts`. It authenticates the caller, resolves the
+  database capability rather than trusting browser flags, fetches authoritative text context server-side,
+  defends against prompt injection, calls the OpenAI Responses API with strict JSON Schema, hashes normalized
+  inputs for compatible-result reuse, and appends model/prompt/hash/result/token/request metadata. It reads
+  only server secrets `OPENAI_API_KEY`, optionally `OPENAI_MODEL_FAST` (default `gpt-5.6-luna`),
+  `OPENAI_MODEL_DEEP` (default `gpt-5.6-terra`), and `OPENAI_PROMPT_VERSION` (default `batch9a-v1`).
+  No OpenAI secret is stored in the repository or a `VITE_*` variable.
+- Prepared the required Staging authorization/finalization/AI runtime matrix in
+  `docs/batch-9a-authorization-matrix.md`.
+
+### Known limitations and verification remaining
+
+- The migration is intentionally unapplied and the Edge Function intentionally undeployed. Staging schema,
+  constraints, RLS, the full authorization matrix, transactional blockers/stale revision, manual/AI Accepted/
+  AI Edited flows, real OpenAI request, and browser A3 pagination/no-watermark behavior remain unverified.
+- The correction pass replaced the invalid `audit_programs.nama_program` query with the established
+  `jenis_ronde`, `nomor_ke`, `tahun`, `status`, and `penanggung_jawab_qms` DTO and a TypeScript label such as
+  `Berkala ke-1 · FY2026`. Program reports no longer display a raw UUID.
+- Team Leader candidates now resolve uniquely through persisted report Finding → Instruction row → Team
+  Master member `is_team_leader` → Auditor. PJ QMS candidates resolve from Programs represented by persisted
+  population. Draft-save and Finalize validate both candidate sets in the database; zero candidates normalize
+  to NULL, one auto-selects in the UI, and multiple candidates use restricted selectors.
+- Classification approval is scoped by a Draft report-item ID. The database validates an optional suggestion
+  against that report/canonical LTP and derives `MANUAL`, `AI_ACCEPTED`, or `AI_EDITED`; client-supplied
+  provenance was removed. Finding `seksi_auditee_id` now resolves to `seksi.nama` for UI and AI context.
+- FORM-010 screen and print share deterministic chart components: Process-stacked Major/Minor/OFI with totals,
+  SVG donut distributions for clause/DIS/4M+1E, and an A–E bar chart with legend. Why rows persist only 1–4
+  nonblank contiguous levels, allowing unused trailing Why columns.
+- OpenAI documentation lookup was unavailable from the environment (documentation tooling/web access returned
+  authorization failure); the Responses API payload therefore requires deployment smoke verification.
+- Batch 9b was not implemented. Historical migrations and nested `/project` were not changed.
+
+## Batch 9a — FORM-010 ECharts presentation pass — 15 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues PR #27 from remote head
+`fa9cfa688935e7efbd2bc452e152708fbfaf8d06`; Batch 9a is not `VERIFIED_COMPLETE`.
+
+- Migrated all five shared FORM-010 chart views to installed Apache ECharts **6.1.0**,
+  using modular BarChart, PieChart, GridComponent, LegendComponent, and SVGRenderer registration.
+  Every chart uses **SVG**, with animation disabled; no extra dependency or lockfile update.
+- Added a reusable wrapper with positive-size initialization, option updates, ResizeObserver,
+  immediate beforeprint and print-media resize, deferred follow-up resize, afterprint recovery,
+  and complete listener/observer/instance cleanup for hidden layouts and React StrictMode.
+- Chart #1 is a vertical stacked column: OFI blue / Minor orange / Major red, bottom to top,
+  integer count axis, every Process label at 45 degrees, positive segment labels, and retained HTML totals.
+- Charts #2–#4 now use restrained full **2D pies**, replacing faux-3D donuts. Printed HTML legends
+  beside each pie include category, authoritative count, and rounded percentage, including single slices.
+- Chart #5 remains vertical A–E columns with integer labels, zero categories retained when populated,
+  and the existing explanatory taxonomy below. Empty charts show plain contextual text without shapes.
+- Order remains **1 / (2,3) / (5,4)**. `buildWeaknessCharts`, clause grouping, approved-only classification
+  inputs for Charts #3–#5, Finding/LTP, AI, authorization, and finalization semantics are unchanged.
+- Improved A3 full-height composition using a flex page/main section, proportional chart grid rows,
+  and proportionally stretched Why-Why/Action sections. Preserved the safe **419mm × 296mm** minimum
+  sheet footprint, conclusion/footer order, approval design, and Draft-only watermark. Sparse one-page
+  pagination, clipping, and populated overflow still require real-browser acceptance.
+- The circular overlay was confirmed externally as the **Vercel Toolbar**, resolved by disabling that
+  Toolbar. No application/CSS workaround was added. **QR approval remains deferred**; Batch 9b excluded.
+- Files changed: `src/components/pages/WeaknessCharts.tsx`, new
+  `src/components/pages/WeaknessEChart.tsx`, `src/components/pages/weaknessCharts.css`,
+  `src/components/pages/weaknessAnalysisPrint.css`, and `PROJECT_STATUS.md`.
+  `WeaknessAnalysisPrintView.tsx` is unchanged and included in targeted lint.
+- Validation: typecheck, production build, targeted ESLint, and `git diff --check` passed.
+  Build retains non-blocking >500 kB chunk and outdated Browserslist advisories; no application-wide
+  chunking or dependency updates. No migration, Edge Function, package manifest/lockfile, or nested
+  `/project` changes against the supplied head.
+- Required manual gates: browser visual review, one-page sparse A3 Landscape Print Preview,
+  Save as PDF, Draft watermark, Final no-watermark, and populated/overflow report testing.
+
+## Batch 9a — FORM-010 beveled pie refinement — 15 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; browser acceptance remains required. Base:
+`0e91ac5c84f2f20ad20661257986b0a956792964`, existing PR #27.
+
+- Charts #2–#4 now use a print-oriented pseudo-3D / beveled donut treatment instead of flat pies:
+  one ECharts pie series, thick centered annulus, restrained palette-matched SVG linear gradients,
+  narrow top highlight, darker lower edge, thin white slice borders, and slightly rounded corners.
+  No duplicate stacked pies, perspective distortion, raster layer, blur filter, or new modules.
+- Single-category datasets retain the same centered 36%/78% inner/outer radius and bevel,
+  avoiding an oversized solid circle. Count/percentage legends remain the primary explanation.
+  Plain text empty states and existing legend/data ordering are unchanged.
+- Apache ECharts **6.1.0**, **SVGRenderer**, `animation: false`, print resize handling, and exact
+  print-color CSS remain in use. Charts #1/#5, card sizes, A3 page structure, chart order
+  **1 / (2,3) / (5,4)**, approval structure, and watermark behavior are unchanged.
+- No aggregation/business logic, approved classification sourcing, dependency, DB, migration,
+  Edge Function, AI, auth, Finding/LTP workflow, or finalization changes. QR approval remains
+  deferred. No Vercel Toolbar workaround. Nested `/project` is untouched.
+- Files changed: `src/components/pages/WeaknessCharts.tsx` and `PROJECT_STATUS.md` only.
+- Validation: `npm run typecheck`, `npm run build`, targeted ESLint for `WeaknessCharts.tsx`,
+  and `git diff --check` passed. Backend/package baseline diff is empty. Build retains the
+  non-blocking >500 kB chunk and outdated Browserslist advisories.
+- Required manual gates: browser visual review (including one-slice/multi-slice bevel acceptance),
+  sparse one-page A3 Print Preview, Save as PDF, Draft watermark, Final no-watermark,
+  and populated/overflow report testing. No browser/PDF acceptance is claimed by this pass.
+
+## Batch 9a — FORM-010 Pareto and audit-context presentation — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; existing PR #27 remains open/unmerged. Base:
+`28884e08ea3e6276bc5043ec338a02edbeb4bfcc`. Browser acceptance is still required.
+
+- Chart #1 is now a Pareto chart: a copied presentation array sorts processes descending by
+  Major + Minor + OFI; original blue OFI / orange Minor / red Major stacked columns, numeric
+  labels, and compact totals remain. A green cumulative percentage line uses a secondary right
+  axis fixed at 0–100%; the last populated point is 100%. No 80% or other reference line was added.
+- Added only modular LineChart registration. Installed Apache ECharts remains **6.1.0**, with
+  **SVGRenderer** and `animation: false`. Charts #2–#4 retain their pseudo-3D / beveled SVG gradients;
+  Chart #5 and order **1 / (2,3) / (5,4)** are unchanged. Aggregation/counting semantics are unchanged.
+- The formal title is now a full-header-width centered 14pt/700 h1 (previously inherited 9pt bold),
+  with no title wrapping. Context and approval table remain beneath it in the header. The A3
+  landscape 419mm × 296mm minimum sheet, flexible chart area, plain text empty states, and
+  Draft-only watermark are retained; browser pagination is not claimed as verified.
+- Fixed the hidden screen preview (`display:none` previously applied outside print): the existing
+  Preview FORM-010 tab now shows a horizontally scrollable sheet, with overflow reset for print.
+- Reviewed `analisa` routing/sidebar, list/create/load services, Findings source types, and existing
+  population RPC read-only. No System-only route/query filter exists. Each report ID owns its
+  persisted population, Why/Actions and conclusion; the existing program/date-range scope is retained.
+  Replaced the hard-coded “A. Hasil Audit Sistem” with headings derived from persisted Findings:
+  **Audit Sistem**, **Audit Proses Manufaktur** (including Shift), and **Audit Produk**. All three
+  use the same FORM-010 preview/print structure. The report's own title is also displayed as context.
+- Scope limitation: programs/date ranges can contain more than one audit type, and the current
+  report schema/RPC has no persisted audit-type selector. Existing mixed populations are labeled
+  with their actual types, never silently filtered or newly merged. Separate reports for existing
+  single-type program/date contexts are supported. Strict separate type-specific persisted reports
+  inside a mixed program would require a separately authorized model/RPC change; this pass does
+  not claim to provide that capability. Empty populations use the neutral “Internal Audit” heading.
+- No DB/schema/migration/RPC/RLS, AI classification/cache/provenance/ZDR, auth, Edge Function,
+  Finding/LTP workflow, package, or nested `/project` changes. No service change was necessary.
+  QR approval remains deferred; Batch 9b excluded; no Vercel Toolbar workaround.
+- Files changed: `src/components/pages/WeaknessCharts.tsx`,
+  `src/components/pages/WeaknessEChart.tsx`, `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, and `PROJECT_STATUS.md`.
+- Validation: typecheck, build, requested four-file ESLint (including unchanged
+  `src/services/weaknessAnalysisService.ts`), and `git diff --check` passed. An in-memory component
+  check passed descending ordering, cumulative 62.5/87.5/100%, right axis, input nonmutation,
+  absence of markLine, empty text, and all three audit-type headings with Draft/Final watermark
+  markup. These are not browser/SVG layout acceptance tests. Build retains non-blocking outdated
+  Browserslist and >500 kB chunk advisories. Backend/package baseline diff is empty; nested
+  `/project` remains untouched.
+- Remaining manual gates: browser visual review; sparse one-page A3 Landscape Print Preview;
+  Save as PDF; Draft watermark; Final no-watermark; populated/overflow reports for **each** of
+  Audit Sistem, Audit Proses Manufaktur, and Audit Produk.
+
+## Batch 9a — Explicit audit family and authoritative execution dates — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues PR #27 from
+`77f1efbdff4926487df0cece7d3970777a5befe1`. Implementation and the Staging SQL matrix passed; real-browser acceptance remains pending.
+
+- Supersedes the prior program-only scope limitation: new reports explicitly persist one of
+  `ChecklistSistem`, `ChecklistManufakturShift`, or `ChecklistProduk`. Existing legacy reports
+  retain NULL type and their original populations and are presented read-only.
+- New additive migration: `supabase/migrations/20260916021204_scope_form010_audit_type_dates.sql`.
+  Adds audit_type, audit_execution_dates (normalized distinct sorted date[]), audit_date_start,
+  audit_date_end, typed Program uniqueness, and checklist-context population/signatory/Final rules.
+- System and Manufacturing dates come only from represented Instruction execution dates. Product
+  uses tanggal_audit_produk first, falling back only to that same row's tanggal_pelaksanaan_audit.
+  Date-range scope uses these same family-specific dates. Final snapshots never refresh from live dates.
+- Zero-Finding Draft requires actual checklist context; Final additionally requires every represented
+  row's authoritative cek_selesai and exact current population validation. No LTP/classification/AI
+  is fabricated. Empty analysis content uses '-', while real metadata is retained.
+- Frontend creation requires audit type; list/workspace expose type and dates; the FORM-010 header
+  reads report identity/snapshot directly. Exact-date formatting groups only contiguous dates.
+- Pareto #1, no reference line, beveled #2–#4, vertical #5, SVGRenderer, ECharts 6.1.0, centered 14pt
+  title, A3 sheet structure and watermark behavior remain. QR approval is deferred. The external
+  ZDR production gate is unchanged. Browser/Print Preview/PDF acceptance is still required.
+- Static checks so far: typecheck and all changed TS/TSX-file ESLint passed. Migration SHA256,
+  actual Staging ledger entry, full test matrix, final static/build results and file list follow below.
+
+
+### Audit-family correction — applied migration and verification closeout
+
+- Exactly one new additive migration was applied successfully to **CertiTrack-Staging**
+  (`wlsmqufirefmscjwaoka`): `20260916021204_scope_form010_audit_type_dates.sql`.
+  Repository SHA256: `4d857f3592210af972d303c1b1da34475edcd9f9917a4481738b46e5f864d631`.
+  Actual Staging ledger: **20260916023952 · scope_form010_audit_type_dates**.
+  The file is immutable after this application. Both earlier applied migration files remain
+  byte-for-byte unchanged from `77f1efbdff4926487df0cece7d3970777a5befe1`.
+- Four nullable columns were added to `weakness_analysis_reports`: `audit_type text`,
+  `audit_date_start date`, `audit_date_end date`, `audit_execution_dates date[]`.
+  Type CHECK accepts only `ChecklistSistem`, `ChecklistManufakturShift`, `ChecklistProduk` when
+  non-null. Typed rows require normalized, distinct, sorted, non-null date arrays (empty array
+  permitted when dates are unavailable), with start/end matching the first/last dates.
+  Partial unique index `weakness_program_audit_type_unique` prevents another typed Draft/Final
+  for the same Program. Legacy NULL rows are excluded; no archive/reissue lifecycle was invented.
+- `create_weakness_analysis` requires explicit `p_audit_type`, validates scope and real checklist
+  context, and atomically inserts/populates/snapshots the report. Its old five-argument signature
+  now safely rejects stale clients. `populate_weakness_report` uses only formal
+  PUBLISHED/LEGACY_ESTABLISHED Findings of that family and the canonical `cars.finding_id` link.
+  The helper resolves checklists / checklist_manufaktur_shift / checklist_produk through row_id,
+  never through the presence of Findings. Date-range scoping uses the same authoritative date.
+- `weakness_team_leader_candidates` derives the Team Master leaders of the exact represented
+  checklist rows, including zero-Finding rows. PJ QMS remains Program-authoritative, with
+  date-range candidates derived from represented Programs. The company management capability
+  remains exactly `is_admin_identity() OR current_auditor_is_lead_auditor()`; no RLS was changed.
+- Draft assertions lock and recheck report state and reject legacy edits. Save retains revision,
+  signatory and Why/Action validation; empty reports save '-' and no systemic children. Final
+  retains all non-zero CLOSED-LTP/classification/structural blockers, validates exact population
+  membership (including omitted Findings and missing canonical LTPs), rejects changed dates until
+  explicit regeneration, and requires all exact audit-context rows completed for zero Findings.
+  Classification provenance is unchanged; the approval RPC adds only the locked Draft assertion.
+- Legacy report `31f59999-8a79-4b60-90aa-91bb586404ab` and the other legacy Draft were preserved.
+  Before/after legacy-column and population hashes match. Protected fixture hashes:
+  report `407fb4ff830224af9b65766813c63ef5`, population `41959f6003f01e6a35b3b81f3d1cb711`.
+  The UI labels legacy reports read-only instead of guessing a family or rewriting their items.
+- `tests/form010-audit-type-staging.sql`: **32 grouped Staging checks PASS** in a rolled-back
+  transaction with newly generated synthetic programs, teams, checklist contexts and Findings.
+  Seeded prerequisite workflow states are synthetic; this is a FORM-010 RPC/constraint test, not
+  a repeat of the complete Finding/LTP workflow. Execution completion for zero-Finding rows used
+  the existing guarded `complete_audit_execution` RPC with triggers enabled.
+  The same-Program scenario uses synthetic FY2097 metadata and the exact requested September
+  2026 execution dates; no old mixed FY2099 fixture supplies the test population.
+
+| Staging verification | Result |
+| --- | --- |
+| System with Findings: create, manual approval, save, Final | PASS |
+| System zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Manufacturing with Findings: isolated population, save, Final | PASS |
+| Manufacturing zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Product with Findings: dedicated dates, isolated population, save, Final | PASS |
+| Product zero Findings: incomplete blocker, completion RPC, Final | PASS |
+| Same Program: System 7–11 Sep / Manufacturing 9–10 Sep / Product 11 Sep | PASS |
+| Manufacturing non-contiguous exact snapshot [9 Sep, 11 Sep] | PASS |
+| Product DATE_RANGE primary date; same-row fallback; generic-date exclusion | PASS |
+| All six cross-family exclusions and injected cross-family Final rejection | PASS |
+| Missing audit context: create and Final rejected | PASS |
+| Non-CLOSED LTP, unapproved classification, stale revision blockers | PASS |
+| Omitted population cannot masquerade as zero | PASS |
+| Draft date drift blocks Final; explicit regeneration refreshes dates | PASS |
+| Type-specific Team Leader candidates; arbitrary signer rejection | PASS |
+| Duplicate Program + type; authenticated direct mutation denied | PASS |
+| Final report/type/dates/signatory, population, Why/levels/Actions immutable | PASS |
+| Later upstream date changes and later Draft classification approval preserve Final snapshots | PASS |
+| Legacy regenerate/Final rejected without mutation | PASS |
+| Admin / Company Lead accepted; ordinary Auditor and inactive Company Lead denied | PASS |
+
+- Post-test cleanup queries returned zero synthetic profiles, auditors and typed test reports.
+  All five Weakness tables retain RLS, internal helpers are not executable by authenticated users,
+  and the new create RPC is not executable by anon. Security Advisor reports the intentional
+  guarded authenticated SECURITY DEFINER RPC category (50 functions across the application),
+  plus disabled leaked-password protection; no policy or Auth configuration was changed.
+  References: [guarded function exposure advisory](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+  and [password-protection advisory](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- `tests/form010-presentation.cjs` passed nine exact-date cases, all three families with both
+  Draft/Final and empty/populated markup, '-' result content, real metadata, chart order,
+  Pareto 100%/no reference line, beveled SVG-option geometry and A–E bars. Runs in UTC/default,
+  Asia/Jakarta and America/Los_Angeles passed. A timezone test caught and corrected only the
+  FORM-010 approval-date call site to parse its date-only value locally before formatting.
+- Final static validation: typecheck, production build, targeted ESLint for all six changed
+  TS/TSX files, and `git diff --check` passed. Build retains the existing outdated Browserslist
+  and >500 kB chunk advisories. No new dependency, package/lockfile, Edge Function, historical
+  migration, Instruksi UI, or nested `/project` change. WeaknessEChart.tsx and both chart/print
+  stylesheets remain unchanged in this pass; ECharts 6.1.0 and SVGRenderer remain in use.
+- Changed files: `src/lib/enums.ts`, `src/lib/utils.ts`,
+  `src/services/weaknessAnalysisService.ts`, `src/components/pages/WeaknessAnalysisPage.tsx`,
+  `src/components/pages/WeaknessAnalysisPrintView.tsx`, `src/components/pages/WeaknessCharts.tsx`,
+  the one new migration above, `tests/form010-audit-type-staging.sql`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`.
+- Remaining acceptance: real browser visual review and access/create/save flows for all three
+  types; sparse one-page A3 Landscape Print Preview; Save as PDF; Draft watermark; Final
+  no-watermark; populated/overflow report tests for each type. SQL/markup tests do not establish
+  browser pagination. Batch 9a remains **IMPLEMENTED_UNVERIFIED**, PR #27 open/unmerged.
+  QR approval remains deferred; external production ZDR eligibility/approval remains a gate
+  and is not established by this correction. AI/privacy/Edge Function behavior is unchanged.
+
+## Batch 9a — Why-Why and action auto-growing editors — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`0b55d35afa498083d44c85dacc2d1c132eeb959c`; browser/PDF visual acceptance remains pending.
+
+- Added a controlled reusable `AutoGrowTextarea` that starts at one row, resets its height to auto,
+  then measures `scrollHeight` whenever its value changes. It grows downward for added content and
+  shrinks after deletion without a fixed maximum height. Width remains constrained to its grid cell,
+  both overflow axes are hidden, and long unbroken text wraps with `overflow-wrap: anywhere` plus
+  `word-break: break-word`. Disabled/read-only behavior continues through native textarea props.
+- Converted only the narrative Weakness fields: Problem, Why 1–4, Akar Permasalahan, and Rencana
+  Tindakan. PIC, Due Date, and Status remain their existing single-line Input/date Input/Select.
+  Why and Action grids now align controls at the top as narrative rows grow.
+- Why/Action state, persistence payloads, Draft/Final behavior, contiguous Why validation, maximum
+  Why depth 4, and existing add/remove handlers are unchanged. Tab switching still retains the same
+  workspace state, and Final mode renders the full controlled text in disabled auto-growing editors.
+- FORM-010 Why and Action body cells now explicitly use `white-space: pre-wrap`,
+  `overflow-wrap: anywhere`, `word-break: break-word`, and top alignment. The fixed table layout and
+  existing 419mm × 296mm A3 page definition remain unchanged; rows may grow vertically to preserve
+  all narrative text.
+- Files changed: `src/components/pages/WeaknessAnalysisPage.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/ui/Field.tsx`, and
+  `PROJECT_STATUS.md`.
+- Static validation passed: `npm run typecheck`, `npm run build`, targeted ESLint for both changed
+  TS/TSX files, and `git diff --check`. Build retained only the existing outdated Browserslist and
+  >500 kB chunk advisories. Backend, migrations, Edge Functions, packages/lockfile, and nested
+  `/project` are untouched.
+
+## Batch 9a — FORM-010 intrinsic narrative row sizing — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`3210dafacbb7fcbd88ab86a70c52967f0226ce2a`; real-browser Preview/Print acceptance remains pending.
+
+- Corrected the FORM-010 Why-Why and Action tables so they retain intrinsic height instead of growing
+  to consume the full grid-section allocation. Surplus section height now remains section whitespace
+  rather than being distributed into populated narrative rows.
+- Populated rows remain content-driven with the existing compact 3px cell padding, top alignment,
+  `white-space: pre-wrap`, `overflow-wrap: anywhere`, and `word-break: break-word`. Long narrative text
+  can still wrap and grow vertically without clipping, fixed heights, or overflow suppression.
+- Existing blank template rows retain their controlled `12mm` Why and `11mm` Action heights. The
+  419mm × 296mm A3 landscape page, charts, header, approval table, conclusion, watermark, and screen
+  `AutoGrowTextarea` implementation are unchanged.
+- Files changed: `src/components/pages/weaknessAnalysisPrint.css` and `PROJECT_STATUS.md`. No TS/TSX,
+  backend, migration, Edge Function, package/lockfile, or nested `/project` file changed.
+- Static validation passed: `npm run typecheck`, `npm run build`, the existing
+  `tests/form010-presentation.cjs` regression check, and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed.
+
+## Batch 9a — FORM-010 A3 chart and blank-row balance — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`027b0bcfaf47a36aa6ac0adadd5e78a0e85162ad`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Reduced only the FORM-010 Preview/Print chart-grid minimums from `65/55/55mm` to
+  `56/45/45mm`, retaining flexible proportions at `1.15fr/1fr/1fr`. The normal Analysis-tab chart
+  grid remains unchanged at `280/230/230px`; chart components, ECharts SVG rendering, Pareto data,
+  cumulative axis, beveled donuts, vertical taxonomy, legends, and aggregation logic are unchanged.
+- Balanced the right column at approximately 60% Why-Why and 40% Actions. Each section now has an
+  intrinsic data table containing content-driven populated rows and the existing controlled minimum
+  blank rows, followed by one border-aligned flexible filler table row. Only that empty filler absorbs
+  available section height; populated narrative rows remain `height:auto` and cannot receive flex growth.
+- Existing minimum template behavior remains four total Why rows and three total Action rows before
+  the dedicated filler. Blank Why rows retain `12mm`; blank Action rows retain `11mm`. Zero-Finding
+  content continues to render `-` without creating fake Why or Action data.
+- Narrative wrapping remains `white-space: pre-wrap`, `overflow-wrap: anywhere`,
+  `word-break: break-word`, and top-aligned, with no clipping or maximum height. A3 remains landscape
+  at the safe `419mm × 296mm` footprint; conclusion, footer, watermark, header, and approval structure
+  are unchanged. Genuinely excessive content may still continue naturally rather than being hidden.
+- Files changed: `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/pages/weaknessCharts.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No backend, migration, Edge Function,
+  package/lockfile, or nested `/project` file changed.
+- Static validation passed: `npm run typecheck`, `npm run build`, targeted ESLint for
+  `WeaknessAnalysisPrintView.tsx`, the extended `tests/form010-presentation.cjs`, and
+  `git diff --check`. Build retained only the existing outdated Browserslist and >500 kB chunk
+  advisories. The automated regression verifies markup and CSS invariants, not Chrome pagination;
+  authoritative one-page A3 Print Preview and sparse zero-Finding visual acceptance remain required.
+
+## Batch 9a — FORM-010 equal blank rows and bounded print charts — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`f205da73ddc50626ce5d74f0bd3aa93b60564e21`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Removed the one-row flexible filler table introduced by the prior presentation pass. Why-Why and
+  Action now keep an intrinsic table for headers and actual data only, followed by a CSS Grid template
+  area whose existing minimum blank rows divide all remaining section height equally. Matching
+  seven-column Why and six-column Action grids preserve the table border/column structure.
+- The minimum remains four total visible Why rows and three total visible Action rows: one real Why
+  produces three equal blank tracks, while one real Action produces two. Each blank track uses
+  `minmax(8mm, 1fr)`; no extra rows are measured or dynamically added, and no fake data is created.
+  Populated rows remain explicit `height:auto`, outside the flexible blank grid.
+- FORM-010 chart rows are now deterministic and bounded at `52mm / 41mm / 41mm`, with
+  `flex: 0 0 auto` and no `fr` tracks. This supersedes the expandable `minmax(56mm,1.15fr) /
+  minmax(45mm,1fr) / minmax(45mm,1fr)` sizing that could still consume the full page height.
+  The normal Analysis-tab chart grid remains unchanged at `280/230/230px`.
+- Narrative wrapping, the 60/40 Why/Action ratio, A3 landscape `419mm × 296mm` geometry,
+  conclusion/footer spacing, Draft watermark, approval header, title, and all chart semantics remain
+  unchanged. Full real content is never clipped; genuinely excessive content may continue naturally.
+- Files changed: `src/components/pages/WeaknessAnalysisPrintView.tsx`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `src/components/pages/weaknessCharts.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No backend, migration, Edge Function,
+  package/lockfile, or nested `/project` file changed.
+- Static validation passed: the presentation regression suite in default, Asia/Jakarta, and
+  America/Los_Angeles time zones; `npm run typecheck`; `npm run build`; targeted ESLint for
+  `WeaknessAnalysisPrintView.tsx`; and `git diff --check`. Build retained only the existing outdated
+  Browserslist and >500 kB chunk advisories. These checks verify markup/CSS invariants, not Chrome
+  pagination; one-page A3 Print Preview remains the manual authority.
+
+## Batch 9a — FORM-010 parent-bounded chart balance — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`592bcefb60b63c7036f82a38452bb34ce9e4140d`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Replaced the undersized fixed FORM-010 chart rows (`52mm / 41mm / 41mm`) with parent-bounded
+  `minmax(0, 1.25fr) / minmax(0, 1fr) / minmax(0, 1fr)` tracks. The chart grid now uses
+  `flex: 1 1 0`, `height: 100%`, and `min-height: 0`, so it shares only the vertical allocation
+  already owned by `.form010-grid` instead of adding intrinsic millimetre minimum pressure.
+- Completed the zero-minimum height chain by adding `min-height: 0` to both FORM-010 analysis columns;
+  `.form010-grid`, chart cards, ECharts containers, chart sub-layouts, and the existing flexible right
+  sections already retain their zero-minimum safeguards. Chart #1 remains dominant at roughly 38.5%,
+  while the two secondary rows each receive roughly 30.75% before gaps.
+- The normal Analysis-tab chart grid remains `280/230/230px`. The accepted intrinsic narrative rows,
+  equal Why/Action blank-grid tracks, 60/40 section ratio, conclusion/footer spacing, A3 landscape
+  `419mm × 296mm` geometry, title, approval header, and watermark are unchanged.
+- Pareto sorting/stacks/cumulative axis, the 100% endpoint and absence of an 80% reference line,
+  beveled donut charts, vertical A–E chart, legends, ECharts SVGRenderer, resize safeguards, and all
+  data semantics remain unchanged. Zero-Finding cards use the same balanced geometry.
+- Files changed: `src/components/pages/weaknessCharts.css`,
+  `src/components/pages/weaknessAnalysisPrint.css`, `tests/form010-presentation.cjs`, and
+  `PROJECT_STATUS.md`. No TS/TSX, backend, migration, Edge Function, package/lockfile, or nested
+  `/project` file changed.
+- Static validation passed: the presentation suite in default, Asia/Jakarta, and America/Los_Angeles
+  time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed. These checks do not replace authoritative Chrome Print Preview.
+
+## Batch 9a — FORM-010 phantom print-page safety buffer — 16 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`. Continues open/unmerged PR #27 from authoritative remote head
+`099b30ccfe75cd8213d5709406e00e0446b88fa5`; authoritative Chrome Print Preview acceptance remains pending.
+
+- Real Chrome showed every FORM-010 element, including the footer, on page 1 while still reporting an
+  empty page 2. Investigation found only a 1mm physical buffer inside A3 (`419mm × 296mm`) plus an
+  application-shell `min-h-screen` on `#root > div`, with no FORM-010-specific print height reset.
+  No actual content-overflow or forced FORM-010 page-break rule was found.
+- Added a conservative physical rounding buffer by changing only the sheet footprint to
+  `418mm × min-height:294mm`, leaving 2mm horizontal and 3mm vertical safety inside A3 landscape.
+  The page remains content-growing rather than fixed-height; 6mm padding, footer margin, conclusion,
+  chart proportions, and all accepted content layout remain unchanged. No overflow clipping was added.
+- Added a FORM-010-scoped print override that clears `height`/`min-height` pressure on `html`, `body`,
+  `#root`, the `min-h-screen` app-shell child, `main`, and its content wrapper. The FORM-010 page itself
+  is deliberately excluded. The local print rule also explicitly hides the Sidebar `aside` alongside
+  existing no-print/navigation elements.
+- Parent-bounded `1.25fr / 1fr / 1fr` charts, normal `280/230/230px` screen charts, intrinsic populated
+  Why/Action rows, equal blank-row grids, header, approval table, title, conclusion, footer, and Draft
+  watermark are unchanged. `break-after:auto` / `page-break-after:auto` remain in force.
+- Files changed: `src/components/pages/weaknessAnalysisPrint.css`,
+  `tests/form010-presentation.cjs`, and `PROJECT_STATUS.md`. No chart/component logic, TS/TSX, backend,
+  migration, Edge Function, package/lockfile, or nested `/project` file changed.
+- Static validation passed: the presentation suite in default, Asia/Jakarta, and America/Los_Angeles
+  time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
+  existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
+  because no TS/TSX file changed. Chrome Print Preview remains the page-count authority.
+
+
+## Batch 9a — Final chart-input snapshot hardening — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; pre-merge blocker correction on open/unmerged PR #27.
+
+- Added exactly one additive migration:
+  `supabase/migrations/20260918094500_snapshot_form010_chart_inputs.sql`.
+  Previously applied Batch 9a migrations remain byte-for-byte untouched.
+- Added Final-only snapshot fields on `weakness_analysis_report_items`:
+  `final_process_name`, `final_category`, and `final_reference`.
+  Together with the existing `final_4m1e`, `final_dis`, and `final_problem_type`,
+  all five FORM-010 chart inputs are now frozen at Finalization.
+- `finalize_weakness_analysis` snapshots Process display name, Finding A/B/C category,
+  Finding reference/clause, and the three approved classification taxonomies in the same
+  transaction immediately before the report becomes Final.
+- Draft reports continue to use current live source data. New Final reports prefer the frozen
+  chart fields. Existing Final reports created before this migration retain NULL values in the
+  new fields and use the intentional legacy live-data fallback; no immutable historical Final
+  row is rewritten or bypassed.
+- Screen Analysis and printed FORM-010 now use the snapshot marker
+  `final_process_name IS NOT NULL` to distinguish new frozen Final items from Draft/legacy items,
+  allowing a legitimately NULL `final_reference` to remain frozen as NULL rather than falling
+  back to later live data.
+- Staging migration application succeeded. The existing rollback-only FORM-010 audit-type suite
+  passed all 32 grouped checks after migration application.
+- Regression tests were extended to require Process/category/reference plus 4M1E/DIS/problem-type
+  snapshots and immutable Final report items.
+- No authorization, RLS, AI/ZDR behavior, audit-type population semantics, page geometry,
+  chart presentation, package dependency, or nested `/project` scope was changed.

@@ -18,5 +18,8 @@ export async function getOwnProfile(userId: string): Promise<UserProfile | null>
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data as UserProfile | null;
+  if(!data)return null;
+  const {data:isLead,error:capabilityError}=await supabase.rpc('current_auditor_is_lead_auditor');
+  if(capabilityError)throw new Error(capabilityError.message);
+  return {...data,is_company_lead_auditor:isLead===true} as UserProfile;
 }

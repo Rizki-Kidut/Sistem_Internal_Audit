@@ -1,0 +1,48 @@
+@page{size:A3 landscape;margin:0}
+.form010{display:block;max-width:100%;overflow-x:auto}
+.form010-page{position:relative;display:flex;flex-direction:column;background:white;color:#111;width:418mm;min-height:294mm;padding:6mm;box-sizing:border-box;font:9pt Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.form010 header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;border:1px solid #111;padding:4px;gap:6px}
+.form010 header>div{flex:1;min-width:0;align-self:center}
+.form010-title{flex:0 0 100%;margin:0 0 1mm;font-size:14pt;font-weight:700;line-height:1.2;text-align:center;white-space:nowrap}
+.form010-context{margin-top:1mm;font-size:8pt;overflow-wrap:anywhere}
+.form010 header>table{width:44%;flex:none}
+.form010-approval th,.form010-approval td{text-align:center;vertical-align:middle}
+.form010 table{border-collapse:collapse;width:100%;table-layout:fixed}
+.form010 th,.form010 td{border:1px solid #222;padding:3px;vertical-align:top;overflow-wrap:anywhere}
+.form010-why-section td,.form010-action-section td{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}
+.form010-grid{display:grid;grid-template-columns:minmax(0,58fr) minmax(0,42fr);gap:4px;margin-top:4px;align-items:stretch;flex:1;min-height:0}
+.form010-analysis,.form010-analysis-detail{min-width:0;min-height:0}
+.form010-analysis{display:flex}
+.form010-analysis-detail{display:grid;grid-template-rows:minmax(min-content,3fr) minmax(min-content,2fr);gap:3px}
+.form010-table-section{break-inside:avoid;display:flex;flex-direction:column;min-height:0}
+.form010-table-section>.form010-data-table{flex:0 0 auto;height:auto}
+.form010-data-row{height:auto}
+.form010-blank-grid{flex:1 1 0;display:grid;grid-template-rows:repeat(var(--form010-blank-row-count),minmax(8mm,1fr));min-height:0}
+.form010-blank-grid-row{display:grid;min-height:8mm}
+.form010-why-blank-grid .form010-blank-grid-row{grid-template-columns:repeat(7,minmax(0,1fr))}
+.form010-action-blank-grid .form010-blank-grid-row{grid-template-columns:repeat(6,minmax(0,1fr))}
+.form010-blank-cell{border-left:1px solid #222;border-bottom:1px solid #222;padding:0 3px;overflow-wrap:anywhere}
+.form010-blank-cell:last-child{border-right:1px solid #222}
+.form010 header,.form010-conclusion,.form010 footer{flex-shrink:0}
+.form010 h3{margin:4px 0}
+.form010-box{border:1px solid #222;padding:4px;break-inside:avoid}
+.form010-conclusion{margin-top:4px;min-height:18mm}
+.form010-conclusion-body{min-height:11mm;margin-top:3px;white-space:pre-wrap}
+.form010 footer{text-align:right;margin-top:3px}
+.form010-watermark{position:absolute;inset:35% 0 auto;z-index:5;transform:rotate(-25deg);font-size:52pt;font-weight:bold;text-align:center;color:rgba(180,0,0,.16);pointer-events:none}
+.mini-row{display:flex;align-items:center;gap:4px;margin:2px}
+.mini-row span{width:30%}
+.mini-row i{height:8px;background:#2563eb;min-width:2px}
+.mini-row em{font-style:normal}
+@media print{
+html,body,#root,main,main>div{margin:0!important;padding:0!important;max-width:none!important;overflow:visible!important;background:#fff!important}
+html:has(.form010),body:has(.form010),body:has(.form010) #root,body:has(.form010) #root>div,body:has(.form010) main,body:has(.form010) main>div{height:auto!important;min-height:0!important}
+.no-print,aside,nav{display:none!important}
+.form010{display:block!important;max-width:none;overflow:visible}
+.form010 aside{display:grid!important}
+.form010-page{break-after:auto;page-break-after:auto}
+.form010 tr,.form010-blank-grid-row,.form010-table-section,.form010-box,.weakness-chart{break-inside:avoid}
+.form010-grid{grid-template-columns:minmax(0,58fr) minmax(0,42fr)!important;gap:3mm!important}
+.form010-conclusion{min-height:18mm}
+.form010-conclusion-body{min-height:11mm}
+}

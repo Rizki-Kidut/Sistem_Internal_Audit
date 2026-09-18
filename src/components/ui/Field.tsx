@@ -1,6 +1,6 @@
 // Field components untuk form — konsisten di seluruh modul.
 
-import { type ReactNode } from 'react';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 
 interface FieldProps {
   label: string;
@@ -66,6 +66,38 @@ export function Textarea({ invalid, className = '', ...props }: TextareaProps) {
     <textarea
       {...props}
       className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+        invalid
+          ? 'border-red-400 focus:ring-red-200'
+          : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
+      } ${className}`}
+    />
+  );
+}
+
+interface AutoGrowTextareaProps extends TextareaProps {
+  value: string;
+}
+
+export function AutoGrowTextarea({ invalid, value, className = '', style, ...props }: AutoGrowTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+    textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      ref={textareaRef}
+      rows={1}
+      value={value}
+      style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', ...style }}
+      className={`w-full min-w-0 resize-none overflow-x-hidden overflow-y-hidden whitespace-pre-wrap px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
         invalid
           ? 'border-red-400 focus:ring-red-200'
           : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'

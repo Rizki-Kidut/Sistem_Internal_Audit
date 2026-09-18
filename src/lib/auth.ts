@@ -12,6 +12,7 @@ export interface UserProfile {
   status: IdentityStatus;
   created_at: string;
   updated_at: string;
+  is_company_lead_auditor?: boolean;
 }
 
 const permissions: Record<IdentityType, readonly PageId[]> = {
@@ -21,6 +22,6 @@ const permissions: Record<IdentityType, readonly PageId[]> = {
   SECTION_MANAGER: ['agenda', 'car'],
 };
 
-export function allowedPages(identity: IdentityType): readonly PageId[] { return permissions[identity]; }
-export function canAccessPage(identity: IdentityType, page: PageId): boolean { return permissions[identity].includes(page); }
+export function allowedPages(identity: IdentityType,isCompanyLeadAuditor=false): readonly PageId[] { return identity==='AUDITOR'&&isCompanyLeadAuditor?[...permissions.AUDITOR,'analisa']:permissions[identity]; }
+export function canAccessPage(identity: IdentityType, page: PageId,isCompanyLeadAuditor=false): boolean { return allowedPages(identity,isCompanyLeadAuditor).includes(page); }
 export function landingPage(identity: IdentityType): PageId | null { return permissions[identity][0] ?? null; }
