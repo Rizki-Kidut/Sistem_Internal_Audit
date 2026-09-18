@@ -127,14 +127,14 @@ SELECT pg_temp.expect_error($q$SELECT public.form014_validate_context(r,'Checkli
 -- Real completion, source-state and fiscal-year drift rejection.
 RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
-UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id='ba000000-0000-0000-0000-000000000001';
+UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id='ba000000-0000-0000-0000-000000000005';
 SELECT set_config('certitrack.execution_completion','',true);
 SELECT set_config('request.jwt.claims','{}',true);
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
-SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id)),'Status pelaksanaan audit berubah');
+SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_lead_result r WHERE x.id=r.report_id)),'Status pelaksanaan audit berubah');
 RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
-UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000001';
+UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
 SELECT set_config('certitrack.execution_completion','',true);
 SELECT set_config('request.jwt.claims','{}',true);
 UPDATE public.audit_instructions SET tahun_fiskal=2027 WHERE id='b9900000-0000-0000-0000-000000000001';
