@@ -1,16 +1,18 @@
-# Batch 9b — FORM-014 grouping blocker
+# Batch 9b — FORM-014 grouping decision
 
 ## Status
 
-Batch 9b implementation remains intentionally **blocked before code/schema implementation**, but only for **Audit Produk**.
+The authoritative grouping decisions for **Audit Manufaktur** and **Audit Produk** are now resolved.
 
-The previous Manufacturing blocker is resolved by the clarified business rule:
+Batch 9b implementation may proceed.
 
-> One Manufacturing `audit_instruction_row` / QA number is the authoritative execution-context boundary and represents exactly one Plant + one Shift.
-
-No speculative FORM-014 feature implementation has been added while the Product grouping rule remains unresolved.
+No report-specific Plant/Shift fields need to be added to `findings` solely for FORM-014.
 
 ## Manufacturing — resolved
+
+Business invariant:
+
+> One Manufacturing `audit_instruction_row` / QA number is the authoritative execution-context boundary and represents exactly one Plant + one Shift.
 
 For Audit Manufaktur:
 
@@ -21,24 +23,24 @@ For Audit Manufaktur:
 - Findings belong to that QA through `findings.instruction_row_id`;
 - no Plant/Shift fields need to be added to `findings` solely for FORM-014.
 
-FORM-014 Manufacturing grouping therefore uses:
+FORM-014 Manufacturing grouping:
 
-`Finding → instruction_row_id → exact Manufacturing QA row → Plant + Shift context`.
+`Finding → instruction_row_id → exact Manufacturing QA row → Plant + Shift context`
 
 Display label:
 
 `Audit Manufaktur {Shift} {Plant}`
 
-Example:
+Examples:
 
 - QA 24 → Shift 1 + Fact 2 → `Audit Manufaktur Shift 1 Fact 2`
 - QA 26 → Shift 2 + Fact 2 → `Audit Manufaktur Shift 2 Fact 2`
 
-If one Manufacturing QA row unexpectedly resolves to zero or multiple unique Plant/Shift pairs, that QA is invalid for deterministic FORM-014 grouping and must be blocked with a clear validation error. Do not guess, choose the first mark, or duplicate Findings.
+If one Manufacturing QA row unexpectedly resolves to zero or multiple unique Plant/Shift pairs, treat it as invalid source data for deterministic FORM-014 grouping and block generation/finalization with a clear validation error. Do not guess, choose the first mark, or duplicate Findings.
 
-### Manufacturing ZERO FINDING rule
+### Manufacturing ZERO FINDING
 
-A completed Manufacturing QA must remain represented even when it has no formal Findings.
+A completed Manufacturing QA remains represented even when it has no formal Findings.
 
 If:
 
@@ -46,7 +48,7 @@ If:
 - `audit_instruction_rows.cek_selesai = true`; and
 - formal Finding count is zero;
 
-then FORM-014 must explicitly show:
+then FORM-014 explicitly shows:
 
 `ZERO FINDING`
 
@@ -56,59 +58,66 @@ Formal Finding population remains:
 
 A QA with `cek_selesai = false` must never be presented as ZERO FINDING and must block Finalization.
 
-## Product — remaining blocker
+## Product — resolved
 
-The repository does not currently establish the equivalent invariant:
+Business invariant:
 
-> one Product QA / `audit_instruction_row` = one Plant
+> One Product `audit_instruction_row` / QA number is the authoritative execution-context boundary and represents exactly one Factory / Plant.
 
-An `audit_instruction_rows` Product row can structurally contain multiple entries in:
+Actual operation is separated by QA number, for example:
 
-`matriks_produk_marks = [{ plant_id, target_model_id }, ...]`
+- one QA for Audit Product Factory 1;
+- another QA for Audit Product Factory 2.
 
-The active Instruction UI permits multiple Product marks.
+Each Product QA has its own checklist and Finding population.
 
-The Product execution path currently has:
+Therefore FORM-014 Product grouping follows the same QA-boundary principle as Manufacturing:
 
-- one Product checklist related through `checklist_produk.row_id`;
-- Product phases/items without an authoritative `plant_id`;
-- Findings related to the Instruction/source item but without a Product Plant execution context.
+- one `audit_instruction_rows.id` = one Product QA execution context;
+- `kode_audit` is the QA identity;
+- Findings belong through `findings.instruction_row_id`;
+- the Product QA row must resolve to exactly one unique Plant after deduplicating `matriks_produk_marks[].plant_id`;
+- no Plant field needs to be added to `findings` solely for FORM-014.
 
-Therefore, for a Product QA whose matrix marks contain multiple unique Plants, FORM-014 cannot deterministically choose the required label:
+FORM-014 Product grouping:
+
+`Finding → instruction_row_id → exact Product QA row → Plant context`
+
+Display label:
 
 `Audit Produk {Plant}`
 
-without either:
+Examples:
 
-- arbitrarily selecting one Plant; or
-- duplicating Findings across Plant pages.
+- Product QA Factory 1 → `Audit Produk Fact 1` when the Plant master display name is `Fact 1`;
+- Product QA Factory 2 → `Audit Produk Fact 2`.
 
-Both behaviors are prohibited.
+Do not add another literal "Fact" prefix if `plants.nama` already contains it.
 
-## Decision required for Product
+If one Product QA row unexpectedly resolves to zero or multiple unique Plants, treat it as invalid source data and block deterministic FORM-014 generation/finalization. Do not guess, choose the first Plant, or duplicate Findings.
 
-### Option A — business invariant: one Product QA = one unique Plant
+### Product ZERO FINDING
 
-If actual Product audit operations guarantee that every Product QA represents exactly one Plant, FORM-014 can use the same QA-boundary principle as Manufacturing:
+The same completed-QA rule applies to Product.
 
-- one Product `audit_instruction_row` = one Product page group;
-- Findings belong through `instruction_row_id`;
-- the row must resolve to exactly one unique Plant;
-- historical rows with multiple Plants become a clear data-validation blocker;
-- Product label becomes `Audit Produk {Plant}`.
+A Product QA with:
 
-### Option B — one Product QA may genuinely cover multiple Plants
+- `cek_selesai = true`; and
+- zero formal Product Findings
 
-If a Product QA may legitimately represent multiple Plants, an authoritative Product execution-context relationship must be added upstream before FORM-014 Product grouping can be implemented.
+must still appear as a FORM-014 page and explicitly show:
 
-Do not add report-only guesswork to Findings.
+`ZERO FINDING`
+
+A Product QA with `cek_selesai = false` must never be represented as ZERO FINDING and must block Finalization.
 
 ## FORM-014 rules already confirmed
 
-The eventual Batch 9b implementation must preserve these confirmed rules:
+The Batch 9b implementation must preserve these rules:
 
 - one FORM-014 = one Audit Instruction / audit round + one audit type;
-- Audit Sistem, Audit Manufaktur, and Audit Produk are isolated;
+- Audit Sistem, Audit Manufaktur, and Audit Produk remain isolated;
+- one QA / process group starts on a new physical page;
 - Temuan uses the authoritative Finding/PLOR through the existing `formatFindingNarrative()`;
 - Verifikasi uses only the latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`;
 - Temporary target = latest TEMPORARY action due date;
@@ -119,17 +128,16 @@ The eventual Batch 9b implementation must preserve these confirmed rules:
 - Catatan content appears only on physical page 1;
 - approval names appear only on physical page 1;
 - all later pages use the diagonal approval-body slash;
-- each QA/process group starts on a new physical page;
 - document code is `Q-120-ISE-001-FORM-014-REV.1`;
 - sidebar location is Pelaksanaan Internal Audit → Rangkuman Hasil Audit;
 - Final reports are immutable historical snapshots.
 
 ## Implementation state
 
-No Batch 9b feature code or migration has been implemented yet.
+The grouping decision is now complete.
 
-No Staging or Production database mutation has been performed for Batch 9b.
+Batch 9b feature implementation can resume on this branch/PR.
+
+No Batch 9b database migration has yet been applied merely by recording this decision.
 
 Nested `/project` and historical migrations remain untouched.
-
-Implementation should resume after the Product QA grouping invariant is confirmed.
