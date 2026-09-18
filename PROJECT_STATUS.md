@@ -2950,3 +2950,22 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The rollback SQL suite now uses explicit `RESET ROLE` boundaries around privileged fixture mutations, exercises active Lead RPC success, real formal/non-formal and cross-type Finding filtering, and actual Product/Manufacturing report generation with distinct zero-Finding groups.
 - The suite is still not exhaustive for every requested mutation: Keterangan add/remove-transfer, multi-action LTP snapshots, the full individual source-drift matrix, every Final child operation, and post-Final upstream snapshot-stability mutations remain for the hosted pre-merge regression expansion. No claim of full runtime coverage is made.
 - Static checks pass locally. The unapplied migration and regression SQL could not be parsed/executed locally because PostgreSQL/Supabase CLI is unavailable. Hosted Staging and Production remain untouched; Chrome A3 acceptance remains pending.
+
+
+### Batch 9b Staging database verification — 18 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED — BROWSER_ACCEPTANCE_PENDING`.
+
+- Applied the Batch 9b FORM-014 schema to **CertiTrack-Staging** only. Production remains untouched.
+- Staging migration ledger now includes:
+  - `20260918103925 create_batch9b_form014`
+  - `20260918104838 fix_batch9b_form014_final_trigger_dispatch`
+  - `20260918105641 harden_batch9b_form014_private_helper`
+- The first rollback regression run exposed a real table-dispatch bug in the Final child INSERT immutability trigger. Because the base Batch 9b migration had already been applied, the fix was delivered only through the additive migration `20260918174500_fix_batch9b_form014_final_trigger_dispatch.sql`; the applied base migration was not edited.
+- A subsequent privilege review found the private Company Lead resolver was still directly executable by `authenticated` through the project default function ACL. The additive migration `20260918181500_harden_batch9b_form014_private_helper.sql` revoked direct client execution while retaining internal owner execution.
+- `supabase/tests/batch9b_form014_regression.sql` now executes successfully on Staging inside a transaction and ends with `ROLLBACK`. Coverage exercised real Admin/Company Lead authorization, denial of ordinary identities, formal Finding filtering, System/Manufacturing/Product grouping, ZERO FINDING representation, fail-closed optimistic revision checks, Plant/Shift context validation, source-state normalization, completion/FY drift rejection, Keterangan preservation across regeneration/population changes, LTP target/verification snapshots, Final immutability, and post-Final frozen snapshot stability.
+- Post-regression verification confirmed **0** FORM-014 report/group/group-row/item fixture rows and **0** synthetic `b9-*@test.local` users remain.
+- FORM-014 management RPCs remain callable by `authenticated` and enforce their internal capability checks; the private `form014_active_company_lead_auditor()` helper is no longer directly executable by `authenticated`.
+- Supabase Security Advisor continues to report the project-wide generic warning for intentional authenticated `SECURITY DEFINER` RPCs. Batch 9b mutating RPCs remain guarded by `can_manage_rangkuman_hasil_audit()`; this warning is not treated as a functional regression.
+- Staging currently has no linked user with `is_lead_auditor=true`. This is an environment configuration prerequisite for a real-data Finalization acceptance run; the rollback regression provides a transaction-local valid Company Lead fixture and verifies Finalization behavior.
+- Chrome/Vercel authenticated A3 Preview/Print acceptance is still pending. The available non-interactive web fetch cannot access the authenticated Vercel Preview, so page geometry, long-narrative pagination, page-1-only summary/Catatan/signatories, continuation pages, ZERO FINDING print rendering, and page-2+ approval diagonal still require an authenticated real-browser check before merge.
