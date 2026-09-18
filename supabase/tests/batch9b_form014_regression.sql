@@ -23,8 +23,9 @@ INSERT INTO public.plants(id,nama)VALUES('b9400000-0000-0000-0000-000000000001',
 INSERT INTO public.shifts(id,plant_id,nama)VALUES('b9500000-0000-0000-0000-000000000001','b9400000-0000-0000-0000-000000000001','Shift 1'),('b9500000-0000-0000-0000-000000000002','b9400000-0000-0000-0000-000000000002','Shift 2'),('b9500000-0000-0000-0000-000000000003','b9400000-0000-0000-0000-000000000001','Shift 2');
 INSERT INTO public.target_models(id,plant_id,nama)VALUES('b9600000-0000-0000-0000-000000000001','b9400000-0000-0000-0000-000000000001','Model A'),('b9600000-0000-0000-0000-000000000002','b9400000-0000-0000-0000-000000000001','Model B');
 INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,penanggung_jawab_qms,status)VALUES('b9700000-0000-0000-0000-000000000001',2026,'2026-01-01','B9-PLAN','B9 PJ QMS','Approved');
-INSERT INTO public.audit_team_masters(id,kode_tim,nama_tim,status,plan_id,is_locked,locked_at)VALUES('b9750000-0000-0000-0000-000000000001','B9-TEAM','B9 Team','Aktif','b9700000-0000-0000-0000-000000000001',true,now());
+INSERT INTO public.audit_team_masters(id,kode_tim,nama_tim,status,plan_id,is_locked)VALUES('b9750000-0000-0000-0000-000000000001','B9-TEAM','B9 Team','Aktif','b9700000-0000-0000-0000-000000000001',false);
 INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('b9750000-0000-0000-0000-000000000001','b9100000-0000-0000-0000-000000000001','Lead',1,true);
+UPDATE public.audit_team_masters SET is_locked=true,locked_at=now() WHERE id='b9750000-0000-0000-0000-000000000001';
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('b9800000-0000-0000-0000-000000000001','b9700000-0000-0000-0000-000000000001','Berkala',1,2026,'2026-01-01','Approved');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000001','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000002','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
