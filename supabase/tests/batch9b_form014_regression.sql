@@ -2,8 +2,8 @@
 -- Every fixture and mutation is transaction-local.
 BEGIN;
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(ok boolean,message text)RETURNS void LANGUAGE plpgsql AS $$BEGIN IF NOT COALESCE(ok,false)THEN RAISE EXCEPTION 'B9B ASSERT: %',message;END IF;END$$;
-CREATE OR REPLACE FUNCTION pg_temp.claim(id uuid)RETURNS void LANGUAGE plpgsql AS $BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);END$;
-CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $BEGIN PERFORM pg_temp.claim(id);PERFORM set_config('role','authenticated',true);END$;
+CREATE OR REPLACE FUNCTION pg_temp.claim(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);END$$;
+CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM pg_temp.claim(id);PERFORM set_config('role','authenticated',true);END$$;
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(sql_text text,needle text)RETURNS void LANGUAGE plpgsql AS $$BEGIN EXECUTE sql_text;RAISE EXCEPTION 'B9B ASSERT: expected error containing %',needle;EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'B9B ASSERT:%' THEN RAISE;END IF;IF position(needle in SQLERRM)=0 THEN RAISE EXCEPTION 'B9B ASSERT: expected %, got %',needle,SQLERRM;END IF;END$$;
 
 RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
