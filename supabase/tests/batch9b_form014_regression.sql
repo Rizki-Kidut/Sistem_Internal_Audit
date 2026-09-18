@@ -2,10 +2,11 @@
 -- Every fixture and mutation is transaction-local.
 BEGIN;
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(ok boolean,message text)RETURNS void LANGUAGE plpgsql AS $$BEGIN IF NOT COALESCE(ok,false)THEN RAISE EXCEPTION 'B9B ASSERT: %',message;END IF;END$$;
-CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);PERFORM set_config('role','authenticated',true);END$$;
+CREATE OR REPLACE FUNCTION pg_temp.claim(id uuid)RETURNS void LANGUAGE plpgsql AS $BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);END$;
+CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $BEGIN PERFORM pg_temp.claim(id);PERFORM set_config('role','authenticated',true);END$;
 CREATE OR REPLACE FUNCTION pg_temp.expect_error(sql_text text,needle text)RETURNS void LANGUAGE plpgsql AS $$BEGIN EXECUTE sql_text;RAISE EXCEPTION 'B9B ASSERT: expected error containing %',needle;EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'B9B ASSERT:%' THEN RAISE;END IF;IF position(needle in SQLERRM)=0 THEN RAISE EXCEPTION 'B9B ASSERT: expected %, got %',needle,SQLERRM;END IF;END$$;
 
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
 INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)VALUES
 ('00000000-0000-0000-0000-000000000000','b9000000-0000-0000-0000-000000000001','authenticated','authenticated','b9-admin@test.local','',now(),'{}','{}',now(),now()),
 ('00000000-0000-0000-0000-000000000000','b9000000-0000-0000-0000-000000000002','authenticated','authenticated','b9-lead@test.local','',now(),'{}','{}',now(),now()),
@@ -33,14 +34,14 @@ INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id
 ('ba000000-0000-0000-0000-000000000001','b9900000-0000-0000-0000-000000000001','QA-S1','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000001","tipe":"target"}]','Reguler','2026-09-18',false,1,'b9750000-0000-0000-0000-000000000001'),
 ('ba000000-0000-0000-0000-000000000002','b9900000-0000-0000-0000-000000000001','QA-S2','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000002","tipe":"terkait"}]','Reguler','2026-09-19',false,2,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000001','QA-S1','B9'),('ba000000-0000-0000-0000-000000000002','QA-S2','B9');
-SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000002','role','authenticated')::text,true);
+SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','',true);
 SELECT set_config('request.jwt.claims','{}',true);
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil,team_master_id)VALUES('ba000000-0000-0000-0000-000000000005','b9900000-0000-0000-0000-000000000002','QA-LEAD','b9300000-0000-0000-0000-000000000001','[]','Reguler','2026-09-20',false,1,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000005','QA-LEAD','B9 Lead');
-SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000002','role','authenticated')::text,true);
+SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
 SELECT set_config('certitrack.execution_completion','',true);
@@ -67,11 +68,11 @@ ALTER TABLE public.user_profiles DISABLE TRIGGER trg_protect_profile_identity_ma
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000002');
 CREATE TEMP TABLE b9_lead_result AS SELECT public.create_rangkuman_hasil_audit('b9900000-0000-0000-0000-000000000002','ChecklistSistem') report_id;
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id),'active Company Lead must create FORM-014');
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
 UPDATE public.user_profiles SET status='Nonaktif' WHERE id='b9000000-0000-0000-0000-000000000002';SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id)),'Company Lead Auditor aktif');
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);UPDATE public.user_profiles SET status='Aktif' WHERE id='b9000000-0000-0000-0000-000000000002';UPDATE public.auditors SET status='Nonaktif' WHERE id='b9100000-0000-0000-0000-000000000001';SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id)),'Company Lead Auditor aktif');
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);UPDATE public.auditors SET status='Aktif' WHERE id='b9100000-0000-0000-0000-000000000001';ALTER TABLE public.user_profiles DISABLE TRIGGER trg_protect_profile_identity_mapping;UPDATE public.user_profiles SET identity_type='ADMIN' WHERE id='b9000000-0000-0000-0000-000000000002';ALTER TABLE public.user_profiles ENABLE TRIGGER trg_protect_profile_identity_mapping;SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id)),'Company Lead Auditor aktif');
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);ALTER TABLE public.user_profiles DISABLE TRIGGER trg_protect_profile_identity_mapping;UPDATE public.user_profiles SET identity_type='AUDITOR' WHERE id='b9000000-0000-0000-0000-000000000002';ALTER TABLE public.user_profiles ENABLE TRIGGER trg_protect_profile_identity_mapping;
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);UPDATE public.user_profiles SET status='Aktif' WHERE id='b9000000-0000-0000-0000-000000000002';UPDATE public.auditors SET status='Nonaktif' WHERE id='b9100000-0000-0000-0000-000000000001';SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id)),'Company Lead Auditor aktif');
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);UPDATE public.auditors SET status='Aktif' WHERE id='b9100000-0000-0000-0000-000000000001';ALTER TABLE public.user_profiles DISABLE TRIGGER trg_protect_profile_identity_mapping;UPDATE public.user_profiles SET identity_type='ADMIN' WHERE id='b9000000-0000-0000-0000-000000000002';ALTER TABLE public.user_profiles ENABLE TRIGGER trg_protect_profile_identity_mapping;SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports r,b9_lead_result x WHERE r.id=x.report_id)),'Company Lead Auditor aktif');
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);ALTER TABLE public.user_profiles DISABLE TRIGGER trg_protect_profile_identity_mapping;UPDATE public.user_profiles SET identity_type='AUDITOR' WHERE id='b9000000-0000-0000-0000-000000000002';ALTER TABLE public.user_profiles ENABLE TRIGGER trg_protect_profile_identity_mapping;
 
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 CREATE TEMP TABLE b9_result AS SELECT public.create_rangkuman_hasil_audit('b9900000-0000-0000-0000-000000000001','ChecklistSistem') report_id;
@@ -92,17 +93,16 @@ SELECT pg_temp.expect_error(format('SELECT public.save_rangkuman_hasil_audit_dra
 SELECT pg_temp.expect_error(format('SELECT public.save_rangkuman_hasil_audit_draft(%L,NULL,%L,%L::jsonb)',(SELECT report_id FROM b9_result),'x','{}'),'FORM014_STALE_REVISION');
 
 -- Real fail-closed Product/Manufacturing context execution using persisted composite rows.
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);
-INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,team_master_id)VALUES
-('ba000000-0000-0000-0000-000000000003','b9900000-0000-0000-0000-000000000001','QA-P1','b9300000-0000-0000-0000-000000000001','AuditProduk','[{"plant_id":"b9400000-0000-0000-0000-000000000001","target_model_id":"b9600000-0000-0000-0000-000000000001"},{"plant_id":"b9400000-0000-0000-0000-000000000001","target_model_id":"b9600000-0000-0000-0000-000000000002"}]','[]','b9750000-0000-0000-0000-000000000001'),
-('ba000000-0000-0000-0000-000000000004','b9900000-0000-0000-0000-000000000001','QA-M1','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000001"}]','b9750000-0000-0000-0000-000000000001');
-UPDATE public.audit_instruction_rows SET tanggal_pelaksanaan_audit='2026-09-18',tanggal_audit_produk='2026-09-18' WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004');
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,tanggal_pelaksanaan_audit,tanggal_audit_produk,team_master_id)VALUES
+('ba000000-0000-0000-0000-000000000003','b9900000-0000-0000-0000-000000000001','QA-P1','b9300000-0000-0000-0000-000000000001','AuditProduk','[{"plant_id":"b9400000-0000-0000-0000-000000000001","target_model_id":"b9600000-0000-0000-0000-000000000001"},{"plant_id":"b9400000-0000-0000-0000-000000000001","target_model_id":"b9600000-0000-0000-0000-000000000002"}]','[]','2026-09-18','2026-09-18','b9750000-0000-0000-0000-000000000001'),
+('ba000000-0000-0000-0000-000000000004','b9900000-0000-0000-0000-000000000001','QA-M1','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000001"}]','2026-09-18',NULL,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil,team_master_id)VALUES
 ('ba000000-0000-0000-0000-000000000006','b9900000-0000-0000-0000-000000000001','QA-P2','b9300000-0000-0000-0000-000000000001','AuditProduk','[{"plant_id":"b9400000-0000-0000-0000-000000000002","target_model_id":"b9600000-0000-0000-0000-000000000001"}]','[]','2026-09-20','2026-09-20',false,4,'b9750000-0000-0000-0000-000000000001'),
 ('ba000000-0000-0000-0000-000000000007','b9900000-0000-0000-0000-000000000001','QA-M2','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000003"}]','2026-09-20',NULL,false,5,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklist_produk(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000003','QA-P1'),('ba000000-0000-0000-0000-000000000006','QA-P2');
 INSERT INTO public.checklist_manufaktur_shift(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000004','QA-M1'),('ba000000-0000-0000-0000-000000000007','QA-M2');
-SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000002','role','authenticated')::text,true);
+SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
 SELECT set_config('certitrack.execution_completion','',true);
@@ -112,8 +112,9 @@ CREATE TEMP TABLE b9_product AS SELECT public.create_rangkuman_hasil_audit('b990
 CREATE TEMP TABLE b9_mfg AS SELECT public.create_rangkuman_hasil_audit('b9900000-0000-0000-0000-000000000001','ChecklistManufakturShift') report_id;
 SELECT pg_temp.assert_true((SELECT count(*)=2 FROM public.rangkuman_hasil_audit_groups g,b9_product r WHERE g.report_id=r.report_id AND g.label_snapshot IN('Audit Produk Fact 1','Audit Produk Fact 2')),'Product generation must create isolated Plant groups');
 SELECT pg_temp.assert_true((SELECT count(*)=2 FROM public.rangkuman_hasil_audit_groups g,b9_mfg r WHERE g.report_id=r.report_id AND g.label_snapshot IN('Audit Manufaktur Shift 1 Fact 1','Audit Manufaktur Shift 2 Fact 1')),'Manufacturing generation must create isolated QA groups');
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
 CREATE TEMP TABLE b9_mfg_state AS SELECT public.form014_source_state(report_id) state FROM b9_mfg;
+SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000001');
 UPDATE public.audit_instruction_rows SET matriks_manufaktur_shift_marks=matriks_manufaktur_shift_marks||matriks_manufaktur_shift_marks WHERE id='ba000000-0000-0000-0000-000000000004';
 SELECT pg_temp.assert_true((SELECT state=public.form014_source_state((SELECT report_id FROM b9_mfg))FROM b9_mfg_state),'duplicate/reordered Manufacturing marks must normalize without false drift');
 SELECT pg_temp.assert_true((SELECT public.form014_validate_context(r,'ChecklistProduk')='Audit Produk Fact 1' FROM public.audit_instruction_rows r WHERE id='ba000000-0000-0000-0000-000000000003'),'same-Plant multi-model Product context must pass');
@@ -124,14 +125,14 @@ UPDATE public.audit_instruction_rows SET matriks_produk_marks='[{"plant_id":"mal
 SELECT pg_temp.expect_error($q$SELECT public.form014_validate_context(r,'ChecklistProduk')FROM public.audit_instruction_rows r WHERE id='ba000000-0000-0000-0000-000000000003'$q$,'konteks Plant tidak valid');
 
 -- Real completion, source-state and fiscal-year drift rejection.
-RESET ROLE; SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000002','role','authenticated')::text,true);
+RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id='ba000000-0000-0000-0000-000000000001';
 SELECT set_config('certitrack.execution_completion','',true);
 SELECT set_config('request.jwt.claims','{}',true);
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id)),'Status pelaksanaan audit berubah');
-RESET ROLE; SELECT set_config('request.jwt.claims',jsonb_build_object('sub','b9000000-0000-0000-0000-000000000002','role','authenticated')::text,true);
+RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
 SELECT set_config('certitrack.execution_completion','1',true);
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000001';
 SELECT set_config('certitrack.execution_completion','',true);
@@ -140,7 +141,7 @@ UPDATE public.audit_instructions SET tahun_fiskal=2027 WHERE id='b9900000-0000-0
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id)),'Data sumber FORM-014 berubah');
 -- Real valid Finalization and immutable report/children/RPC behavior.
-RESET ROLE; SELECT set_config('request.jwt.claims','{}',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
 UPDATE public.audit_instructions SET tahun_fiskal=2026 WHERE id='b9900000-0000-0000-0000-000000000001';
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT public.form014_refresh_population(report_id)FROM b9_result;
