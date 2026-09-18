@@ -25,18 +25,19 @@ INSERT INTO public.target_models(id,plant_id,nama)VALUES('b9600000-0000-0000-000
 INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,penanggung_jawab_qms,status)VALUES('b9700000-0000-0000-0000-000000000001',2026,'2026-01-01','B9-PLAN','B9 PJ QMS','Approved');
 INSERT INTO public.audit_team_masters(id,kode_tim,nama_tim,status,plan_id,is_locked)VALUES('b9750000-0000-0000-0000-000000000001','B9-TEAM','B9 Team','Aktif','b9700000-0000-0000-0000-000000000001',false);
 INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('b9750000-0000-0000-0000-000000000001','b9100000-0000-0000-0000-000000000001','Lead',1,true);
-UPDATE public.audit_team_masters SET is_locked=true,locked_at=now() WHERE id='b9750000-0000-0000-0000-000000000001';
+SELECT public.lock_audit_team_master('b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('b9800000-0000-0000-0000-000000000001','b9700000-0000-0000-0000-000000000001','Berkala',1,2026,'2026-01-01','Approved');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000001','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('b9900000-0000-0000-0000-000000000002','b9800000-0000-0000-0000-000000000001',2026,'Selesai');
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES
 ('ba000000-0000-0000-0000-000000000001','b9900000-0000-0000-0000-000000000001','QA-S1','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000001","tipe":"target"}]','Reguler','2026-09-18',false,1),
 ('ba000000-0000-0000-0000-000000000002','b9900000-0000-0000-0000-000000000001','QA-S2','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000002","tipe":"terkait"}]','Reguler','2026-09-19',false,2);
-UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000001','b9750000-0000-0000-0000-000000000001',NULL);
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000002','b9750000-0000-0000-0000-000000000001',NULL);
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000001','QA-S1','B9'),('ba000000-0000-0000-0000-000000000002','QA-S2','B9');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES('ba000000-0000-0000-0000-000000000005','b9900000-0000-0000-0000-000000000002','QA-LEAD','b9300000-0000-0000-0000-000000000001','[]','Reguler','2026-09-20',false,1);
-UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id='ba000000-0000-0000-0000-000000000005';
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000005','b9750000-0000-0000-0000-000000000001',NULL);
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000005','QA-LEAD','B9 Lead');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
 INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)VALUES
@@ -92,7 +93,10 @@ UPDATE public.audit_instruction_rows SET tanggal_pelaksanaan_audit='2026-09-18',
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,matriks_produk_marks,matriks_manufaktur_shift_marks,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil)VALUES
 ('ba000000-0000-0000-0000-000000000006','b9900000-0000-0000-0000-000000000001','QA-P2','b9300000-0000-0000-0000-000000000001','AuditProduk','[{"plant_id":"b9400000-0000-0000-0000-000000000002","target_model_id":"b9600000-0000-0000-0000-000000000001"}]','[]','2026-09-20','2026-09-20',false,4),
 ('ba000000-0000-0000-0000-000000000007','b9900000-0000-0000-0000-000000000001','QA-M2','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000003"}]','2026-09-20',NULL,false,5);
-UPDATE public.audit_instruction_rows SET team_master_id='b9750000-0000-0000-0000-000000000001' WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000003','b9750000-0000-0000-0000-000000000001',NULL);
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000004','b9750000-0000-0000-0000-000000000001',NULL);
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000006','b9750000-0000-0000-0000-000000000001',NULL);
+SELECT public.assign_team_to_instruction_row('ba000000-0000-0000-0000-000000000007','b9750000-0000-0000-0000-000000000001',NULL);
 INSERT INTO public.checklist_produk(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000003','QA-P1'),('ba000000-0000-0000-0000-000000000006','QA-P2');
 INSERT INTO public.checklist_manufaktur_shift(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000004','QA-M1'),('ba000000-0000-0000-0000-000000000007','QA-M2');
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
