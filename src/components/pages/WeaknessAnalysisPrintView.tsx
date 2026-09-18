@@ -170,10 +170,11 @@ export function WeaknessAnalysisPrintView({
 
 function toChart(value: WeaknessItem) {
   const classification: Record<string, unknown> = value.classification ?? {};
+  const frozen = value.final_process_name !== null;
   return {
-    process: value.process,
-    category: String(value.finding.kategori) as 'A' | 'B' | 'C',
-    reference: (value.finding.reference as string | null) ?? null,
+    process: frozen ? value.final_process_name ?? '-' : value.process,
+    category: String(frozen ? value.final_category : value.finding.kategori) as 'A' | 'B' | 'C',
+    reference: frozen ? value.final_reference : ((value.finding.reference as string | null) ?? null),
     approved_4m1e: (value.final_4m1e ?? classification.approved_4m1e ?? null) as string | null,
     approved_dis: (value.final_dis ?? classification.approved_dis ?? null) as string | null,
     approved_problem_type: (value.final_problem_type ?? classification.approved_problem_type ?? null) as string | null,
