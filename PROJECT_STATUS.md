@@ -2880,3 +2880,33 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   time zones; `npm run typecheck`; `npm run build`; and `git diff --check`. Build retained only the
   existing outdated Browserslist and >500 kB chunk advisories. Targeted ESLint was not applicable
   because no TS/TSX file changed. Chrome Print Preview remains the page-count authority.
+
+
+## Batch 9a — Final chart-input snapshot hardening — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; pre-merge blocker correction on open/unmerged PR #27.
+
+- Added exactly one additive migration:
+  `supabase/migrations/20260918094500_snapshot_form010_chart_inputs.sql`.
+  Previously applied Batch 9a migrations remain byte-for-byte untouched.
+- Added Final-only snapshot fields on `weakness_analysis_report_items`:
+  `final_process_name`, `final_category`, and `final_reference`.
+  Together with the existing `final_4m1e`, `final_dis`, and `final_problem_type`,
+  all five FORM-010 chart inputs are now frozen at Finalization.
+- `finalize_weakness_analysis` snapshots Process display name, Finding A/B/C category,
+  Finding reference/clause, and the three approved classification taxonomies in the same
+  transaction immediately before the report becomes Final.
+- Draft reports continue to use current live source data. New Final reports prefer the frozen
+  chart fields. Existing Final reports created before this migration retain NULL values in the
+  new fields and use the intentional legacy live-data fallback; no immutable historical Final
+  row is rewritten or bypassed.
+- Screen Analysis and printed FORM-010 now use the snapshot marker
+  `final_process_name IS NOT NULL` to distinguish new frozen Final items from Draft/legacy items,
+  allowing a legitimately NULL `final_reference` to remain frozen as NULL rather than falling
+  back to later live data.
+- Staging migration application succeeded. The existing rollback-only FORM-010 audit-type suite
+  passed all 32 grouped checks after migration application.
+- Regression tests were extended to require Process/category/reference plus 4M1E/DIS/problem-type
+  snapshots and immutable Final report items.
+- No authorization, RLS, AI/ZDR behavior, audit-type population semantics, page geometry,
+  chart presentation, package dependency, or nested `/project` scope was changed.
