@@ -2,90 +2,134 @@
 
 ## Status
 
-Batch 9b implementation is intentionally **blocked before code/schema implementation** because the current repository cannot deterministically assign Product and Manufacturing Findings to one FORM-014 page group when an Instruction row contains multiple matrix marks.
+Batch 9b implementation remains intentionally **blocked before code/schema implementation**, but only for **Audit Produk**.
 
-This document records the blocker discovered during implementation review so the branch can be reviewed through a PR without introducing speculative schema or incorrect report behavior.
+The previous Manufacturing blocker is resolved by the clarified business rule:
 
-## Confirmed conflict
+> One Manufacturing `audit_instruction_row` / QA number is the authoritative execution-context boundary and represents exactly one Plant + one Shift.
 
-An `audit_instruction_rows` row can contain multiple values in:
+No speculative FORM-014 feature implementation has been added while the Product grouping rule remains unresolved.
 
-- `matriks_produk_marks` — multiple Plant / Target Model pairs
-- `matriks_manufaktur_shift_marks` — multiple Plant / Shift pairs
+## Manufacturing — resolved
 
-The Instruction UI permits multiple selections.
+For Audit Manufaktur:
 
-A formal Finding currently stores only the source linkage needed to reach the Instruction/checklist context, including:
+- one `audit_instruction_rows.id` = one Manufacturing QA execution context;
+- `kode_audit` is the QA identity;
+- that QA has its own checklist and Finding population;
+- the row must resolve to exactly one deduplicated Plant + Shift pair;
+- Findings belong to that QA through `findings.instruction_row_id`;
+- no Plant/Shift fields need to be added to `findings` solely for FORM-014.
 
-- `instruction_row_id`
-- `source_type`
-- `source_item_id`
+FORM-014 Manufacturing grouping therefore uses:
 
-It does **not** persist an authoritative page-group context such as:
+`Finding → instruction_row_id → exact Manufacturing QA row → Plant + Shift context`.
 
-- Product `plant_id`
-- Manufacturing `plant_id + shift_id`
-- normalized matrix-mark identity
-- execution-instance identity that resolves to one Plant / Shift or Plant
+Display label:
 
-The current Product and Manufacturing Finding source paths ultimately resolve to the checklist / Instruction row, but not to one specific matrix mark.
+`Audit Manufaktur {Shift} {Plant}`
 
-Therefore, if one Instruction row contains multiple unique Product Plants or multiple unique Manufacturing Plant/Shift pairs, FORM-014 cannot determine which page group owns each Finding without either guessing or duplicating Findings.
+Example:
 
-Both behaviors are prohibited by the Batch 9b design.
+- QA 24 → Shift 1 + Fact 2 → `Audit Manufaktur Shift 1 Fact 2`
+- QA 26 → Shift 2 + Fact 2 → `Audit Manufaktur Shift 2 Fact 2`
 
-## Required FORM-014 behavior
+If one Manufacturing QA row unexpectedly resolves to zero or multiple unique Plant/Shift pairs, that QA is invalid for deterministic FORM-014 grouping and must be blocked with a clear validation error. Do not guess, choose the first mark, or duplicate Findings.
 
-The planned FORM-014 design remains:
+### Manufacturing ZERO FINDING rule
 
-- one report = one Audit Instruction / audit round + one audit type
-- Audit Sistem, Audit Manufaktur, and Audit Produk remain isolated
-- System page groups use `proses.nama_proses`
-- Manufacturing labels use `Audit Manufaktur {Shift} {Plant}`
-- Product labels use `Audit Produk {Plant}`
-- no Finding may be duplicated across ambiguous matrix groups
-- no arbitrary "first" Plant / Shift may be chosen
+A completed Manufacturing QA must remain represented even when it has no formal Findings.
 
-## Safest resolution options
+If:
 
-### Option 1 — add authoritative execution context upstream
+- the QA row is represented by the selected Manufacturing report scope;
+- `audit_instruction_rows.cek_selesai = true`; and
+- formal Finding count is zero;
 
-Persist the executed matrix context on the source execution/checklist path so a Finding can inherit it through its existing source linkage.
+then FORM-014 must explicitly show:
 
-Required minimum context:
+`ZERO FINDING`
 
-- Manufacturing: one authoritative `plant_id + shift_id`
-- Product: one authoritative `plant_id`
+Formal Finding population remains:
 
-This keeps report-specific semantics out of `findings`.
+`review_status IN ('PUBLISHED','LEGACY_ESTABLISHED')`
 
-### Option 2 — restrict one Instruction row to one unique execution context
+A QA with `cek_selesai = false` must never be presented as ZERO FINDING and must block Finalization.
 
-Allow only one Product Plant or one Manufacturing Plant/Shift pair per applicable Instruction row before execution.
+## Product — remaining blocker
 
-This is simpler but changes current Instruction semantics and may conflict with historical multi-mark rows.
+The repository does not currently establish the equivalent invariant:
 
-### Option 3 — normalize execution instances per matrix mark
+> one Product QA / `audit_instruction_row` = one Plant
 
-Keep planning rows multi-mark, but create separate execution/checklist instances for each matrix context.
+An `audit_instruction_rows` Product row can structurally contain multiple entries in:
 
-Each execution instance owns exactly one:
+`matriks_produk_marks = [{ plant_id, target_model_id }, ...]`
 
-- Manufacturing Plant/Shift pair, or
-- Product Plant
+The active Instruction UI permits multiple Product marks.
 
-Findings then inherit deterministic grouping through their source item / execution instance.
+The Product execution path currently has:
 
-This is the strongest normalized model but requires the widest upstream change.
+- one Product checklist related through `checklist_produk.row_id`;
+- Product phases/items without an authoritative `plant_id`;
+- Findings related to the Instruction/source item but without a Product Plant execution context.
 
-## Recommendation
+Therefore, for a Product QA whose matrix marks contain multiple unique Plants, FORM-014 cannot deterministically choose the required label:
 
-Prefer **Option 1 or Option 3**, with normalized execution context upstream.
+`Audit Produk {Plant}`
 
-Do not implement FORM-014 grouping by guessing, taking the first matrix mark, or duplicating one Finding into every matrix page.
+without either:
+
+- arbitrarily selecting one Plant; or
+- duplicating Findings across Plant pages.
+
+Both behaviors are prohibited.
+
+## Decision required for Product
+
+### Option A — business invariant: one Product QA = one unique Plant
+
+If actual Product audit operations guarantee that every Product QA represents exactly one Plant, FORM-014 can use the same QA-boundary principle as Manufacturing:
+
+- one Product `audit_instruction_row` = one Product page group;
+- Findings belong through `instruction_row_id`;
+- the row must resolve to exactly one unique Plant;
+- historical rows with multiple Plants become a clear data-validation blocker;
+- Product label becomes `Audit Produk {Plant}`.
+
+### Option B — one Product QA may genuinely cover multiple Plants
+
+If a Product QA may legitimately represent multiple Plants, an authoritative Product execution-context relationship must be added upstream before FORM-014 Product grouping can be implemented.
+
+Do not add report-only guesswork to Findings.
+
+## FORM-014 rules already confirmed
+
+The eventual Batch 9b implementation must preserve these confirmed rules:
+
+- one FORM-014 = one Audit Instruction / audit round + one audit type;
+- Audit Sistem, Audit Manufaktur, and Audit Produk are isolated;
+- Temuan uses the authoritative Finding/PLOR through the existing `formatFindingNarrative()`;
+- Verifikasi uses only the latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`;
+- Temporary target = latest TEMPORARY action due date;
+- Permanent target = latest CORRECTIVE/PREVENTIVE due date;
+- LTP `CLOSED` maps to Close; all other states map to Open;
+- completed represented QA with zero formal Findings is explicitly shown as `ZERO FINDING`;
+- one global Rangkuman Temuan appears only on physical page 1;
+- Catatan content appears only on physical page 1;
+- approval names appear only on physical page 1;
+- all later pages use the diagonal approval-body slash;
+- each QA/process group starts on a new physical page;
+- document code is `Q-120-ISE-001-FORM-014-REV.1`;
+- sidebar location is Pelaksanaan Internal Audit → Rangkuman Hasil Audit;
+- Final reports are immutable historical snapshots.
 
 ## Implementation state
 
-No Batch 9b feature code, migration, or hosted database mutation has been applied as part of this blocker analysis.
+No Batch 9b feature code or migration has been implemented yet.
 
-The next implementation step must start only after the authoritative Product/Manufacturing execution-context model is selected.
+No Staging or Production database mutation has been performed for Batch 9b.
+
+Nested `/project` and historical migrations remain untouched.
+
+Implementation should resume after the Product QA grouping invariant is confirmed.
