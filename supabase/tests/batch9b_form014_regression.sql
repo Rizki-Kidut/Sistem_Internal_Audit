@@ -35,25 +35,28 @@ INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id
 ('ba000000-0000-0000-0000-000000000001','b9900000-0000-0000-0000-000000000001','QA-S1','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000001","tipe":"target"}]','Reguler','2026-09-18',false,1,'b9750000-0000-0000-0000-000000000001'),
 ('ba000000-0000-0000-0000-000000000002','b9900000-0000-0000-0000-000000000001','QA-S2','b9300000-0000-0000-0000-000000000001','[{"seksi_id":"b9200000-0000-0000-0000-000000000002","tipe":"terkait"}]','Reguler','2026-09-19',false,2,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000001','QA-S1','B9'),('ba000000-0000-0000-0000-000000000002','QA-S2','B9');
-SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','1',true);
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','',true);
-SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
 INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,seksi_marks,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil,team_master_id)VALUES('ba000000-0000-0000-0000-000000000005','b9900000-0000-0000-0000-000000000002','QA-LEAD','b9300000-0000-0000-0000-000000000001','[]','Reguler','2026-09-20',false,1,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklists(row_id,kode_audit,judul_checklist)VALUES('ba000000-0000-0000-0000-000000000005','QA-LEAD','B9 Lead');
-SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','1',true);
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
-SELECT set_config('certitrack.execution_completion','',true);
-SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
 ALTER TABLE public.findings DISABLE TRIGGER trg_prepare_draft_finding_insert;
 INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)VALUES
 ('bb000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000001','QA-S1','B9/SYS/001',1,'ChecklistSistem','bc000000-0000-0000-0000-000000000001','A','Problem A','Lokasi A','Bukti A','ISO 1','2026-09-18','PUBLISHED'),
 ('bb000000-0000-0000-0000-000000000002','ba000000-0000-0000-0000-000000000002','QA-S2','B9/SYS/002',1,'ChecklistSistem','bc000000-0000-0000-0000-000000000002','B','Problem B','Lokasi B','Bukti B','ISO 2','2026-09-19','LEGACY_ESTABLISHED'),
 ('bb000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000001','QA-S1',NULL,2,'ChecklistSistem','bc000000-0000-0000-0000-000000000003','A',NULL,NULL,NULL,NULL,'2026-09-18','DRAFT'),
 ('bb000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000001','QA-S1','B9/MFG/001',3,'ChecklistManufakturShift','bc000000-0000-0000-0000-000000000004','A','MFG','MFG','MFG','MFG','2026-09-18','PUBLISHED');
-UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000001','ba000000-0000-0000-0000-000000000002');
 ALTER TABLE public.findings ENABLE TRIGGER trg_prepare_draft_finding_insert;
 
 -- Authoritative Lead semantics: active AUDITOR succeeds; inactive profile/master and non-AUDITOR fail.
@@ -144,12 +147,13 @@ INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id
 ('ba000000-0000-0000-0000-000000000007','b9900000-0000-0000-0000-000000000001','QA-M2','b9300000-0000-0000-0000-000000000001','AuditManufaktur','[]','[{"plant_id":"b9400000-0000-0000-0000-000000000001","shift_id":"b9500000-0000-0000-0000-000000000003"}]','2026-09-20',NULL,false,5,'b9750000-0000-0000-0000-000000000001');
 INSERT INTO public.checklist_produk(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000003','QA-P1'),('ba000000-0000-0000-0000-000000000006','QA-P2');
 INSERT INTO public.checklist_manufaktur_shift(row_id,kode_audit)VALUES('ba000000-0000-0000-0000-000000000004','QA-M1'),('ba000000-0000-0000-0000-000000000007','QA-M2');
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
-SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','1',true);
-UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('ba000000-0000-0000-0000-000000000003','ba000000-0000-0000-0000-000000000004','ba000000-0000-0000-0000-000000000006','ba000000-0000-0000-0000-000000000007');
-SELECT set_config('certitrack.execution_completion','',true);
-SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 CREATE TEMP TABLE b9_product AS SELECT public.create_rangkuman_hasil_audit('b9900000-0000-0000-0000-000000000001','ChecklistProduk') report_id;
 CREATE TEMP TABLE b9_mfg AS SELECT public.create_rangkuman_hasil_audit('b9900000-0000-0000-0000-000000000001','ChecklistManufakturShift') report_id;
@@ -168,18 +172,24 @@ UPDATE public.audit_instruction_rows SET matriks_produk_marks='[{"plant_id":"mal
 SELECT pg_temp.expect_error($q$SELECT public.form014_validate_context(r,'ChecklistProduk')FROM public.audit_instruction_rows r WHERE id='ba000000-0000-0000-0000-000000000003'$q$,'konteks Plant tidak valid');
 
 -- Real completion, source-state and fiscal-year drift rejection.
-RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','1',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=false WHERE id='ba000000-0000-0000-0000-000000000005';
-SELECT set_config('certitrack.execution_completion','',true);
-SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_lead_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_lead_result r WHERE x.id=r.report_id)),'Status pelaksanaan audit berubah');
-RESET ROLE; SELECT pg_temp.claim('b9000000-0000-0000-0000-000000000002');
-SELECT set_config('certitrack.execution_completion','1',true);
+RESET ROLE; SELECT set_config('request.jwt.claim.sub','',true); SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id='ba000000-0000-0000-0000-000000000005';
-SELECT set_config('certitrack.execution_completion','',true);
-SELECT set_config('request.jwt.claims','{}',true);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
 UPDATE public.audit_instructions SET tahun_fiskal=2027 WHERE id='b9900000-0000-0000-0000-000000000001';
 SELECT pg_temp.actor('b9000000-0000-0000-0000-000000000001');
 SELECT pg_temp.expect_error(format('SELECT public.finalize_rangkuman_hasil_audit(%L,%s)',(SELECT report_id FROM b9_result),(SELECT revision_version FROM public.rangkuman_hasil_audit_reports x,b9_result r WHERE x.id=r.report_id)),'Data sumber FORM-014 berubah');
