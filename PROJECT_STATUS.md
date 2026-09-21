@@ -2984,3 +2984,46 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - CertiTrack-Staging currently has no persistent linked user with `is_lead_auditor=true`. Real-data Finalization therefore requires Company Lead Auditor configuration before UI acceptance; the rollback suite verifies Finalization with a transaction-local valid Lead fixture.
 - Vercel deployment for PR #29 is Ready, but authenticated Chrome/Vercel A3 Preview/Print acceptance is still pending because this environment cannot open the authenticated Preview interactively.
 - Before merge, manually verify System/Manufacturing/Product pages, ZERO FINDING, short/medium/very-long narratives, continuation pages, page-1-only summary/Catatan/signatories, page-2+ approval diagonal, and A3 page count/geometry.
+
+
+## Batch 9b — FORM-014 final Staging/UAT closeout — 21 Sep 2026
+
+**Status:** `STAGING_UAT_VERIFIED — PRE-MERGE REVIEW COMPLETE; MERGE REQUIRES EXPLICIT APPROVAL`.
+
+- PR #29 remains open and unmerged. Authoritative reviewed head before this documentation closeout was
+  `75c318660b9b725e43b2dad10e4d7fdb55093f38`. Production remains untouched.
+- FORM-014 controlled output is **A4 landscape**, superseding the earlier A3 pre-Staging notes. The accepted
+  screen and Chrome Print Preview layout uses the 11-column controlled table, adaptive Excel-style filler
+  rows, compact header/footer typography, and normal-cell ZERO FINDING rendering with `ZERO FINDING`
+  only in the Temuan column.
+- Real Staging browser/UAT acceptance passed for:
+  - System report with two established Closed Findings;
+  - Product completed ZERO FINDING context;
+  - Manufacturing report with one established Closed Finding and authoritative Plant + Shift context;
+  - very-long Finding narratives / continuation pages using the isolated `QA-9911`
+    `FORM-014 Pagination UAT` fixture;
+  - screen versus Print Preview A4 geometry and continuation-shell behavior.
+- Real Finalization UAT passed on Manufacturing report
+  `281f7c04-905a-47df-a209-d2acaf162ce1`: status became `Final`, revision advanced to 4,
+  Company Lead snapshot is `Company Lead Auditor`, PJ-QMS snapshot is `B6B Smoke QMS`, and the
+  Finding/LTP target, verification, and `CLOSED` snapshots were frozen.
+- Final immutability was re-verified after the browser action: Regenerate, Save Draft, and direct Final-child
+  UPDATE were rejected by the authoritative guards.
+- The full Batch 9b SQL regression was re-run against Staging in a rollback-only transaction and passed.
+  Because Staging now has a persistent real Company Lead, the regression temporarily cleared that Lead flag
+  **inside the same rollback-only transaction** so its synthetic Lead fixture could satisfy the existing
+  single-Lead unique constraint. Post-test verification confirmed the real Company Lead remained active and
+  zero regression `b9...` fixtures persisted.
+- Current persistent Staging UAT data is intentionally **not** zero: the accepted System/Product/
+  Manufacturing reports, the configured Company Lead, the Product/Manufacturing execution-context fixtures,
+  and `QA-9911` pagination fixture are retained until Batch 9b closeout/cleanup. This supersedes the earlier
+  post-regression statement that referred only to transaction-local synthetic regression fixtures.
+- Vercel was SUCCESS on implementation head
+  `75c318660b9b725e43b2dad10e4d7fdb55093f38`. No unresolved GitHub review threads were present during
+  pre-merge review.
+- Known project-wide Supabase advisor warnings remain: authenticated-executable, internally guarded
+  `SECURITY DEFINER` RPCs and several unindexed foreign keys/performance advisories. The private
+  `form014_active_company_lead_auditor()` helper remains non-executable by normal authenticated users;
+  Batch 9b authorization/runtime regression passed.
+- Staging migration-ledger timestamps differ from repository migration filenames, consistent with the
+  existing project-wide MCP migration-application history. Do not attempt a Batch-9b-only ledger rewrite.
