@@ -18,6 +18,7 @@ export type PageId =
   | 'ketidaksesuaian'
   | 'laporan'
   | 'analisa'
+  | 'rangkuman-hasil'
   | 'seksi'
   | 'proses'
   | 'bank-checklist'
@@ -52,6 +53,7 @@ const navItems: NavItem[] = [
   { id: 'ketidaksesuaian', label: 'Daftar Ketidaksesuaian', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'laporan', label: 'Laporan Internal Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
   { id: 'analisa', label: 'Analisa Weakness Point', icon: <BarChart3 size={18} />, group: 'Pelaksanaan Internal Audit' },
+  { id: 'rangkuman-hasil', label: 'Rangkuman Hasil Audit', icon: <FileText size={18} />, group: 'Pelaksanaan Internal Audit' },
 
   // Master data
   { id: 'seksi', label: 'Kelola Seksi', icon: <Settings size={18} />, group: 'Master Data' },

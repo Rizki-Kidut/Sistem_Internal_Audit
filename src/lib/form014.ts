@@ -1,0 +1,6 @@
+const DATE_PARTS = new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+const JAKARTA_DATE = new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jakarta'});
+export function formatForm014DateOnly(value:string|null|undefined):string{return value?DATE_PARTS.format(new Date(`${value.slice(0,10)}T00:00:00Z`)):'-';}
+export function formatForm014TimestampDate(value:string|null|undefined):string{return value?JAKARTA_DATE.format(new Date(value)):'-';}
+function parts(value:string){const [year,month,day]=value.slice(0,10).split('-').map(Number);return{year,month,day,monthName:new Intl.DateTimeFormat('id-ID',{month:'long',timeZone:'UTC'}).format(new Date(Date.UTC(year,month-1,day)))}}
+export function formatForm014AuditRange(start:string|null|undefined,end:string|null|undefined):string{if(!start)return '-';if(!end||start.slice(0,10)===end.slice(0,10))return formatForm014DateOnly(start);const a=parts(start),b=parts(end);if(a.year===b.year&&a.month===b.month)return`${a.day} - ${b.day} ${b.monthName} ${b.year}`;if(a.year===b.year)return`${a.day} ${a.monthName} - ${b.day} ${b.monthName} ${b.year}`;return`${a.day} ${a.monthName} ${a.year} - ${b.day} ${b.monthName} ${b.year}`;}

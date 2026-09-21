@@ -2910,3 +2910,120 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   snapshots and immutable Final report items.
 - No authorization, RLS, AI/ZDR behavior, audit-type population semantics, page geometry,
   chart presentation, package dependency, or nested `/project` scope was changed.
+
+## Batch 9b — Rangkuman Hasil Internal Audit (FORM-014) — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED` on local base `bcc96bfb6d2a9cd1f68cc3c12ee7db13cba04d3f`; remote PR #28 content was unavailable in this checkout.
+
+- Added additive migration `20260918120000_create_batch9b_form014.sql`: report/group/group-row/item records, canonical Instruction + Audit Type uniqueness, guarded Admin/Company Lead Auditor RPCs, exact formal Finding population, QA-bound Manufacturing/Product validation, System process grouping, Draft regeneration preserving Keterangan/Catatan, optimistic revision checks, Final source snapshots, final immutability, and read-only capability-scoped RLS.
+- Added the authorized `Rangkuman Hasil Audit` navigation immediately after Analisa Weakness Point and a service-backed Indonesian workspace for Generate, Regenerate, Draft editing, Finalization, preview, and browser printing.
+- FORM-014 consumes Finding PLOR through the shared `formatFindingNarrative()` helper. LTP uses canonical `cars.finding_id`, maximum Temporary and Corrective/Preventive due dates, latest `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`, and Closed/Open rendering; missing CAR retains the Finding as Open.
+- System groups use process identity. Manufacturing uses one QA = one Plant + Shift. Product uses one QA = one Plant. Invalid matrix contexts block rather than guess or duplicate. Completed empty contexts print `ZERO FINDING`; incomplete contexts never claim zero Finding and block Final.
+- Explicit A3 landscape pages use a conservative deterministic narrative-length heuristic (not DOM measurement), keep each next group on a fresh page, and repeat the full shell. Only physical page 1 renders the global report-wide summary, Catatan, and approval names; later pages retain roles and use a CSS diagonal approval-body line.
+- Staging migration, rollback SQL regression, and real-browser/print acceptance remain required. The local environment had no Git remote or Staging credentials, so no hosted system was modified.
+
+### Batch 9b pre-Staging correction — 18 Sep 2026
+
+- Process Owner and target/related Section displays are now derived, deduplicated, deterministically ordered, and refreshed from structured master relations. Finalization compares a null-safe authoritative source-state snapshot covering membership, process/context labels, completion, owners, Sections, and effective dates before freezing the report.
+- Draft CAR loading now follows Finding → `cars.finding_id` in batched queries; Draft signatories resolve through a guarded read RPC; Finding order is ranked once across every represented row in a group.
+- Pagination remains a conservative deterministic narrative-length heuristic with CSS row-break protection and no clipping; real DOM measurement is not claimed. Short/medium/very-long browser print acceptance remains required.
+- Added rollback-safe pre-Staging SQL contract/regression file `supabase/tests/batch9b_form014_regression.sql`. Static validation is separate from database/runtime validation. The migration and SQL suite remain unapplied/unexecuted on Staging by instruction.
+
+### Batch 9b correction pass 2 — 18 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — PRE-STAGING CORRECTIONS COMPLETE` after static validation; hosted migration/runtime/browser verification remains pending.
+
+- Optimistic revision checks now use `IS DISTINCT FROM`, including fail-closed NULL rejection. Final UI confirms, saves current Catatan/Keterangan first, finalizes with the returned revision, prevents repeat submission, and reloads after success or partial save/finalize failure.
+- Manufacturing context validation now checks every raw deduplicated Plant/Shift pair, valid UUID/master rows, and Shift ownership by the selected Plant. Product checks every raw Plant mark while allowing multiple Target Models under one valid Plant.
+- Source state now includes authoritative Fiscal Year and normalized Product/Manufacturing context. Regeneration refreshes Draft FY; Finalization never refreshes its snapshot and rejects null-safe source drift.
+- DATE fields and verification timestamptz use separate formatters; verification uses explicit `Asia/Jakarta`. TGL AUDIT uses the compact controlled Indonesian range format.
+- Page-2+ approval geometry now separates role headers from the body and draws a true bottom-left-to-top-right CSS gradient line. Print CSS resets application shell pressure, hides navigation, keeps overflow visible, and uses buffered A3 dimensions.
+- `supabase/tests/batch9b_form014_regression.sql` now creates rollback-only identities and domain fixtures and executes real authorization, identity, grouping, zero-Finding, optimistic revision, fail-closed context, completion, and FY-drift paths. It remains intentionally unexecuted until the migration is approved for an isolated database.
+- Pagination remains a conservative deterministic heuristic; Chrome A3 visual acceptance with short, medium, and very long narratives is still required. No hosted Staging or Production mutation occurred.
+
+### Batch 9b correction pass 3 — 18 Sep 2026
+
+**Status remains:** `IMPLEMENTED_UNVERIFIED — PRE-STAGING CORRECTIONS COMPLETE`.
+
+- Draft preview and Finalization now share private `form014_active_company_lead_auditor()`, matching the global capability semantics: linked Lead, active profile, `identity_type='AUDITOR'`, and active Auditor master. The regression fixture exercises valid Lead creation plus inactive profile, inactive Auditor master, and non-Auditor linked-profile Final blockers.
+- Manufacturing source-state comparison now stores a deduplicated, deterministically Plant/Shift-sorted context instead of raw JSON order. Product unique Plants remain deterministically sorted. A rollback fixture asserts duplicate/reordered equivalent Manufacturing marks do not create false drift.
+- The rollback SQL suite now uses explicit `RESET ROLE` boundaries around privileged fixture mutations, exercises active Lead RPC success, real formal/non-formal and cross-type Finding filtering, and actual Product/Manufacturing report generation with distinct zero-Finding groups.
+- The suite is still not exhaustive for every requested mutation: Keterangan add/remove-transfer, multi-action LTP snapshots, the full individual source-drift matrix, every Final child operation, and post-Final upstream snapshot-stability mutations remain for the hosted pre-merge regression expansion. No claim of full runtime coverage is made.
+- Static checks pass locally. The unapplied migration and regression SQL could not be parsed/executed locally because PostgreSQL/Supabase CLI is unavailable. Hosted Staging and Production remain untouched; Chrome A3 acceptance remains pending.
+
+
+### Batch 9b Staging database verification — 18 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED — BROWSER_ACCEPTANCE_PENDING`.
+
+- Batch 9b FORM-014 is applied to **CertiTrack-Staging only**. Production remains untouched.
+- Staging already contained an earlier Batch 9b schema state before this verification. Because all FORM-014 report/group/group-row/item tables were empty, Staging was reconciled to the exact PR implementation and then hardened only through additive follow-up migrations. The applied base migration is now treated as immutable.
+- Current Staging Batch 9b ledger entries are:
+  - `20260918103925 create_batch9b_form014`
+  - `20260918104838 fix_batch9b_form014_final_trigger_dispatch`
+  - `20260918105641 harden_batch9b_form014_private_helper`
+  - `20260918110736 create_batch9b_form014` (Staging reconciliation)
+  - `20260918110931 harden_batch9b_form014_lead_resolver`
+  - `20260918111158 fix_batch9b_form014_final_trigger_dispatch_v2`
+- Repository follow-up migration files use unique versions and preserve the applied base migration:
+  - `20260918174500_fix_batch9b_form014_final_trigger_dispatch.sql`
+  - `20260918175000_harden_batch9b_form014_lead_resolver.sql`
+  - `20260918175500_fix_batch9b_form014_final_trigger_dispatch.sql`
+  - `20260918181500_harden_batch9b_form014_private_helper.sql`
+- The first Staging runtime smoke exposed a real Final-child INSERT trigger dispatch bug (`NEW.group_id` referenced for the wrong trigger table). The correction was delivered additively; the original applied migration was not edited.
+- Privilege verification also exposed the project default function ACL granting direct `authenticated` execution to the private Company Lead resolver. Follow-up hardening now makes `form014_active_company_lead_auditor()` non-executable by `authenticated` while keeping the guarded public FORM-014 RPCs callable.
+- `supabase/tests/batch9b_form014_regression.sql` was corrected so fixture completion does not conflict with unrelated audit-execution workflow guards, then executed successfully on Staging inside a transaction ending with `ROLLBACK`.
+- The successful rollback suite covers real Admin/Company Lead authorization, denial of ordinary identities, formal Finding filtering, System/Manufacturing/Product grouping, ZERO FINDING representation, fail-closed revision checks, Plant/Shift validation, normalized source-state comparison, completion/FY drift rejection, Keterangan preservation, LTP target/verification snapshots, Final child immutability, and post-Final frozen snapshot stability.
+- Additional transaction-local smoke checks independently passed:
+  - System Generate → Save Draft → Final with frozen Lead/PJ-QMS snapshots.
+  - Product one-QA-one-Plant and Manufacturing one-QA-one-Plant+Shift grouping.
+  - completed zero-Finding Product/Manufacturing groups remain represented.
+- Post-regression verification confirmed **0** FORM-014 report rows and **0** synthetic Batch 9b profile/row/Finding/Plant fixtures remain.
+- Current privilege check: private Lead helper = not executable by `authenticated`; guarded create RPC = executable; direct authenticated report INSERT and item UPDATE = denied.
+- Supabase Security Advisor still reports the project-wide generic warning for intentionally exposed guarded `SECURITY DEFINER` RPCs. Performance Advisor also reports several unindexed foreign keys, including some Batch 9b child FKs; these are performance advisories, not functional or authorization failures.
+- CertiTrack-Staging currently has no persistent linked user with `is_lead_auditor=true`. Real-data Finalization therefore requires Company Lead Auditor configuration before UI acceptance; the rollback suite verifies Finalization with a transaction-local valid Lead fixture.
+- Vercel deployment for PR #29 is Ready, but authenticated Chrome/Vercel A3 Preview/Print acceptance is still pending because this environment cannot open the authenticated Preview interactively.
+- Before merge, manually verify System/Manufacturing/Product pages, ZERO FINDING, short/medium/very-long narratives, continuation pages, page-1-only summary/Catatan/signatories, page-2+ approval diagonal, and A3 page count/geometry.
+
+
+## Batch 9b — FORM-014 final Staging/UAT closeout — 21 Sep 2026
+
+**Status:** `STAGING_UAT_VERIFIED — PRE-MERGE REVIEW COMPLETE; MERGE REQUIRES EXPLICIT APPROVAL`.
+
+- PR #29 remains open and unmerged. Authoritative reviewed head before this documentation closeout was
+  `75c318660b9b725e43b2dad10e4d7fdb55093f38`. Production remains untouched.
+- FORM-014 controlled output is **A4 landscape**, superseding the earlier A3 pre-Staging notes. The accepted
+  screen and Chrome Print Preview layout uses the 11-column controlled table, adaptive Excel-style filler
+  rows, compact header/footer typography, and normal-cell ZERO FINDING rendering with `ZERO FINDING`
+  only in the Temuan column.
+- Real Staging browser/UAT acceptance passed for:
+  - System report with two established Closed Findings;
+  - Product completed ZERO FINDING context;
+  - Manufacturing report with one established Closed Finding and authoritative Plant + Shift context;
+  - very-long Finding narratives / continuation pages using the isolated `QA-9911`
+    `FORM-014 Pagination UAT` fixture;
+  - screen versus Print Preview A4 geometry and continuation-shell behavior.
+- Real Finalization UAT passed on Manufacturing report
+  `281f7c04-905a-47df-a209-d2acaf162ce1`: status became `Final`, revision advanced to 4,
+  Company Lead snapshot is `Company Lead Auditor`, PJ-QMS snapshot is `B6B Smoke QMS`, and the
+  Finding/LTP target, verification, and `CLOSED` snapshots were frozen.
+- Final immutability was re-verified after the browser action: Regenerate, Save Draft, and direct Final-child
+  UPDATE were rejected by the authoritative guards.
+- The full Batch 9b SQL regression was re-run against Staging in a rollback-only transaction and passed.
+  Because Staging now has a persistent real Company Lead, the regression temporarily cleared that Lead flag
+  **inside the same rollback-only transaction** so its synthetic Lead fixture could satisfy the existing
+  single-Lead unique constraint. Post-test verification confirmed the real Company Lead remained active and
+  zero regression `b9...` fixtures persisted.
+- Current persistent Staging UAT data is intentionally **not** zero: the accepted System/Product/
+  Manufacturing reports, the configured Company Lead, the Product/Manufacturing execution-context fixtures,
+  and `QA-9911` pagination fixture are retained until Batch 9b closeout/cleanup. This supersedes the earlier
+  post-regression statement that referred only to transaction-local synthetic regression fixtures.
+- Vercel was SUCCESS on implementation head
+  `75c318660b9b725e43b2dad10e4d7fdb55093f38`. No unresolved GitHub review threads were present during
+  pre-merge review.
+- Known project-wide Supabase advisor warnings remain: authenticated-executable, internally guarded
+  `SECURITY DEFINER` RPCs and several unindexed foreign keys/performance advisories. The private
+  `form014_active_company_lead_auditor()` helper remains non-executable by normal authenticated users;
+  Batch 9b authorization/runtime regression passed.
+- Staging migration-ledger timestamps differ from repository migration filenames, consistent with the
+  existing project-wide MCP migration-application history. Do not attempt a Batch-9b-only ledger rewrite.
