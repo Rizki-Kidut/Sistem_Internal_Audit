@@ -4,7 +4,7 @@ import { formatForm014AuditRange,formatForm014DateOnly,formatForm014TimestampDat
 import { itemDisplay,type Form014Group,type Form014Report,type Form014Signatories } from '../../services/rangkumanHasilAuditService';
 import './rangkumanHasilAuditPrint.css';
 
-const FORM014_TABLE_BODY_HEIGHT_PX=455;
+const FORM014_TABLE_BODY_HEIGHT_PX=500;
 const FORM014_MIN_FINDING_ROW_HEIGHT_PX=40;
 const FORM014_NARRATIVE_CHARS_PER_LINE=50;
 const FORM014_TEXT_LINE_HEIGHT_PX=15.6;
