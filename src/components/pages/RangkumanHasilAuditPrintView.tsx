@@ -48,7 +48,12 @@ function paginate(groups:Form014Group[],final:boolean){
     if(chunk.length){
       pages.push({group,items:chunk,start,usedHeight:height});
     }else if(!group.items.length){
-      pages.push({group,items:chunk,start,usedHeight:FORM014_EMPTY_STATE_ROW_HEIGHT_PX});
+      pages.push({
+        group,
+        items:chunk,
+        start,
+        usedHeight:group.completed?FORM014_BLANK_ROW_HEIGHT_PX:FORM014_EMPTY_STATE_ROW_HEIGHT_PX,
+      });
     }
 
     return pages;
@@ -98,7 +103,7 @@ export function RangkumanHasilAuditPrintView({report,groups,signatories}:{report
           {page.items.length?page.items.map((item,index)=>{
             const d=itemDisplay(item,final),k=String(d.finding.kategori);
             return <tr className="form014-finding-row" key={item.id}><td>{page.start+index}</td><td className="form014-temuan-cell">{formatFindingNarrative(d.finding)}</td><td>{d.kode||'-'}</td><td>{d.reference||'-'}</td><td className={`category-${k}`}>{cat(k)}</td><td>{formatForm014DateOnly(d.temporary)}</td><td>{formatForm014DateOnly(d.permanent)}</td><td>{formatForm014TimestampDate(d.verified)}</td><td>{d.status==='CLOSED'?'Close':'-'}</td><td>{d.status==='CLOSED'?'-':'Open'}</td><td>{item.keterangan||'-'}</td></tr>;
-          }):<tr className="zero-finding"><td colSpan={FORM014_COLUMN_COUNT}>{page.group.completed?'ZERO FINDING':'AUDIT BELUM SELESAI'}</td></tr>}
+          }):page.group.completed?<tr className="zero-finding-row"><td/><td className="zero-finding-text">ZERO FINDING</td>{Array.from({length:FORM014_COLUMN_COUNT-2},(_,colIndex)=><td key={colIndex}/>)}</tr>:<tr className="audit-incomplete"><td colSpan={FORM014_COLUMN_COUNT}>AUDIT BELUM SELESAI</td></tr>}
           {Array.from({length:blankRows},(_,rowIndex)=><tr className="form014-blank-row" key={`blank-${rowIndex}`}>{Array.from({length:FORM014_COLUMN_COUNT},(_,colIndex)=><td key={colIndex}/>)}</tr>)}
         </tbody>
       </table>
