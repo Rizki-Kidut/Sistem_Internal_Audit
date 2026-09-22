@@ -3192,3 +3192,21 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression coverage was extended for the neutral header, header page numbering, footer placement, Actual Section dots, no-Actual blank behavior, and inactive-process slashes.
 - No database migration, RLS, Actual automation/override logic, A3 pagination rule, filler behavior, FORM-010, FORM-014, Production data, or nested `/project` scope changed in this correction.
 - Authenticated Chrome A3 re-test remains required before merge.
+
+
+## FORM-001 Actual symbol/alignment correction — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — A3 RE-TEST PENDING`.
+
+- Based on the latest real visual UAT, Actual-row Section marks now mirror the same authoritative Plan relationship and suffix semantics instead of rendering a generic black dot.
+- Controlled mapping is:
+  - `◎ → ◉`, `○ → ●`
+  - `◎*1 → ◉*1`, `○*1 → ●*1`
+  - `◎*2 → ◉*2`, `○*2 → ●*2`
+  - `◎*1*2 → ◉*1*2`, `○*1*2 → ●*1*2`.
+- Actual Section marks appear only when the active Process has at least one effective Actual schedule month. No-Actual Processes remain blank; inactive Processes remain slashed. Month Actual cells remain plain `●`.
+- Added centralized `formatAnnualAuditActualSectionMark()`, derived from the same Plan formatter so relationship and *1/*2 suffix semantics cannot drift.
+- Section header cells under `Seksi yang diaudit` now use a dedicated `form001-section-header` class and absolute bottom anchoring (`bottom: 1mm`) so every vertical Section name is consistently bottom-aligned. Month-header behavior and overall table geometry are unchanged.
+- Presentation regression now covers all eight Plan→Actual mappings, rendered utama/terkait Actual marks, no-Actual blanks, inactive slashes, and the bottom-alignment CSS contract.
+- No migration, database logic, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` scope changed.
+- Authenticated Chrome A3 visual re-test remains required before merge.
