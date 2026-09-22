@@ -12,7 +12,9 @@ INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_co
 INSERT INTO public.user_profiles(id,display_name,identity_type,status)VALUES
 ('f1000000-0000-0000-0000-000000000001','FORM001 Admin','ADMIN','Aktif'),
 ('f1000000-0000-0000-0000-000000000002','FORM001 Non Admin','AUDITOR','Aktif');
-INSERT INTO public.proses(id,nama_proses,kode_proses)VALUES('f1100000-0000-0000-0000-000000000001','FORM001 Process','F1-PROC');
+INSERT INTO public.proses(id,nama_proses,kode_proses)VALUES
+('f1100000-0000-0000-0000-000000000001','FORM001 Process','F1-PROC'),
+('f1100000-0000-0000-0000-000000000002','FORM001 Other Process','F1-OTHER');
 INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,status)VALUES('f1200000-0000-0000-0000-000000000001',2026,'2026-04-01','Q-120-ISE-001-FORM-001','Approved');
 INSERT INTO public.audit_plan_process(id,plan_id,proses_master_id,nama_proses,urutan_tampil)VALUES('f1300000-0000-0000-0000-000000000001','f1200000-0000-0000-0000-000000000001','f1100000-0000-0000-0000-000000000001','FORM001 Process',1);
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('f1400000-0000-0000-0000-000000000001','f1200000-0000-0000-0000-000000000001','Berkala',1,2026,'2026-04-01','Approved');
@@ -67,6 +69,44 @@ SELECT pg_temp.assert_true((SELECT aktual FROM public.audit_plan_schedule WHERE 
 SELECT pg_temp.assert_true((SELECT aktual FROM public.audit_plan_schedule WHERE process_id='f1300000-0000-0000-0000-000000000001' AND bulan=7),'two qualifying QAs must produce TRUE');
 SELECT pg_temp.assert_true((SELECT aktual FROM public.audit_plan_schedule WHERE process_id='f1300000-0000-0000-0000-000000000001' AND bulan=1),'Product must use tanggal_audit_produk, including fiscal rollover month 1');
 SELECT pg_temp.assert_true((SELECT aktual FROM public.audit_plan_schedule WHERE process_id='f1300000-0000-0000-0000-000000000001' AND bulan=3),'Manufacturing must use tanggal_pelaksanaan_audit');
+
+-- Standalone Instructions: unique fiscal-year Plan resolves; missing/ambiguous/unmapped cases no-op safely.
+INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,status)VALUES
+('f1200000-0000-0000-0000-000000000002',2027,'2027-04-01','F1-2027','Approved'),
+('f1200000-0000-0000-0000-000000000003',2031,'2031-04-01','F1-2031-A','Approved'),
+('f1200000-0000-0000-0000-000000000004',2031,'2031-04-02','F1-2031-B','Approved'),
+('f1200000-0000-0000-0000-000000000005',2032,'2032-04-01','F1-2032','Approved');
+INSERT INTO public.audit_plan_process(id,plan_id,proses_master_id,nama_proses,urutan_tampil)VALUES
+('f1300000-0000-0000-0000-000000000002','f1200000-0000-0000-0000-000000000002','f1100000-0000-0000-0000-000000000001','FORM001 Process',1),
+('f1300000-0000-0000-0000-000000000003','f1200000-0000-0000-0000-000000000003','f1100000-0000-0000-0000-000000000001','FORM001 Process',1),
+('f1300000-0000-0000-0000-000000000004','f1200000-0000-0000-0000-000000000004','f1100000-0000-0000-0000-000000000001','FORM001 Process',1),
+('f1300000-0000-0000-0000-000000000005','f1200000-0000-0000-0000-000000000005','f1100000-0000-0000-0000-000000000002','FORM001 Other Process',1);
+INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES
+('f1500000-0000-0000-0000-000000000002',NULL,2027,'Selesai'),
+('f1500000-0000-0000-0000-000000000003',NULL,2030,'Selesai'),
+('f1500000-0000-0000-0000-000000000004',NULL,2031,'Selesai'),
+('f1500000-0000-0000-0000-000000000005',NULL,2032,'Selesai');
+INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES
+('f1600000-0000-0000-0000-000000000008','f1500000-0000-0000-0000-000000000002','QA-F108','f1100000-0000-0000-0000-000000000001','Reguler','2027-08-10',false,1),
+('f1600000-0000-0000-0000-000000000009','f1500000-0000-0000-0000-000000000003','QA-F109','f1100000-0000-0000-0000-000000000001','Reguler','2030-09-10',false,1),
+('f1600000-0000-0000-0000-000000000010','f1500000-0000-0000-0000-000000000004','QA-F110','f1100000-0000-0000-0000-000000000001','Reguler','2031-10-10',false,1),
+('f1600000-0000-0000-0000-000000000011','f1500000-0000-0000-0000-000000000005','QA-F111','f1100000-0000-0000-0000-000000000001','Reguler','2032-11-10',false,1);
+INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist) SELECT ('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1600000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'QA-F1'||lpad(n::text,2,'0'),'Standalone' FROM generate_series(8,11)n;
+INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)
+SELECT ('f1800000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi','O','Observed' FROM generate_series(8,11)n;
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
+UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('f1600000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000009','f1600000-0000-0000-0000-000000000010','f1600000-0000-0000-0000-000000000011');
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
+SELECT pg_temp.assert_true((SELECT aktual FROM public.audit_plan_schedule WHERE process_id='f1300000-0000-0000-0000-000000000002' AND bulan=8),'standalone Instruction with one FY Plan must resolve Actual');
+SELECT pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM public.audit_plan_schedule WHERE process_id IN('f1300000-0000-0000-0000-000000000003','f1300000-0000-0000-0000-000000000004','f1300000-0000-0000-0000-000000000005')),'ambiguous/unmapped standalone Instructions must not generate Actual');
+ALTER TABLE public.findings DISABLE TRIGGER trg_prepare_draft_finding_insert;
+INSERT INTO public.findings(instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,review_status)VALUES
+('f1600000-0000-0000-0000-000000000009','QA-F109','QA-F109/SYS/2030/001',1,'ChecklistSistem','f1c00000-0000-0000-0000-000000000009','A','P','L','E','R','2030-09-10','DRAFT'),
+('f1600000-0000-0000-0000-000000000010','QA-F110','QA-F110/SYS/2031/001',1,'ChecklistSistem','f1c00000-0000-0000-0000-000000000010','A','P','L','E','R','2031-10-10','DRAFT'),
+('f1600000-0000-0000-0000-000000000011','QA-F111','QA-F111/SYS/2032/001',1,'ChecklistSistem','f1c00000-0000-0000-0000-000000000011','A','P','L','E','R','2032-11-10','DRAFT');
+ALTER TABLE public.findings ENABLE TRIGGER trg_prepare_draft_finding_insert;
+SELECT pg_temp.assert_true((SELECT count(*)=4 FROM public.audit_instruction_rows WHERE id IN('f1600000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000009','f1600000-0000-0000-0000-000000000010','f1600000-0000-0000-0000-000000000011') AND cek_selesai),'standalone audit completion must not be blocked');
+SELECT pg_temp.assert_true((SELECT count(*)=3 FROM public.findings WHERE instruction_row_id IN('f1600000-0000-0000-0000-000000000009','f1600000-0000-0000-0000-000000000010','f1600000-0000-0000-0000-000000000011')),'unresolved standalone Finding workflow must not be blocked');
 
 ALTER TABLE public.findings DISABLE TRIGGER trg_protect_finding_update;
 UPDATE public.findings SET review_status='PUBLISHED' WHERE id='f1b00000-0000-0000-0000-000000000001';

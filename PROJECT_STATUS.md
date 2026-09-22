@@ -1544,6 +1544,23 @@ rollback-only SQL regression have not been applied or executed on CertiTrack-Sta
   `PROJECT_STATUS.md`. No FORM-001 print geometry/content, QA numbering, Checklist content, Finding semantics,
   LTP, FORM-010, FORM-014, Production, or nested `/project` file changed.
 
+##### Standalone Instruction compatibility correction — 22 Sep 2026
+
+- Actual resolution now mirrors the established Instruction behavior: an Instruction with `program_id` uses
+  `audit_programs.plan_id`; a standalone Instruction uses its `tahun_fiskal` only when exactly one Annual Plan
+  exists for that year. The selected Plan must then contain exactly one `audit_plan_process` matching the
+  structured `proses_master_id`; process names remain irrelevant.
+- Trigger-facing resolvers are intentionally nullable. Missing/ambiguous Annual Plans and missing/ambiguous
+  Annual Plan Process mappings now no-op without creating/changing Actual and without aborting audit
+  completion, reopen, date update, or Finding workflow. The explicit process/month reconciler remains strict
+  for invalid direct targets.
+- The rollback regression now covers Program-linked resolution plus standalone unique, missing, ambiguous,
+  and unmapped Plan cases, including successful completion/Finding mutations for unresolved cases.
+- Screen provenance now distinguishes `AUTO`, `MANUAL ADMIN`, and migrated `LEGACY PRESERVED` based on the
+  existing nullable override actor. FORM-001 remains unchanged and prints only `●` or blank.
+- Migration and rollback regression remain unapplied/unexecuted on Staging pending code review. Production
+  remains untouched.
+
 ### Implemented
 
 #### Kelola Proses

@@ -66,16 +66,30 @@ BEGIN
   END IF;
 END $$;
 
+CREATE FUNCTION public.annual_actual_plan_id(p_instruction_id uuid)
+RETURNS uuid LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+DECLARE i public.audit_instructions%ROWTYPE;v_id uuid;v_count integer;
+BEGIN
+  SELECT * INTO i FROM public.audit_instructions WHERE id=p_instruction_id;
+  IF NOT FOUND THEN RETURN NULL;END IF;
+  IF i.program_id IS NOT NULL THEN
+    SELECT count(*),(array_agg(ap.plan_id))[1] INTO v_count,v_id FROM public.audit_programs ap WHERE ap.id=i.program_id;
+  ELSE
+    SELECT count(*),(array_agg(p.id ORDER BY p.id))[1] INTO v_count,v_id FROM public.audit_plans p WHERE p.tahun=i.tahun_fiskal;
+  END IF;
+  IF v_count<>1 THEN RETURN NULL;END IF;
+  RETURN v_id;
+END $$;
+
 CREATE FUNCTION public.annual_actual_plan_process(p_instruction_id uuid,p_process_master_id uuid)
 RETURNS uuid LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE v_id uuid;v_count integer;
+DECLARE v_plan uuid;v_id uuid;v_count integer;
 BEGIN
+  v_plan:=public.annual_actual_plan_id(p_instruction_id);
+  IF v_plan IS NULL OR p_process_master_id IS NULL THEN RETURN NULL;END IF;
   SELECT count(*),(array_agg(app.id))[1] INTO v_count,v_id
-  FROM public.audit_instructions ai
-  JOIN public.audit_programs ap ON ap.id=ai.program_id
-  JOIN public.audit_plan_process app ON app.plan_id=ap.plan_id AND app.proses_master_id=p_process_master_id
-  WHERE ai.id=p_instruction_id;
-  IF v_count<>1 THEN RAISE EXCEPTION 'Annual Plan Process tidak dapat diresolusikan secara unik untuk Instruksi %, Proses %.',p_instruction_id,p_process_master_id;END IF;
+  FROM public.audit_plan_process app WHERE app.plan_id=v_plan AND app.proses_master_id=p_process_master_id;
+  IF v_count<>1 THEN RETURN NULL;END IF;
   RETURN v_id;
 END $$;
 
@@ -88,11 +102,9 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended(p_process_id::text||':'||p_bulan::text,0));
   SELECT EXISTS(
     SELECT 1 FROM public.audit_instruction_rows ir
-    JOIN public.audit_instructions ai ON ai.id=ir.instruction_id
-    JOIN public.audit_programs ap ON ap.id=ai.program_id
-    JOIN public.audit_plan_process app ON app.plan_id=ap.plan_id AND app.proses_master_id=ir.proses_id
+    CROSS JOIN LATERAL (SELECT public.annual_actual_plan_process(ir.instruction_id,ir.proses_id) AS plan_process_id) resolved
     CROSS JOIN LATERAL (SELECT CASE WHEN ir.tipe_baris='AuditProduk' THEN COALESCE(ir.tanggal_audit_produk,ir.tanggal_pelaksanaan_audit) ELSE ir.tanggal_pelaksanaan_audit END AS execution_date) d
-    WHERE app.id=p_process_id AND ir.cek_selesai AND d.execution_date IS NOT NULL
+    WHERE resolved.plan_process_id=p_process_id AND ir.cek_selesai AND d.execution_date IS NOT NULL
       AND extract(month FROM d.execution_date)::integer=p_bulan
       AND public.annual_actual_checklist_complete(ir)
       AND NOT EXISTS(SELECT 1 FROM public.findings f WHERE f.instruction_row_id=ir.id
@@ -123,6 +135,7 @@ BEGIN
   v_date:=CASE WHEN r.tipe_baris='AuditProduk' THEN COALESCE(r.tanggal_audit_produk,r.tanggal_pelaksanaan_audit) ELSE r.tanggal_pelaksanaan_audit END;
   IF v_date IS NULL THEN RETURN;END IF;
   v_process:=public.annual_actual_plan_process(r.instruction_id,r.proses_id);
+  IF v_process IS NULL THEN RETURN;END IF;
   PERFORM public.reconcile_annual_plan_actual(v_process,extract(month FROM v_date)::integer);
 END $$;
 
@@ -212,6 +225,6 @@ END $$;
 
 REVOKE ALL ON TABLE public.audit_plan_actual_override_events FROM PUBLIC,anon,authenticated;
 GRANT SELECT ON TABLE public.audit_plan_actual_override_events TO authenticated;
-REVOKE ALL ON FUNCTION public.reject_annual_actual_event_mutation(),public.annual_actual_checklist_complete(public.audit_instruction_rows),public.annual_actual_plan_process(uuid,uuid),public.reconcile_annual_plan_actual(uuid,integer),public.reconcile_annual_plan_actual_for_row(uuid),public.trigger_reconcile_annual_actual_row(),public.trigger_reconcile_annual_actual_finding(),public.protect_annual_actual_materialization() FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.reject_annual_actual_event_mutation(),public.annual_actual_checklist_complete(public.audit_instruction_rows),public.annual_actual_plan_id(uuid),public.annual_actual_plan_process(uuid,uuid),public.reconcile_annual_plan_actual(uuid,integer),public.reconcile_annual_plan_actual_for_row(uuid),public.trigger_reconcile_annual_actual_row(),public.trigger_reconcile_annual_actual_finding(),public.protect_annual_actual_materialization() FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.override_annual_plan_actual(uuid,integer,text,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.override_annual_plan_actual(uuid,integer,text,text) TO authenticated;

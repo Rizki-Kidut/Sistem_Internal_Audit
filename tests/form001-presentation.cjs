@@ -13,7 +13,7 @@ for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module
 };
 require.extensions['.css'] = () => {};
 
-const { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
+const { annualActualProvenance, annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
 const { AnnualAuditPlanPrintView } = require('../src/components/pages/AnnualAuditPlanPrintView.tsx');
 const master = Array.from({ length: 15 }, (_, index) => ({
   id: `master-${index + 1}`, kode_proses: `PRC-${String(index + 1).padStart(3, '0')}`,
@@ -31,6 +31,9 @@ assert.deepEqual(pages.map((page) => [page.processes.length, page.fillerProcessC
 const fiscalMonths = annualAuditMonths(2026, FORM001_FISCAL_START_MONTH);
 assert.deepEqual(fiscalMonths.map((month) => month.label), ['April 2026', 'Mei 2026', 'Juni 2026', 'Juli 2026', 'Agustus 2026', 'September 2026', 'Oktober 2026', 'November 2026', 'Desember 2026', 'Januari 2027', 'Februari 2027', 'Maret 2027']);
 assert.deepEqual(fiscalMonths.map((month) => month.month), [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]);
+assert.equal(annualActualProvenance(), 'AUTO');
+assert.equal(annualActualProvenance({ aktual_override: true, aktual_override_actor: 'admin-id' }), 'MANUAL ADMIN');
+assert.equal(annualActualProvenance({ aktual_override: true, aktual_override_actor: null }), 'LEGACY PRESERVED');
 
 const markCases = [
   ['utama', false, false, '◎'], ['terkait', false, false, '○'],

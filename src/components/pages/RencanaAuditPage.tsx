@@ -40,7 +40,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { AnnualAuditPlanPrintView } from './AnnualAuditPlanPrintView';
-import { resolveAnnualAuditSections } from '../../lib/annualAuditPrint';
+import { annualActualProvenance, resolveAnnualAuditSections } from '../../lib/annualAuditPrint';
 import { useAuth } from '../../contexts/AuthContext';
 import { BULAN_LABEL } from '../../lib/enums';
 
@@ -772,7 +772,7 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
             Override Admin tercatat dalam riwayat audit.
           </div>
           <Field label="Bulan"><Input disabled value={actualOverrideTarget ? BULAN_LABEL[actualOverrideTarget.bulan - 1] : ''} /></Field>
-          <Field label="Provenance saat ini"><Input disabled value={actualOverrideTarget?.schedule?.aktual_override === null || actualOverrideTarget?.schedule?.aktual_override === undefined ? 'AUTO' : 'MANUAL ADMIN'} /></Field>
+          <Field label="Provenance saat ini"><Input disabled value={annualActualProvenance(actualOverrideTarget?.schedule)} /></Field>
           <Field label="Aksi" required>
             <Select value={actualOverrideAction} onChange={(event) => setActualOverrideAction(event.target.value as ActualOverrideAction)}>
               <option value="SET_TRUE">Set Aktual</option>

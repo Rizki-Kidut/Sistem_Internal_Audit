@@ -1,4 +1,4 @@
-import type { AuditPlanProcess, AuditPlanSeksiLink, Proses, Seksi } from './types';
+import type { AuditPlanProcess, AuditPlanSchedule, AuditPlanSeksiLink, Proses, Seksi } from './types';
 import { PERAN_PROSES } from './enums';
 
 export const FORM001_PROCESS_CAPACITY = 13;
@@ -7,6 +7,11 @@ export const FORM001_FOOTNOTES = [
   '*1: termasuk audit proses, audit shift, dan audit produk',
   '*2: lingkup audit: konfirmasi PDCA terkait kontrol kebijakan',
 ] as const;
+
+export function annualActualProvenance(schedule?: AuditPlanSchedule): 'AUTO' | 'MANUAL ADMIN' | 'LEGACY PRESERVED' {
+  if (schedule?.aktual_override === null || schedule?.aktual_override === undefined) return 'AUTO';
+  return schedule.aktual_override_actor ? 'MANUAL ADMIN' : 'LEGACY PRESERVED';
+}
 
 export function formatAnnualAuditSectionMark(link?: AuditPlanSeksiLink): string {
   if (!link?.peran) return '';

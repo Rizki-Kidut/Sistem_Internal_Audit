@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { AuditPlanProcess, AuditPlanSeksiLink, AuditPlanSchedule, Seksi } from '../../../lib/types';
 import { BULAN_LABEL, PERAN_PROSES, SIMBOL_PERAN, FLAG_AUDIT } from '../../../lib/enums';
 import type { PeranProses } from '../../../lib/enums';
+import { annualActualProvenance } from '../../../lib/annualAuditPrint';
 
 interface AuditMatrixProps {
   processes: AuditPlanProcess[];
@@ -299,7 +300,7 @@ function ProcessRow({
                     : canOverrideActual ? 'bg-gray-50 hover:bg-green-100' : 'bg-gray-50'
                 } ${canOverrideActual ? 'cursor-pointer' : 'cursor-default'} relative`}
                 title={canOverrideActual
-                  ? `Override Aktual ${BULAN_LABEL[blIdx]} · ${sched?.aktual_override === null || sched?.aktual_override === undefined ? 'AUTO' : 'MANUAL ADMIN'}`
+                  ? `Override Aktual ${BULAN_LABEL[blIdx]} · ${annualActualProvenance(sched)}`
                   : 'Aktual diisi otomatis setelah pelaksanaan audit selesai dan seluruh Temuan formal telah final.'}
               >
                 {isAktual ? '■' : ''}
