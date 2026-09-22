@@ -17,18 +17,22 @@ INSERT INTO public.proses(id,nama_proses,kode_proses)VALUES
 ('f1100000-0000-0000-0000-000000000002','FORM001 Other Process','F1-OTHER');
 INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,kode_dokumen,status)VALUES('f1200000-0000-0000-0000-000000000001',2026,'2026-04-01','Q-120-ISE-001-FORM-001','Approved');
 INSERT INTO public.audit_plan_process(id,plan_id,proses_master_id,nama_proses,urutan_tampil)VALUES('f1300000-0000-0000-0000-000000000001','f1200000-0000-0000-0000-000000000001','f1100000-0000-0000-0000-000000000001','FORM001 Process',1);
+INSERT INTO public.auditors(id,nama,tanggal_berlaku,status)VALUES('f1d00000-0000-0000-0000-000000000001','FORM001 Regression Lead','2100-12-31','Aktif');
+INSERT INTO public.audit_team_masters(id,plan_id,kode_tim,nama_tim,status,is_locked)VALUES('f1d10000-0000-0000-0000-000000000001','f1200000-0000-0000-0000-000000000001','F1-TEAM-2026','FORM001 Team 2026','Aktif',false);
+INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('f1d10000-0000-0000-0000-000000000001','f1d00000-0000-0000-0000-000000000001','Lead',1,true);
+SELECT public.lock_audit_team_master('f1d10000-0000-0000-0000-000000000001');
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('f1400000-0000-0000-0000-000000000001','f1200000-0000-0000-0000-000000000001','Berkala',1,2026,'2026-04-01','Approved');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('f1500000-0000-0000-0000-000000000001','f1400000-0000-0000-0000-000000000001',2026,'Selesai');
 
 -- Rows: zero Finding, pending/annulled, two-QA reconciliation, Product date ownership, Manufacturing date ownership.
-INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil)VALUES
-('f1600000-0000-0000-0000-000000000001','f1500000-0000-0000-0000-000000000001','QA-F101','f1100000-0000-0000-0000-000000000001','Reguler','2026-04-10',NULL,false,1),
-('f1600000-0000-0000-0000-000000000002','f1500000-0000-0000-0000-000000000001','QA-F102','f1100000-0000-0000-0000-000000000001','Reguler','2026-05-10',NULL,false,2),
-('f1600000-0000-0000-0000-000000000003','f1500000-0000-0000-0000-000000000001','QA-F103','f1100000-0000-0000-0000-000000000001','Reguler','2026-06-10',NULL,false,3),
-('f1600000-0000-0000-0000-000000000004','f1500000-0000-0000-0000-000000000001','QA-F104','f1100000-0000-0000-0000-000000000001','Reguler','2026-07-10',NULL,false,4),
-('f1600000-0000-0000-0000-000000000005','f1500000-0000-0000-0000-000000000001','QA-F105','f1100000-0000-0000-0000-000000000001','Reguler','2026-07-20',NULL,false,5),
-('f1600000-0000-0000-0000-000000000006','f1500000-0000-0000-0000-000000000001','QA-F106','f1100000-0000-0000-0000-000000000001','AuditProduk','2026-12-20','2027-01-15',false,6),
-('f1600000-0000-0000-0000-000000000007','f1500000-0000-0000-0000-000000000001','QA-F107','f1100000-0000-0000-0000-000000000001','AuditManufaktur','2027-03-15',NULL,false,7);
+INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,team_master_id,tipe_baris,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil)VALUES
+('f1600000-0000-0000-0000-000000000001','f1500000-0000-0000-0000-000000000001','QA-F101','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','Reguler','2026-04-10',NULL,false,1),
+('f1600000-0000-0000-0000-000000000002','f1500000-0000-0000-0000-000000000001','QA-F102','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','Reguler','2026-05-10',NULL,false,2),
+('f1600000-0000-0000-0000-000000000003','f1500000-0000-0000-0000-000000000001','QA-F103','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','Reguler','2026-06-10',NULL,false,3),
+('f1600000-0000-0000-0000-000000000004','f1500000-0000-0000-0000-000000000001','QA-F104','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','Reguler','2026-07-10',NULL,false,4),
+('f1600000-0000-0000-0000-000000000005','f1500000-0000-0000-0000-000000000001','QA-F105','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','Reguler','2026-07-20',NULL,false,5),
+('f1600000-0000-0000-0000-000000000006','f1500000-0000-0000-0000-000000000001','QA-F106','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','AuditProduk','2026-12-20','2027-01-15',false,6),
+('f1600000-0000-0000-0000-000000000007','f1500000-0000-0000-0000-000000000001','QA-F107','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','AuditManufaktur','2027-03-15',NULL,false,7);
 
 INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist) SELECT ('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1600000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'QA-F10'||n,'Fixture' FROM generate_series(1,5)n;
 INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)
@@ -81,19 +85,26 @@ INSERT INTO public.audit_plan_process(id,plan_id,proses_master_id,nama_proses,ur
 ('f1300000-0000-0000-0000-000000000003','f1200000-0000-0000-0000-000000000003','f1100000-0000-0000-0000-000000000001','FORM001 Process',1),
 ('f1300000-0000-0000-0000-000000000004','f1200000-0000-0000-0000-000000000004','f1100000-0000-0000-0000-000000000001','FORM001 Process',1),
 ('f1300000-0000-0000-0000-000000000005','f1200000-0000-0000-0000-000000000005','f1100000-0000-0000-0000-000000000002','FORM001 Other Process',1);
+INSERT INTO public.audit_team_masters(id,plan_id,kode_tim,nama_tim,status,is_locked)VALUES('f1d10000-0000-0000-0000-000000000002','f1200000-0000-0000-0000-000000000002','F1-TEAM-2027','FORM001 Team 2027','Aktif',false);
+INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('f1d10000-0000-0000-0000-000000000002','f1d00000-0000-0000-0000-000000000001','Lead',1,true);
+SELECT public.lock_audit_team_master('f1d10000-0000-0000-0000-000000000002');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES
 ('f1500000-0000-0000-0000-000000000002',NULL,2027,'Selesai'),
 ('f1500000-0000-0000-0000-000000000003',NULL,2030,'Selesai'),
 ('f1500000-0000-0000-0000-000000000004',NULL,2031,'Selesai'),
 ('f1500000-0000-0000-0000-000000000005',NULL,2032,'Selesai');
-INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES
-('f1600000-0000-0000-0000-000000000008','f1500000-0000-0000-0000-000000000002','QA-F108','f1100000-0000-0000-0000-000000000001','Reguler','2027-08-10',false,1),
-('f1600000-0000-0000-0000-000000000009','f1500000-0000-0000-0000-000000000003','QA-F109','f1100000-0000-0000-0000-000000000001','Reguler','2030-09-10',false,1),
-('f1600000-0000-0000-0000-000000000010','f1500000-0000-0000-0000-000000000004','QA-F110','f1100000-0000-0000-0000-000000000001','Reguler','2031-10-10',false,1),
-('f1600000-0000-0000-0000-000000000011','f1500000-0000-0000-0000-000000000005','QA-F111','f1100000-0000-0000-0000-000000000001','Reguler','2032-11-10',false,1);
-INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist) SELECT ('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1600000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'QA-F1'||lpad(n::text,2,'0'),'Standalone' FROM generate_series(8,11)n;
-INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)
-SELECT ('f1800000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi','O','Observed' FROM generate_series(8,11)n;
+INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,team_master_id,tipe_baris,tanggal_pelaksanaan_audit,cek_selesai,urutan_tampil)VALUES
+('f1600000-0000-0000-0000-000000000008','f1500000-0000-0000-0000-000000000002','QA-F108','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000002','Reguler','2027-08-10',false,1),
+('f1600000-0000-0000-0000-000000000009','f1500000-0000-0000-0000-000000000003','QA-F109','f1100000-0000-0000-0000-000000000001',NULL,'Reguler','2030-09-10',false,1),
+('f1600000-0000-0000-0000-000000000010','f1500000-0000-0000-0000-000000000004','QA-F110','f1100000-0000-0000-0000-000000000001',NULL,'Reguler','2031-10-10',false,1),
+('f1600000-0000-0000-0000-000000000011','f1500000-0000-0000-0000-000000000005','QA-F111','f1100000-0000-0000-0000-000000000001',NULL,'Reguler','2032-11-10',false,1);
+-- Only the uniquely-resolvable standalone Instruction receives a normal Checklist.
+-- Unresolved standalone rows intentionally skip Checklist creation because the pre-existing
+-- Checklist workflow itself requires a uniquely-resolvable Annual Plan + locked team.
+INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist)VALUES
+('f1700000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000008','QA-F108','Standalone');
+INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)VALUES
+('f1800000-0000-0000-0000-000000000008','f1700000-0000-0000-0000-000000000008','Sub','Input Proses','8','Question','Observasi','O','Observed');
 ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('f1600000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000009','f1600000-0000-0000-0000-000000000010','f1600000-0000-0000-0000-000000000011');
 ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
