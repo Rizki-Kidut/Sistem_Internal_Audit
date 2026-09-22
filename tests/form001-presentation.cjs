@@ -13,7 +13,7 @@ for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module
 };
 require.extensions['.css'] = () => {};
 
-const { annualActualProvenance, annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
+const { annualActualProvenance, annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, formatAnnualAuditActualSectionMark, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
 const { AnnualAuditPlanPrintView } = require('../src/components/pages/AnnualAuditPlanPrintView.tsx');
 const master = Array.from({ length: 15 }, (_, index) => ({
   id: `master-${index + 1}`, kode_proses: `PRC-${String(index + 1).padStart(3, '0')}`,
@@ -44,6 +44,15 @@ const markCases = [
 for (const [peran, flag1, flag2, expected] of markCases) assert.equal(formatAnnualAuditSectionMark({ peran, flag_audit_proses_shift_produk: flag1, flag_lingkup_pdca: flag2 }), expected);
 assert.equal(formatAnnualAuditSectionMark({ peran: null, flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true }), '');
 
+const actualMarkCases = [
+  ['utama', false, false, '◉'], ['terkait', false, false, '●'],
+  ['utama', true, false, '◉*1'], ['terkait', true, false, '●*1'],
+  ['utama', false, true, '◉*2'], ['terkait', false, true, '●*2'],
+  ['utama', true, true, '◉*1*2'], ['terkait', true, true, '●*1*2'],
+];
+for (const [peran, flag1, flag2, expected] of actualMarkCases) assert.equal(formatAnnualAuditActualSectionMark({ peran, flag_audit_proses_shift_produk: flag1, flag_lingkup_pdca: flag2 }), expected);
+assert.equal(formatAnnualAuditActualSectionMark({ peran: null, flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true }), '');
+
 const availableSections = [
   { id: 'inactive-selected', nama: 'Seksi Historis Nonaktif', urutan_tampil: 1, aktif: false },
   { id: 'active-selected', nama: 'Seksi Aktif Terpilih', urutan_tampil: 2, aktif: true },
@@ -58,7 +67,10 @@ const links = [
   { process_id: 'plan-1', seksi_id: 'section-1', peran: 'utama', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true },
   { process_id: 'plan-2', seksi_id: 'section-1', peran: 'terkait', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: false },
 ];
-const schedules = [{ process_id: 'plan-1', bulan: 1, plan: true, aktual: true }];
+const schedules = [
+  { process_id: 'plan-1', bulan: 1, plan: true, aktual: true },
+  { process_id: 'plan-2', bulan: 4, plan: false, aktual: true },
+];
 const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections, sectionLinks: links, schedules }));
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
 for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
@@ -72,7 +84,9 @@ for (const [, footer] of footerMatches) {
   assert(!footer.includes('Hal:'));
   assert(footer.includes('Q-120-ISE-001-FORM-001'));
 }
-assert.equal((html.match(/>●<\/td>/g) || []).length, 2, 'Actual process must mark both related Section and Actual month');
+assert(html.includes('◉*1*2'), 'Actual utama must use a filled center with outer ring and preserve *1*2');
+assert(html.includes('●*1'), 'Actual terkait must use a filled dot and preserve *1');
+assert((html.match(/>●<\/td>/g) || []).length >= 2, 'Actual month cells must remain filled dots');
 assert.equal((html.match(/form001-signature-slashed/g) || []).length, 2);
 assert(html.includes('form001-inactive-cell'));
 assert.equal((html.match(/>PJ QMS</g) || []).length, 1);
@@ -81,7 +95,8 @@ const noActualHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPri
   plan, processes, masterProcesses: master, sections, sectionLinks: links,
   schedules: [{ process_id: 'plan-1', bulan: 1, plan: true, aktual: false }],
 }));
-assert.equal((noActualHtml.match(/>●<\/td>/g) || []).length, 0, 'No Actual month must keep Actual Section row blank');
+assert.equal((noActualHtml.match(/>●[^<]*<\/td>/g) || []).length, 0, 'No Actual month must keep related Actual Section row blank');
+assert.equal((noActualHtml.match(/>◉[^<]*<\/td>/g) || []).length, 0, 'No Actual month must keep utama Actual Section row blank');
 
 const historicalHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections: resolvedSections, sectionLinks: [], schedules: [] }));
 assert(historicalHtml.includes('Seksi Historis Nonaktif'));
@@ -89,7 +104,7 @@ assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', 'grid-template-columns:1fr auto', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', 'grid-template-columns:1fr auto', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header span{position:absolute;left:50%;bottom:1mm', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, neutral header, header page numbering, Actual Section dots, inactive-process slashes, relationship/flag marks, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, header page numbering, Plan-to-Actual Section symbol mapping with flags, bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
