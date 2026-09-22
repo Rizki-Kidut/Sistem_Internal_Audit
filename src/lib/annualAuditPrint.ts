@@ -21,6 +21,15 @@ export function formatAnnualAuditSectionMark(link?: AuditPlanSeksiLink): string 
   return `${relationship}${flag1}${flag2}`;
 }
 
+/** Mirrors the Plan relationship/flags while using the controlled Actual symbols. */
+export function formatAnnualAuditActualSectionMark(link?: AuditPlanSeksiLink): string {
+  const planMark = formatAnnualAuditSectionMark(link);
+  if (!planMark) return '';
+  if (planMark.startsWith('◎')) return `◉${planMark.slice(1)}`;
+  if (planMark.startsWith('○')) return `●${planMark.slice(1)}`;
+  return '';
+}
+
 export function resolveAnnualAuditSections(selectedIds: string[], sections: Seksi[]): Seksi[] {
   const selected = new Set(selectedIds);
   return sections
