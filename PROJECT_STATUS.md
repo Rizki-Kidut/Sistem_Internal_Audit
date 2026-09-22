@@ -3210,3 +3210,17 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression now covers all eight Plan→Actual mappings, rendered utama/terkait Actual marks, no-Actual blanks, inactive slashes, and the bottom-alignment CSS contract.
 - No migration, database logic, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` scope changed.
 - Authenticated Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 page-number placement correction — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — A3 RE-TEST PENDING`.
+
+- Real visual UAT showed that the physical-page indicator was still visually attached to the approval block.
+- `Hal: current/total` is now removed from the approval/control box entirely.
+- The page indicator is rendered on the separate legend row, immediately to the right of the `Plan: ○  Aktual: ●` legend and aligned toward the far-right edge.
+- Approval geometry/signature slash behavior is unchanged.
+- Footer placement remains unchanged: controlled notes at left and document code at right.
+- Presentation regression now asserts that no `Hal:` appears inside the approval block and that the page number is rendered inside the right-side legend group.
+- No database, migration, RLS, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Chrome A3 visual re-test remains required before merge.
