@@ -65,6 +65,11 @@ export interface AuditPlanSchedule {
   bulan: number; // 1-12
   plan: boolean;
   aktual: boolean;
+  aktual_auto: boolean;
+  aktual_override: boolean | null;
+  aktual_override_reason: string | null;
+  aktual_override_actor: string | null;
+  aktual_override_at: string | null;
   schedule_id: string | null; // FK ke jadwal audit (Batch 3)
   created_at: string;
 }

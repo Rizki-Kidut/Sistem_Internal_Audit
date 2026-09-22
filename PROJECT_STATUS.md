@@ -1505,6 +1505,45 @@ authoritative Chrome A3 Landscape Print Preview acceptance remain pending. Produ
 - Regression coverage asserts the exact Indonesian label sequence, year rollover, and calendar month-number
   lookup sequence. No migration or other FORM-001 behavior changed; Chrome A3 browser UAT remains pending.
 
+#### FORM-001 authoritative Actual synchronization — 22 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; code/static validation is complete, but the additive migration and
+rollback-only SQL regression have not been applied or executed on CertiTrack-Staging. Production is untouched.
+
+- Added additive migration `20260922120000_automate_annual_plan_actual.sql`. The existing
+  `audit_plan_schedule.aktual` column remains the effective/materialized value consumed by the editor and
+  FORM-001. New provenance stores computed `aktual_auto` plus an optional active Admin override, reason,
+  actor, and timestamp.
+- Automatic reconciliation resolves QA → Instruction → Program → Annual Plan → the unique
+  `audit_plan_process.proses_master_id`; it never matches process-name text. It qualifies completed rows only
+  when the applicable Checklist is complete, an authoritative execution date exists, and every applicable
+  non-ANNULLED Finding is `PUBLISHED` or `LEGACY_ESTABLISHED`. ZERO FINDING is explicitly valid.
+- Product uses `tanggal_audit_produk` with `tanggal_pelaksanaan_audit` fallback; System, Manufacturing, and
+  Shift use `tanggal_pelaksanaan_audit`. Calendar month keys remain 1–12 despite the April–March print order.
+- Reconciliation is aggregate per Annual Plan Process + month, so one reopened QA cannot clear Actual while
+  another qualifying QA remains. Row completion/reopen/date changes and Finding insert/delete/review-state
+  changes invoke the centralized reconciler. An active Admin override wins without preventing the underlying
+  automatic value from being refreshed.
+- `override_annual_plan_actual` is an authenticated, guarded RPC that rechecks `is_admin_identity()`. Set and
+  Clear require a nonblank reason and record `auth.uid()`/timestamp; Return to Automatic clears override state
+  and reconciles immediately. Direct mutation of Actual/provenance is rejected by a database trigger.
+- Append-only `audit_plan_actual_override_events` records schedule/process/month, previous effective value,
+  override/result values, action, reason, actor, and timestamp. Ordinary authenticated users have no
+  UPDATE/DELETE grant or RLS policy. Historical `aktual=true` values are conservatively retained as explicit
+  `LEGACY_PRESERVED` overrides with an unavailable-actor explanation; historical false/default cells enter
+  automatic mode and are reconciled from current authoritative evidence.
+- Rencana Audit UI keeps Plan editing unchanged. Actual is read-only for non-Admin identities with the required
+  automatic-completion tooltip. Admin Actual cells open a reasoned Set/Clear/Return-to-Automatic modal and
+  show screen-only manual provenance; FORM-001 continues printing only `●` or blank.
+- Added rollback-only `supabase/tests/form001_actual_regression.sql` covering ZERO FINDING, pending/established/
+  ANNULLED Findings, reopen aggregation, Product/System/Manufacturing date ownership, real fiscal month keys,
+  authorization, Set/Clear/Return override behavior, override precedence, blank reasons, and immutable history.
+- Files changed in this pass: `supabase/migrations/20260922120000_automate_annual_plan_actual.sql`,
+  `supabase/tests/form001_actual_regression.sql`, `src/lib/types.ts`, `src/services/auditPlanService.ts`,
+  `src/components/pages/audit-plan/AuditMatrix.tsx`, `src/components/pages/RencanaAuditPage.tsx`, and
+  `PROJECT_STATUS.md`. No FORM-001 print geometry/content, QA numbering, Checklist content, Finding semantics,
+  LTP, FORM-010, FORM-014, Production, or nested `/project` file changed.
+
 ### Implemented
 
 #### Kelola Proses

@@ -17,7 +17,9 @@ interface AuditMatrixProps {
   readOnly: boolean;
   onCycleSeksi: (processId: string, seksiId: string, currentPeran: PeranProses | null) => void;
   onToggleFlag: (processId: string, seksiId: string, flag: 'flag_audit_proses_shift_produk' | 'flag_lingkup_pdca') => void;
-  onToggleSchedule: (processId: string, bulan: number, field: 'plan' | 'aktual') => void;
+  onToggleSchedule: (processId: string, bulan: number, field: 'plan') => void;
+  canOverrideActual: boolean;
+  onOverrideActual: (processId: string, bulan: number, schedule: AuditPlanSchedule | undefined) => void;
   onReorder: (orderedIds: string[]) => void;
   onDeleteProcess: (processId: string) => void;
 }
@@ -41,6 +43,8 @@ export function AuditMatrix({
   onCycleSeksi,
   onToggleFlag,
   onToggleSchedule,
+  canOverrideActual,
+  onOverrideActual,
   onReorder,
   onDeleteProcess,
 }: AuditMatrixProps) {
@@ -152,6 +156,8 @@ export function AuditMatrix({
                 onCycleSeksi={onCycleSeksi}
                 onToggleFlag={onToggleFlag}
                 onToggleSchedule={onToggleSchedule}
+                canOverrideActual={canOverrideActual}
+                onOverrideActual={onOverrideActual}
                 onDelete={() => onDeleteProcess(proc.id)}
               />
             );
@@ -175,7 +181,9 @@ interface ProcessRowProps {
   onDrop: () => void;
   onCycleSeksi: (processId: string, seksiId: string, currentPeran: PeranProses | null) => void;
   onToggleFlag: (processId: string, seksiId: string, flag: 'flag_audit_proses_shift_produk' | 'flag_lingkup_pdca') => void;
-  onToggleSchedule: (processId: string, bulan: number, field: 'plan' | 'aktual') => void;
+  onToggleSchedule: (processId: string, bulan: number, field: 'plan') => void;
+  canOverrideActual: boolean;
+  onOverrideActual: (processId: string, bulan: number, schedule: AuditPlanSchedule | undefined) => void;
   onDelete: () => void;
 }
 
@@ -193,6 +201,8 @@ function ProcessRow({
   onCycleSeksi,
   onToggleFlag,
   onToggleSchedule,
+  canOverrideActual,
+  onOverrideActual,
   onDelete,
 }: ProcessRowProps) {
   return (
@@ -281,16 +291,19 @@ function ProcessRow({
               className="px-1 py-1 text-center border-b border-r border-gray-200"
             >
               <button
-                disabled={readOnly}
-                onClick={() => onToggleSchedule(process.id, bulan, 'aktual')}
+                disabled={!canOverrideActual}
+                onClick={() => onOverrideActual(process.id, bulan, sched)}
                 className={`w-6 h-6 rounded transition-all ${
                   isAktual
                     ? 'bg-green-500 text-white'
-                    : 'bg-gray-50 hover:bg-green-100'
-                } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-                title={`Aktual ${BULAN_LABEL[blIdx]}`}
+                    : canOverrideActual ? 'bg-gray-50 hover:bg-green-100' : 'bg-gray-50'
+                } ${canOverrideActual ? 'cursor-pointer' : 'cursor-default'} relative`}
+                title={canOverrideActual
+                  ? `Override Aktual ${BULAN_LABEL[blIdx]} · ${sched?.aktual_override === null || sched?.aktual_override === undefined ? 'AUTO' : 'MANUAL ADMIN'}`
+                  : 'Aktual diisi otomatis setelah pelaksanaan audit selesai dan seluruh Temuan formal telah final.'}
               >
                 {isAktual ? '■' : ''}
+                {sched?.aktual_override !== null && sched?.aktual_override !== undefined && <sup className="absolute -right-1 -top-1 text-[8px] text-amber-700">M</sup>}
               </button>
             </td>
           );

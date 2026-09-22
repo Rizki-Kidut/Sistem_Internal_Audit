@@ -25,7 +25,9 @@ import {
   copyFromPreviousYear,
   findPreviousYearPlan,
   syncProcessesFromMaster,
+  overrideActualSchedule,
 } from '../../services/auditPlanService';
+import type { ActualOverrideAction } from '../../services/auditPlanService';
 import { getSeksiAktif, getSeksiList } from '../../services/seksiService';
 import { getActiveProses, getAllProses } from '../../services/prosesService';
 import { createProgramFromPlan, getNextNomorKe } from '../../services/auditProgramService';
@@ -35,16 +37,19 @@ import { PlanHeader } from './audit-plan/PlanHeader';
 import { AuditMatrix } from './audit-plan/AuditMatrix';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { Field, Input, Select } from '../ui/Field';
+import { Field, Input, Select, Textarea } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { AnnualAuditPlanPrintView } from './AnnualAuditPlanPrintView';
 import { resolveAnnualAuditSections } from '../../lib/annualAuditPrint';
+import { useAuth } from '../../contexts/AuthContext';
+import { BULAN_LABEL } from '../../lib/enums';
 
 interface RencanaAuditPageProps {
   onNavigateToProgram?: (programId: string) => void;
 }
 
 export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps = {}) {
+  const { profile } = useAuth();
   const [plans, setPlans] = useState<AuditPlan[]>([]);
   const [seksiAktif, setSeksiAktif] = useState<Seksi[]>([]);
   const [allSections, setAllSections] = useState<Seksi[]>([]);
@@ -79,6 +84,11 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
   const [masterProsesMap, setMasterProsesMap] = useState<Map<string, Proses>>(new Map());
   const [allMasterProcesses, setAllMasterProcesses] = useState<Proses[]>([]);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [actualOverrideTarget, setActualOverrideTarget] = useState<{ processId: string; bulan: number; schedule?: AuditPlanSchedule } | null>(null);
+  const [actualOverrideAction, setActualOverrideAction] = useState<ActualOverrideAction>('SET_TRUE');
+  const [actualOverrideReason, setActualOverrideReason] = useState('');
+  const [actualOverrideError, setActualOverrideError] = useState<string | null>(null);
+  const [savingActualOverride, setSavingActualOverride] = useState(false);
 
   // Confirm: hapus proses
   const [confirmDeleteProcess, setConfirmDeleteProcess] = useState<string | null>(null);
@@ -332,13 +342,44 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     }
   }
 
-  async function handleToggleSchedule(processId: string, bulan: number, field: 'plan' | 'aktual') {
+  async function handleToggleSchedule(processId: string, bulan: number, field: 'plan') {
     if (!plan) return;
     try {
       await toggleSchedule(processId, bulan, field);
       await loadDetail(plan.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal toggle jadwal');
+    }
+  }
+
+  function openActualOverride(processId: string, bulan: number, schedule: AuditPlanSchedule | undefined) {
+    setActualOverrideTarget({ processId, bulan, schedule });
+    setActualOverrideAction(schedule?.aktual ? 'SET_FALSE' : 'SET_TRUE');
+    setActualOverrideReason('');
+    setActualOverrideError(null);
+  }
+
+  async function handleActualOverride() {
+    if (!plan || !actualOverrideTarget) return;
+    if (actualOverrideAction !== 'RETURN_TO_AUTO' && !actualOverrideReason.trim()) {
+      setActualOverrideError('Alasan Override Aktual wajib diisi.');
+      return;
+    }
+    setSavingActualOverride(true);
+    setActualOverrideError(null);
+    try {
+      await overrideActualSchedule(
+        actualOverrideTarget.processId,
+        actualOverrideTarget.bulan,
+        actualOverrideAction,
+        actualOverrideAction === 'RETURN_TO_AUTO' ? null : actualOverrideReason.trim(),
+      );
+      setActualOverrideTarget(null);
+      await loadDetail(plan.id);
+    } catch (e) {
+      setActualOverrideError(e instanceof Error ? e.message : 'Gagal menyimpan Override Aktual');
+    } finally {
+      setSavingActualOverride(false);
     }
   }
 
@@ -514,6 +555,8 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
                   onCycleSeksi={handleCycleSeksi}
                   onToggleFlag={handleToggleFlag}
                   onToggleSchedule={handleToggleSchedule}
+                  canOverrideActual={profile?.identity_type === 'ADMIN'}
+                  onOverrideActual={openActualOverride}
                   onReorder={handleReorder}
                   onDeleteProcess={(id) => setConfirmDeleteProcess(id)}
                 />
@@ -715,6 +758,32 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
       />
 
       {/* Modal: Buat Program Internal Audit */}
+      <Modal
+        open={!!actualOverrideTarget}
+        onClose={() => setActualOverrideTarget(null)}
+        title="Override Aktual"
+        size="sm"
+        footer={<><Button variant="secondary" onClick={() => setActualOverrideTarget(null)}>Batal</Button><Button disabled={savingActualOverride} onClick={() => void handleActualOverride()}>{savingActualOverride ? 'Menyimpan...' : 'Simpan Override'}</Button></>}
+      >
+        <div className="space-y-4">
+          {actualOverrideError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actualOverrideError}</div>}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Aktual normalnya diisi otomatis setelah pelaksanaan selesai dan seluruh Temuan formal final.
+            Override Admin tercatat dalam riwayat audit.
+          </div>
+          <Field label="Bulan"><Input disabled value={actualOverrideTarget ? BULAN_LABEL[actualOverrideTarget.bulan - 1] : ''} /></Field>
+          <Field label="Provenance saat ini"><Input disabled value={actualOverrideTarget?.schedule?.aktual_override === null || actualOverrideTarget?.schedule?.aktual_override === undefined ? 'AUTO' : 'MANUAL ADMIN'} /></Field>
+          <Field label="Aksi" required>
+            <Select value={actualOverrideAction} onChange={(event) => setActualOverrideAction(event.target.value as ActualOverrideAction)}>
+              <option value="SET_TRUE">Set Aktual</option>
+              <option value="SET_FALSE">Kosongkan Aktual</option>
+              <option value="RETURN_TO_AUTO">Kembalikan ke Otomatis</option>
+            </Select>
+          </Field>
+          {actualOverrideAction !== 'RETURN_TO_AUTO' && <Field label="Alasan" required><Textarea rows={4} value={actualOverrideReason} onChange={(event) => setActualOverrideReason(event.target.value)} placeholder="Jelaskan alasan pengecualian manual..." /></Field>}
+        </div>
+      </Modal>
+
       <Modal
         open={programModalOpen}
         onClose={() => setProgramModalOpen(false)}
