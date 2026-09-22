@@ -13,7 +13,7 @@ for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module
 };
 require.extensions['.css'] = () => {};
 
-const { annualAuditMonths, buildAnnualAuditPrintProcesses, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
+const { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
 const { AnnualAuditPlanPrintView } = require('../src/components/pages/AnnualAuditPlanPrintView.tsx');
 const master = Array.from({ length: 15 }, (_, index) => ({
   id: `master-${index + 1}`, kode_proses: `PRC-${String(index + 1).padStart(3, '0')}`,
@@ -28,7 +28,9 @@ assert.equal(rows.length, 15);
 assert.equal(rows.at(-1).active, false);
 const pages = paginateAnnualAuditForm(rows);
 assert.deepEqual(pages.map((page) => [page.processes.length, page.fillerProcessCount]), [[13, 0], [2, 11]]);
-assert.deepEqual(annualAuditMonths(2026).map((month) => month.label), ['Januari 2026', 'Februari 2026', 'Maret 2026', 'April 2026', 'Mei 2026', 'Juni 2026', 'Juli 2026', 'Agustus 2026', 'September 2026', 'Oktober 2026', 'November 2026', 'Desember 2026']);
+const fiscalMonths = annualAuditMonths(2026, FORM001_FISCAL_START_MONTH);
+assert.deepEqual(fiscalMonths.map((month) => month.label), ['April 2026', 'Mei 2026', 'Juni 2026', 'Juli 2026', 'Agustus 2026', 'September 2026', 'Oktober 2026', 'November 2026', 'Desember 2026', 'Januari 2027', 'Februari 2027', 'Maret 2027']);
+assert.deepEqual(fiscalMonths.map((month) => month.month), [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]);
 
 const markCases = [
   ['utama', false, false, '◎'], ['terkait', false, false, '○'],
@@ -56,7 +58,7 @@ const links = [
 const schedules = [{ process_id: 'plan-1', bulan: 1, plan: true, aktual: true }];
 const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections, sectionLinks: links, schedules }));
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
-for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'Januari 2026', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
+for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
 assert(!html.includes('>Process<'));
 assert.equal((html.match(/form001-signature-slashed/g) || []).length, 2);
 assert(html.includes('form001-inactive-cell'));
@@ -70,4 +72,4 @@ assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
 for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, inactive-process slashes, all relationship/flag marks, historical selected Sections, continuation signatures, filler grid, Indonesian months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, inactive-process slashes, all relationship/flag marks, historical selected Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');

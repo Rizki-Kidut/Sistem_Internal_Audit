@@ -2,6 +2,7 @@ import type { AuditPlanProcess, AuditPlanSeksiLink, Proses, Seksi } from './type
 import { PERAN_PROSES } from './enums';
 
 export const FORM001_PROCESS_CAPACITY = 13;
+export const FORM001_FISCAL_START_MONTH = 4;
 export const FORM001_FOOTNOTES = [
   '*1: termasuk audit proses, audit shift, dan audit produk',
   '*2: lingkup audit: konfirmasi PDCA terkait kontrol kebijakan',
@@ -82,7 +83,7 @@ export function paginateAnnualAuditForm(
 export interface AnnualAuditMonth { month: number; year: number; label: string }
 const INDONESIAN_MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as const;
 
-/** The current authoritative plan schema stores one calendar year and month numbers 1..12. */
+/** Returns presentation order while retaining real calendar month numbers for schedule lookup. */
 export function annualAuditMonths(year: number, startMonth = 1): AnnualAuditMonth[] {
   return Array.from({ length: 12 }, (_, offset) => {
     const zeroBased = startMonth - 1 + offset;

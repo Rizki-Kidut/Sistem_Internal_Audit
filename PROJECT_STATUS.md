@@ -1496,6 +1496,15 @@ authoritative Chrome A3 Landscape Print Preview acceptance remain pending. Produ
   No geometry, pagination capacity, slash behavior, filler behavior, schema, RLS, Production, other form, or
   legacy `/project` file changed. Browser A3 Print Preview remains pending.
 
+#### FORM-001 fiscal month-order correction — 22 Sep 2026
+
+- FORM-001 now presents its 12 schedule columns in the authoritative fiscal order April–March. For plan year
+  2026 the labels are April–December 2026 followed by January–March 2027.
+- This is presentation-only: each rendered column retains its real calendar `bulan` key (`4..12,1..3`) when
+  reading `audit_plan_schedule`; the database model and stored schedule values are unchanged.
+- Regression coverage asserts the exact Indonesian label sequence, year rollover, and calendar month-number
+  lookup sequence. No migration or other FORM-001 behavior changed; Chrome A3 browser UAT remains pending.
+
 ### Implemented
 
 #### Kelola Proses

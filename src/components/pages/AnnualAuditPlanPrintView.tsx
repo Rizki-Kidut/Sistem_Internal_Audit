@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { AuditPlan, AuditPlanProcess, AuditPlanSchedule, AuditPlanSeksiLink, Proses, Seksi } from '../../lib/types';
 import { formatTanggal, parseDate } from '../../lib/utils';
-import { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FOOTNOTES, FORM001_PROCESS_CAPACITY, formatAnnualAuditSectionMark, paginateAnnualAuditForm } from '../../lib/annualAuditPrint';
+import { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FISCAL_START_MONTH, FORM001_FOOTNOTES, FORM001_PROCESS_CAPACITY, formatAnnualAuditSectionMark, paginateAnnualAuditForm } from '../../lib/annualAuditPrint';
 import './annualAuditPlanPrint.css';
 
 interface Props {
@@ -20,7 +20,7 @@ function MatrixCell({ inactive, value }: { inactive: boolean; value?: string }) 
 export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sections, sectionLinks, schedules }: Props) {
   const printProcesses = useMemo(() => buildAnnualAuditPrintProcesses(processes, masterProcesses), [processes, masterProcesses]);
   const pages = useMemo(() => paginateAnnualAuditForm(printProcesses), [printProcesses]);
-  const months = useMemo(() => annualAuditMonths(plan.tahun), [plan.tahun]);
+  const months = useMemo(() => annualAuditMonths(plan.tahun, FORM001_FISCAL_START_MONTH), [plan.tahun]);
   const orderedSections = useMemo(() => [...sections].sort((a, b) => a.urutan_tampil - b.urutan_tampil), [sections]);
   const linkByCell = useMemo(() => new Map(sectionLinks.map((link) => [`${link.process_id}:${link.seksi_id}`, link])), [sectionLinks]);
   const scheduleByCell = useMemo(() => new Map(schedules.map((schedule) => [`${schedule.process_id}:${schedule.bulan}`, schedule])), [schedules]);
