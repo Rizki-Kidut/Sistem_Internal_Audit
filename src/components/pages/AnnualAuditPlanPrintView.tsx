@@ -39,10 +39,15 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
             <span className={pageIndex > 0 ? 'form001-signature-slashed' : undefined}>{pageIndex === 0 ? plan.penanggung_jawab_qms || '-' : ''}</span>
             <span className={pageIndex > 0 ? 'form001-signature-slashed' : undefined}>{pageIndex === 0 ? plan.disetujui_oleh || '-' : ''}</span>
           </div>
-          <div className="form001-page-number">Hal: {pageIndex + 1}/{pages.length}</div>
         </div>
       </header>
-      <div className="form001-legends"><div><b>◎</b> Seksi utama terkait proses yang berlaku&nbsp;&nbsp;&nbsp; <b>○</b> Seksi terkait</div><div>Plan: <b>○</b>&nbsp;&nbsp;&nbsp; Aktual: <b>●</b></div></div>
+      <div className="form001-legends">
+        <div><b>◎</b> Seksi utama terkait proses yang berlaku&nbsp;&nbsp;&nbsp; <b>○</b> Seksi terkait</div>
+        <div className="form001-legend-right">
+          <span>Plan: <b>○</b>&nbsp;&nbsp;&nbsp; Aktual: <b>●</b></span>
+          <b className="form001-page-number">Hal: {pageIndex + 1}/{pages.length}</b>
+        </div>
+      </div>
       <table className="form001-matrix">
         <colgroup><col className="form001-number-col"/><col className="form001-process-col"/><col className="form001-state-col"/>{Array.from({ length: sectionColumnCount }, (_, index) => <col className="form001-matrix-col" key={`section-col-${index}`}/>)}{months.map((month) => <col className="form001-matrix-col" key={month.month}/>)}</colgroup>
         <thead><tr><th rowSpan={2}>No</th><th rowSpan={2}>Proses</th><th rowSpan={2}>Plan / Aktual</th><th colSpan={sectionColumnCount}>Seksi yang diaudit</th><th colSpan={months.length}>Jadwal pelaksanaan</th></tr><tr className="form001-vertical-headers">{orderedSections.length ? orderedSections.map((section) => <th className="form001-section-header" key={section.id}><span>{section.nama}</span></th>) : <th className="form001-section-header"><span>-</span></th>}{months.map((month) => <th key={month.month}><span>{month.label}</span></th>)}</tr></thead>
