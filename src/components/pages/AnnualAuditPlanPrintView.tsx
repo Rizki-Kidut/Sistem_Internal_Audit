@@ -30,7 +30,7 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
     const lastPage = pageIndex === pages.length - 1;
     return <section className="annual-audit-print-page" key={`form001-page-${pageIndex + 1}`}>
       <header className="form001-header">
-        <div className="form001-logo" aria-label="CertiTrack"><b>CertiTrack</b><span>Internal Audit</span></div>
+        <div className="form001-logo" aria-hidden="true" />
         <h1>Rencana Internal Audit Tahunan</h1>
         <div className="form001-control">
           <div className="form001-metadata"><span>Tgl buat</span><b>: {formatTanggal(parseDate(plan.tanggal_berlaku))}</b><span>Revisi</span><b>: {plan.no_revisi}</b></div>
@@ -39,6 +39,7 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
             <span className={pageIndex > 0 ? 'form001-signature-slashed' : undefined}>{pageIndex === 0 ? plan.penanggung_jawab_qms || '-' : ''}</span>
             <span className={pageIndex > 0 ? 'form001-signature-slashed' : undefined}>{pageIndex === 0 ? plan.disetujui_oleh || '-' : ''}</span>
           </div>
+          <div className="form001-page-number">Hal: {pageIndex + 1}/{pages.length}</div>
         </div>
       </header>
       <div className="form001-legends"><div><b>◎</b> Seksi utama terkait proses yang berlaku&nbsp;&nbsp;&nbsp; <b>○</b> Seksi terkait</div><div>Plan: <b>○</b>&nbsp;&nbsp;&nbsp; Aktual: <b>●</b></div></div>
@@ -49,11 +50,17 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
           {page.processes.map((process, processIndex) => {
             const processId = process.planProcess?.id;
             const number = pageIndex * FORM001_PROCESS_CAPACITY + processIndex + 1;
+            const hasActual = !!processId && months.some((month) => scheduleByCell.get(`${processId}:${month.month}`)?.aktual);
             return [
               <tr className="form001-process-row" key={`${process.key}-plan`}><td rowSpan={2}>{number}</td><td className="form001-process-name" rowSpan={2}>{process.nama_proses}</td><th>Plan</th>
                 {orderedSections.length ? orderedSections.map((section) => { const link = processId ? linkByCell.get(`${processId}:${section.id}`) : undefined; return <MatrixCell key={section.id} inactive={!process.active} value={formatAnnualAuditSectionMark(link)}/>; }) : <MatrixCell inactive={!process.active}/>}
                 {months.map((month) => <MatrixCell key={month.month} inactive={!process.active} value={processId && scheduleByCell.get(`${processId}:${month.month}`)?.plan ? '○' : ''}/>)}</tr>,
-              <tr className="form001-process-row" key={`${process.key}-actual`}><th>Aktual</th>{Array.from({ length: sectionColumnCount }, (_, cell) => <MatrixCell key={cell} inactive={!process.active}/>)}{months.map((month) => <MatrixCell key={month.month} inactive={!process.active} value={processId && scheduleByCell.get(`${processId}:${month.month}`)?.aktual ? '●' : ''}/>)}</tr>,
+              <tr className="form001-process-row" key={`${process.key}-actual`}><th>Aktual</th>
+                {orderedSections.length ? orderedSections.map((section) => {
+                  const link = processId ? linkByCell.get(`${processId}:${section.id}`) : undefined;
+                  return <MatrixCell key={section.id} inactive={!process.active} value={hasActual && !!link?.peran ? '●' : ''}/>;
+                }) : <MatrixCell inactive={!process.active}/>}
+                {months.map((month) => <MatrixCell key={month.month} inactive={!process.active} value={processId && scheduleByCell.get(`${processId}:${month.month}`)?.aktual ? '●' : ''}/>)}</tr>,
             ];
           })}
           {lastPage && page.fillerProcessCount > 0 && Array.from({ length: page.fillerProcessCount }, (_, fillerIndex) => [
@@ -62,7 +69,7 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
           ])}
         </tbody>
       </table>
-      <footer className="form001-footer"><div>{FORM001_FOOTNOTES.map((note) => <div key={note}>{note}</div>)}</div><strong>{plan.kode_dokumen}</strong><b>Hal: {pageIndex + 1}/{pages.length}</b></footer>
+      <footer className="form001-footer"><div>{FORM001_FOOTNOTES.map((note) => <div key={note}>{note}</div>)}</div><strong>{plan.kode_dokumen}</strong></footer>
     </section>;
   })}</div>;
 }
