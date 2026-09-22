@@ -35,8 +35,17 @@ INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id
 ('f1600000-0000-0000-0000-000000000007','f1500000-0000-0000-0000-000000000001','QA-F107','f1100000-0000-0000-0000-000000000001','f1d10000-0000-0000-0000-000000000001','AuditManufaktur','2027-03-15',NULL,false,7);
 
 INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist) SELECT ('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1600000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'QA-F10'||n,'Fixture' FROM generate_series(1,5)n;
-INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)
-SELECT ('f1800000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi','O','Observed' FROM generate_series(1,5)n;
+INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi)
+SELECT ('f1800000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('f1700000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi' FROM generate_series(1,5)n;
+ALTER TABLE public.checklist_items DISABLE TRIGGER trg_identity_system_execution;
+UPDATE public.checklist_items SET hasil='O',komentar_auditor='Observed' WHERE id IN(
+  'f1800000-0000-0000-0000-000000000001',
+  'f1800000-0000-0000-0000-000000000002',
+  'f1800000-0000-0000-0000-000000000003',
+  'f1800000-0000-0000-0000-000000000004',
+  'f1800000-0000-0000-0000-000000000005'
+);
+ALTER TABLE public.checklist_items ENABLE TRIGGER trg_identity_system_execution;
 
 INSERT INTO public.checklist_produk(id,row_id,kode_audit,status)VALUES('f1900000-0000-0000-0000-000000000001','f1600000-0000-0000-0000-000000000006','QA-F106','Draft');
 INSERT INTO public.checklist_produk_fase(id,checklist_produk_id,nama_fase,dokumen_bukti)VALUES('f1910000-0000-0000-0000-000000000001','f1900000-0000-0000-0000-000000000001','Fase','["fixture"]');
@@ -103,8 +112,11 @@ INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id
 -- Checklist workflow itself requires a uniquely-resolvable Annual Plan + locked team.
 INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist)VALUES
 ('f1700000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000008','QA-F108','Standalone');
-INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)VALUES
-('f1800000-0000-0000-0000-000000000008','f1700000-0000-0000-0000-000000000008','Sub','Input Proses','8','Question','Observasi','O','Observed');
+INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi)VALUES
+('f1800000-0000-0000-0000-000000000008','f1700000-0000-0000-0000-000000000008','Sub','Input Proses','8','Question','Observasi');
+ALTER TABLE public.checklist_items DISABLE TRIGGER trg_identity_system_execution;
+UPDATE public.checklist_items SET hasil='O',komentar_auditor='Observed' WHERE id='f1800000-0000-0000-0000-000000000008';
+ALTER TABLE public.checklist_items ENABLE TRIGGER trg_identity_system_execution;
 ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_identity_instruction_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER trg_require_auditor_execution_transition;
 UPDATE public.audit_instruction_rows SET cek_selesai=true WHERE id IN('f1600000-0000-0000-0000-000000000008','f1600000-0000-0000-0000-000000000009','f1600000-0000-0000-0000-000000000010','f1600000-0000-0000-0000-000000000011');
 ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_require_auditor_execution_transition;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_protect_audit_execution_completion;ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER trg_identity_instruction_completion;
