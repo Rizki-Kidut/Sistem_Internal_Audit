@@ -76,8 +76,12 @@ assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
 for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
 assert(!html.includes('>Process<'));
 assert(!html.includes('CertiTrack'));
-assert(html.includes('<div class="form001-page-number">Hal: 1/2</div>'));
-assert(html.includes('<div class="form001-page-number">Hal: 2/2</div>'));
+assert(html.includes('class="form001-legend-right"'));
+assert(html.includes('<b class="form001-page-number">Hal: 1/2</b>'));
+assert(html.includes('<b class="form001-page-number">Hal: 2/2</b>'));
+const approvalMatches = [...html.matchAll(/<div class="form001-approval">([\s\S]*?)<\/div>/g)];
+assert.equal(approvalMatches.length, 2);
+for (const [, approval] of approvalMatches) assert(!approval.includes('Hal:'), 'Page number must stay outside approval box');
 const footerMatches = [...html.matchAll(/<footer class="form001-footer">([\s\S]*?)<\/footer>/g)];
 assert.equal(footerMatches.length, 2);
 for (const [, footer] of footerMatches) {
@@ -104,7 +108,7 @@ assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', 'grid-template-columns:1fr auto', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header span{position:absolute;left:50%;bottom:1mm', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header span{position:absolute;left:50%;bottom:1mm', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, neutral header, header page numbering, Plan-to-Actual Section symbol mapping with flags, bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
