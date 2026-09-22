@@ -3177,3 +3177,18 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   qualifying audit context now materializes `aktual=true` / `aktual_auto=true` for the
   Annual Plan revision that owns the audit Program. Non-qualifying completed contexts remain false.
 - Browser/Chrome A3 landscape pagination and visual acceptance are still pending.
+
+
+## FORM-001 visual correction after A3 UAT — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — RE-TEST PENDING`.
+
+- Real Staging visual UAT confirmed the overall A3 FORM-001 layout is close to the controlled reference.
+- Removed CertiTrack/Internal Audit branding from the print header while retaining the bordered left header cell and centered title geometry.
+- Moved dynamic physical-page numbering (`Hal: current/total`) from the bottom-right footer to the right-side header directly below the approval/signature block.
+- The bottom footer now keeps only the controlled notes and authoritative document code.
+- For active processes, when at least one effective monthly `audit_plan_schedule.aktual=true` exists, the Actual row now renders `●` in every related Section cell that has an authoritative `audit_plan_seksi_link.peran`. Plan-row `◎/○/*1/*2` rendering is unchanged.
+- Processes without any Actual month keep the Actual Section row blank. Inactive processes retain the diagonal slash on both Plan and Actual rows.
+- Presentation regression coverage was extended for the neutral header, header page numbering, footer placement, Actual Section dots, no-Actual blank behavior, and inactive-process slashes.
+- No database migration, RLS, Actual automation/override logic, A3 pagination rule, filler behavior, FORM-010, FORM-014, Production data, or nested `/project` scope changed in this correction.
+- Authenticated Chrome A3 re-test remains required before merge.
