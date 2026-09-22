@@ -1441,6 +1441,45 @@ This is now an established repository convention.
 
 **Status:** `IN_PROGRESS`
 
+### FORM-001 browser print/export — 22 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; static presentation checks pass, but authenticated Staging and
+authoritative Chrome A3 Landscape Print Preview acceptance remain pending. Production was not changed.
+
+- Added the read-only `Q-120-ISE-001-FORM-001` preview and browser `window.print()` action to the existing
+  Rencana Audit Tahunan detail. It reuses the loaded Annual Plan header, plan-process rows, selected active
+  Sections, normalized annual-plan process/Section links, and annual-plan monthly schedule records; it does
+  not persist or duplicate print data.
+- The current schema owns a calendar `tahun` plus schedule `bulan` values 1–12 and has no fiscal-period start
+  field. Accordingly the print view generates January–December dynamically for the selected plan year rather
+  than guessing an April–March period. Plan and Aktual marks come only from `audit_plan_schedule.plan` and
+  `.aktual`.
+- Deterministic pagination uses 13 two-row Process slots per physical sheet. Every rendered page repeats the
+  complete header, legends, vertical Section/month headings, matrix, notes, document code, and calculated
+  `Hal: current/total`. The final page fills unused slots with a full-grid, vertically labelled `Lainnya`
+  region instead of stretching real rows.
+- Process order follows `audit_plan_process.urutan_tampil`. Master Process rows marked
+  `diaudit_tahun_ini=false` remain visible and receive a CSS bottom-left-to-top-right diagonal in every
+  Section and schedule cell on both Plan/Aktual rows. Inactive master rows not historically synchronized to
+  the plan are appended by stable master code for controlled-form visibility without inserting plan rows.
+- Page 1 approval cells show `penanggung_jawab_qms` and `disetujui_oleh`; continuation pages retain role and
+  cell geometry but replace both names with CSS diagonals. `tanggal_berlaku`, `no_revisi`, and
+  `kode_dokumen` provide the remaining controlled metadata. No image logo asset exists in active root source,
+  so the header reuses the existing textual CertiTrack brand rather than inventing a company logo.
+- Fixed controlled footnotes are centralized in the print helper because no equivalent Annual Plan storage
+  exists. Explicit buffered A3 geometry is `418mm × min-height 294mm` within `@page A3 landscape`, and print
+  rules hide the application shell/UI while preserving one complete React section per physical sheet.
+- Files changed: `src/components/pages/RencanaAuditPage.tsx`,
+  `src/components/pages/AnnualAuditPlanPrintView.tsx`,
+  `src/components/pages/annualAuditPlanPrint.css`, `src/lib/annualAuditPrint.ts`,
+  `tests/form001-presentation.cjs`, and `PROJECT_STATUS.md`. No migration, dependency, backend, RLS,
+  FORM-010/FORM-014, Production, or nested `/project` file changed.
+- Validation passed: `node tests/form001-presentation.cjs`, `npm run typecheck`, targeted ESLint,
+  `npm run build`, and `git diff --check`. Full-repository `npm run lint` remains red on pre-existing unused
+  imports in active and legacy snapshot files; the FORM-001 touched TypeScript files pass targeted ESLint.
+  No browser executable/authenticated Staging session is available in this environment, so no screenshot or
+  Chrome physical pagination PASS is claimed.
+
 ### Implemented
 
 #### Kelola Proses
