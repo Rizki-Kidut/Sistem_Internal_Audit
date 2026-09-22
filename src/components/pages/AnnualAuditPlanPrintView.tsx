@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import type { AuditPlan, AuditPlanProcess, AuditPlanSchedule, AuditPlanSeksiLink, Proses, Seksi } from '../../lib/types';
-import { PERAN_PROSES } from '../../lib/enums';
 import { formatTanggal, parseDate } from '../../lib/utils';
-import { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FOOTNOTES, FORM001_PROCESS_CAPACITY, paginateAnnualAuditForm } from '../../lib/annualAuditPrint';
+import { annualAuditMonths, buildAnnualAuditPrintProcesses, FORM001_FOOTNOTES, FORM001_PROCESS_CAPACITY, formatAnnualAuditSectionMark, paginateAnnualAuditForm } from '../../lib/annualAuditPrint';
 import './annualAuditPlanPrint.css';
 
 interface Props {
@@ -45,14 +44,14 @@ export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sec
       <div className="form001-legends"><div><b>◎</b> Seksi utama terkait proses yang berlaku&nbsp;&nbsp;&nbsp; <b>○</b> Seksi terkait</div><div>Plan: <b>○</b>&nbsp;&nbsp;&nbsp; Aktual: <b>●</b></div></div>
       <table className="form001-matrix">
         <colgroup><col className="form001-number-col"/><col className="form001-process-col"/><col className="form001-state-col"/>{Array.from({ length: sectionColumnCount }, (_, index) => <col className="form001-matrix-col" key={`section-col-${index}`}/>)}{months.map((month) => <col className="form001-matrix-col" key={month.month}/>)}</colgroup>
-        <thead><tr><th rowSpan={2}>No</th><th rowSpan={2}>Process</th><th rowSpan={2}>Plan / Aktual</th><th colSpan={sectionColumnCount}>Seksi yang diaudit</th><th colSpan={months.length}>Jadwal pelaksanaan</th></tr><tr className="form001-vertical-headers">{orderedSections.length ? orderedSections.map((section) => <th key={section.id}><span>{section.nama}</span></th>) : <th><span>-</span></th>}{months.map((month) => <th key={month.month}><span>{month.label}</span></th>)}</tr></thead>
+        <thead><tr><th rowSpan={2}>No</th><th rowSpan={2}>Proses</th><th rowSpan={2}>Plan / Aktual</th><th colSpan={sectionColumnCount}>Seksi yang diaudit</th><th colSpan={months.length}>Jadwal pelaksanaan</th></tr><tr className="form001-vertical-headers">{orderedSections.length ? orderedSections.map((section) => <th key={section.id}><span>{section.nama}</span></th>) : <th><span>-</span></th>}{months.map((month) => <th key={month.month}><span>{month.label}</span></th>)}</tr></thead>
         <tbody>
           {page.processes.map((process, processIndex) => {
             const processId = process.planProcess?.id;
             const number = pageIndex * FORM001_PROCESS_CAPACITY + processIndex + 1;
             return [
               <tr className="form001-process-row" key={`${process.key}-plan`}><td rowSpan={2}>{number}</td><td className="form001-process-name" rowSpan={2}>{process.nama_proses}</td><th>Plan</th>
-                {orderedSections.length ? orderedSections.map((section) => { const role = processId ? linkByCell.get(`${processId}:${section.id}`)?.peran : null; return <MatrixCell key={section.id} inactive={!process.active} value={role === PERAN_PROSES.UTAMA ? '◎' : role === PERAN_PROSES.TERKAIT ? '○' : ''}/>; }) : <MatrixCell inactive={!process.active}/>} 
+                {orderedSections.length ? orderedSections.map((section) => { const link = processId ? linkByCell.get(`${processId}:${section.id}`) : undefined; return <MatrixCell key={section.id} inactive={!process.active} value={formatAnnualAuditSectionMark(link)}/>; }) : <MatrixCell inactive={!process.active}/>}
                 {months.map((month) => <MatrixCell key={month.month} inactive={!process.active} value={processId && scheduleByCell.get(`${processId}:${month.month}`)?.plan ? '○' : ''}/>)}</tr>,
               <tr className="form001-process-row" key={`${process.key}-actual`}><th>Aktual</th>{Array.from({ length: sectionColumnCount }, (_, cell) => <MatrixCell key={cell} inactive={!process.active}/>)}{months.map((month) => <MatrixCell key={month.month} inactive={!process.active} value={processId && scheduleByCell.get(`${processId}:${month.month}`)?.aktual ? '●' : ''}/>)}</tr>,
             ];

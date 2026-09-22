@@ -13,7 +13,7 @@ for (const extension of ['.ts', '.tsx']) require.extensions[extension] = (module
 };
 require.extensions['.css'] = () => {};
 
-const { annualAuditMonths, buildAnnualAuditPrintProcesses, paginateAnnualAuditForm } = require('../src/lib/annualAuditPrint.ts');
+const { annualAuditMonths, buildAnnualAuditPrintProcesses, formatAnnualAuditSectionMark, paginateAnnualAuditForm, resolveAnnualAuditSections } = require('../src/lib/annualAuditPrint.ts');
 const { AnnualAuditPlanPrintView } = require('../src/components/pages/AnnualAuditPlanPrintView.tsx');
 const master = Array.from({ length: 15 }, (_, index) => ({
   id: `master-${index + 1}`, kode_proses: `PRC-${String(index + 1).padStart(3, '0')}`,
@@ -30,19 +30,44 @@ const pages = paginateAnnualAuditForm(rows);
 assert.deepEqual(pages.map((page) => [page.processes.length, page.fillerProcessCount]), [[13, 0], [2, 11]]);
 assert.deepEqual(annualAuditMonths(2026).map((month) => month.label), ['Januari 2026', 'Februari 2026', 'Maret 2026', 'April 2026', 'Mei 2026', 'Juni 2026', 'Juli 2026', 'Agustus 2026', 'September 2026', 'Oktober 2026', 'November 2026', 'Desember 2026']);
 
+const markCases = [
+  ['utama', false, false, '◎'], ['terkait', false, false, '○'],
+  ['utama', true, false, '◎*1'], ['terkait', true, false, '○*1'],
+  ['utama', false, true, '◎*2'], ['terkait', false, true, '○*2'],
+  ['utama', true, true, '◎*1*2'], ['terkait', true, true, '○*1*2'],
+];
+for (const [peran, flag1, flag2, expected] of markCases) assert.equal(formatAnnualAuditSectionMark({ peran, flag_audit_proses_shift_produk: flag1, flag_lingkup_pdca: flag2 }), expected);
+assert.equal(formatAnnualAuditSectionMark({ peran: null, flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true }), '');
+
+const availableSections = [
+  { id: 'inactive-selected', nama: 'Seksi Historis Nonaktif', urutan_tampil: 1, aktif: false },
+  { id: 'active-selected', nama: 'Seksi Aktif Terpilih', urutan_tampil: 2, aktif: true },
+  { id: 'inactive-unselected', nama: 'Seksi Nonaktif Tidak Terpilih', urutan_tampil: 0, aktif: false },
+];
+const resolvedSections = resolveAnnualAuditSections(['active-selected', 'inactive-selected'], availableSections);
+assert.deepEqual(resolvedSections.map((section) => section.id), ['inactive-selected', 'active-selected']);
+
 const plan = { tahun: 2026, tanggal_berlaku: '2026-01-02', no_revisi: 1, kode_dokumen: 'Q-120-ISE-001-FORM-001', penanggung_jawab_qms: 'PJ QMS', disetujui_oleh: 'Direktur' };
 const sections = [{ id: 'section-1', nama: 'Seksi dengan nama lengkap yang panjang', urutan_tampil: 1 }];
-const links = [{ process_id: 'plan-1', seksi_id: 'section-1', peran: 'utama' }, { process_id: 'plan-2', seksi_id: 'section-1', peran: 'terkait' }];
+const links = [
+  { process_id: 'plan-1', seksi_id: 'section-1', peran: 'utama', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true },
+  { process_id: 'plan-2', seksi_id: 'section-1', peran: 'terkait', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: false },
+];
 const schedules = [{ process_id: 'plan-1', bulan: 1, plan: true, aktual: true }];
 const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections, sectionLinks: links, schedules }));
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
-for (const value of ['Rencana Internal Audit Tahunan', 'Seksi dengan nama lengkap yang panjang', 'Januari 2026', '◎', '○', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
+for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'Januari 2026', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
+assert(!html.includes('>Process<'));
 assert.equal((html.match(/form001-signature-slashed/g) || []).length, 2);
 assert(html.includes('form001-inactive-cell'));
 assert.equal((html.match(/>PJ QMS</g) || []).length, 1);
 assert.equal((html.match(/>Direktur</g) || []).length, 1);
+const historicalHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections: resolvedSections, sectionLinks: [], schedules: [] }));
+assert(historicalHtml.includes('Seksi Historis Nonaktif'));
+assert(historicalHtml.includes('Seksi Aktif Terpilih'));
+assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
 for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 deterministic two-page shell, master inactivity, matrix marks, continuation signatures, filler grid, Indonesian calendar months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, inactive-process slashes, all relationship/flag marks, historical selected Sections, continuation signatures, filler grid, Indonesian months, and buffered A3 CSS.');

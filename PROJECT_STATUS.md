@@ -1480,6 +1480,22 @@ authoritative Chrome A3 Landscape Print Preview acceptance remain pending. Produ
   No browser executable/authenticated Staging session is available in this environment, so no screenshot or
   Chrome physical pagination PASS is claimed.
 
+#### FORM-001 correction pass — 22 Sep 2026
+
+- Section marks now preserve both authoritative `audit_plan_seksi_link` flags after the relationship symbol:
+  `◎`/`○`, optionally followed by `*1`, `*2`, or `*1*2`. Flags without a `peran` relationship remain blank.
+- FORM-001 Section resolution now reads the complete Section master through `getSeksiList()` and filters it by
+  the selected plan's `seksi_terlibat`. A selected historical Section therefore remains printed after its
+  master becomes inactive, while an inactive Section not owned by the plan remains absent. The normal editor
+  continues using `getSeksiAktif()` for new selections, and print columns retain `urutan_tampil` order.
+- Corrected the controlled table heading from `Process` to `Proses`.
+- Print actions are now explicit: `Preview FORM-001` toggles the committed screen preview; only the separately
+  visible `Cetak / Simpan PDF` button invokes `window.print()`. No pre-render print side effect remains.
+- Extended the FORM-001 presentation regression for every relationship/flag combination, the no-relationship
+  flag guard, selected inactive/unselected inactive Section behavior, and the corrected Indonesian label.
+  No geometry, pagination capacity, slash behavior, filler behavior, schema, RLS, Production, other form, or
+  legacy `/project` file changed. Browser A3 Print Preview remains pending.
+
 ### Implemented
 
 #### Kelola Proses

@@ -1,10 +1,26 @@
-import type { AuditPlanProcess, Proses } from './types';
+import type { AuditPlanProcess, AuditPlanSeksiLink, Proses, Seksi } from './types';
+import { PERAN_PROSES } from './enums';
 
 export const FORM001_PROCESS_CAPACITY = 13;
 export const FORM001_FOOTNOTES = [
   '*1: termasuk audit proses, audit shift, dan audit produk',
   '*2: lingkup audit: konfirmasi PDCA terkait kontrol kebijakan',
 ] as const;
+
+export function formatAnnualAuditSectionMark(link?: AuditPlanSeksiLink): string {
+  if (!link?.peran) return '';
+  const relationship = link.peran === PERAN_PROSES.UTAMA ? '◎' : '○';
+  const flag1 = link.flag_audit_proses_shift_produk ? '*1' : '';
+  const flag2 = link.flag_lingkup_pdca ? '*2' : '';
+  return `${relationship}${flag1}${flag2}`;
+}
+
+export function resolveAnnualAuditSections(selectedIds: string[], sections: Seksi[]): Seksi[] {
+  const selected = new Set(selectedIds);
+  return sections
+    .filter((section) => selected.has(section.id))
+    .sort((a, b) => a.urutan_tampil - b.urutan_tampil);
+}
 
 export interface AnnualAuditPrintProcess {
   key: string;

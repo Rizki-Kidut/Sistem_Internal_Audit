@@ -26,7 +26,7 @@ import {
   findPreviousYearPlan,
   syncProcessesFromMaster,
 } from '../../services/auditPlanService';
-import { getSeksiAktif } from '../../services/seksiService';
+import { getSeksiAktif, getSeksiList } from '../../services/seksiService';
 import { getActiveProses, getAllProses } from '../../services/prosesService';
 import { createProgramFromPlan, getNextNomorKe } from '../../services/auditProgramService';
 import { JENIS_RONDE } from '../../lib/enums';
@@ -38,6 +38,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Field, Input, Select } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { AnnualAuditPlanPrintView } from './AnnualAuditPlanPrintView';
+import { resolveAnnualAuditSections } from '../../lib/annualAuditPrint';
 
 interface RencanaAuditPageProps {
   onNavigateToProgram?: (programId: string) => void;
@@ -46,6 +47,7 @@ interface RencanaAuditPageProps {
 export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps = {}) {
   const [plans, setPlans] = useState<AuditPlan[]>([]);
   const [seksiAktif, setSeksiAktif] = useState<Seksi[]>([]);
+  const [allSections, setAllSections] = useState<Seksi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,11 +100,12 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     setLoading(true);
     setError(null);
     try {
-      const [planList, seksiList, masterProses, allProcesses] = await Promise.all([
-        getAuditPlans(), getSeksiAktif(), getActiveProses(), getAllProses(),
+      const [planList, seksiList, sectionList, masterProses, allProcesses] = await Promise.all([
+        getAuditPlans(), getSeksiAktif(), getSeksiList(), getActiveProses(), getAllProses(),
       ]);
       setPlans(planList);
       setSeksiAktif(seksiList);
+      setAllSections(sectionList);
       // Build master proses map
       const map = new Map<string, Proses>();
       masterProses.forEach((p) => map.set(p.id, p));
@@ -167,12 +170,6 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
       setSchedules([]);
     }
   }, [selectedPlanId, loadDetail]);
-
-  useEffect(() => {
-    if (!showPrintPreview) return;
-    const frame = window.requestAnimationFrame(() => window.print());
-    return () => window.cancelAnimationFrame(frame);
-  }, [showPrintPreview]);
 
   // --- Handlers ---
 
@@ -381,7 +378,7 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
   if (loading) return <LoadingSpinner message="Memuat rencana audit..." />;
 
   const printSections = plan
-    ? seksiAktif.filter((section) => plan.seksi_terlibat.includes(section.id))
+    ? resolveAnnualAuditSections(plan.seksi_terlibat, allSections)
     : [];
 
   return (
@@ -460,13 +457,14 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
               />
 
               <div className="mb-4 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => showPrintPreview ? window.print() : setShowPrintPreview(true)}>
-                  <Printer size={16} /> Cetak / Simpan PDF
+                <Button variant="secondary" onClick={() => setShowPrintPreview((visible) => !visible)}>
+                  <FileText size={16} /> Preview FORM-001
                 </Button>
                 {showPrintPreview && (
-                  <Button variant="ghost" onClick={() => setShowPrintPreview(false)}>
-                    <X size={16} /> Tutup Preview
-                  </Button>
+                  <>
+                    <Button onClick={() => window.print()}><Printer size={16} /> Cetak / Simpan PDF</Button>
+                    <Button variant="ghost" onClick={() => setShowPrintPreview(false)}><X size={16} /> Tutup Preview</Button>
+                  </>
                 )}
               </div>
 
