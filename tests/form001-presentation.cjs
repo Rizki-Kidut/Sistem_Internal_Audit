@@ -63,16 +63,33 @@ const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, 
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
 for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
 assert(!html.includes('>Process<'));
+assert(!html.includes('CertiTrack'));
+assert(html.includes('<div class="form001-page-number">Hal: 1/2</div>'));
+assert(html.includes('<div class="form001-page-number">Hal: 2/2</div>'));
+const footerMatches = [...html.matchAll(/<footer class="form001-footer">([\s\S]*?)<\/footer>/g)];
+assert.equal(footerMatches.length, 2);
+for (const [, footer] of footerMatches) {
+  assert(!footer.includes('Hal:'));
+  assert(footer.includes('Q-120-ISE-001-FORM-001'));
+}
+assert.equal((html.match(/>●<\/td>/g) || []).length, 2, 'Actual process must mark both related Section and Actual month');
 assert.equal((html.match(/form001-signature-slashed/g) || []).length, 2);
 assert(html.includes('form001-inactive-cell'));
 assert.equal((html.match(/>PJ QMS</g) || []).length, 1);
 assert.equal((html.match(/>Direktur</g) || []).length, 1);
+const noActualHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, {
+  plan, processes, masterProcesses: master, sections, sectionLinks: links,
+  schedules: [{ process_id: 'plan-1', bulan: 1, plan: true, aktual: false }],
+}));
+assert.equal((noActualHtml.match(/>●<\/td>/g) || []).length, 0, 'No Actual month must keep Actual Section row blank');
+
 const historicalHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections: resolvedSections, sectionLinks: [], schedules: [] }));
 assert(historicalHtml.includes('Seksi Historis Nonaktif'));
 assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', 'grid-template-columns:1fr auto', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, inactive-process slashes, all relationship/flag marks, historical selected Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, header page numbering, Actual Section dots, inactive-process slashes, relationship/flag marks, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
