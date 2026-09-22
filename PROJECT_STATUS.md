@@ -3147,3 +3147,33 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   Batch 9b authorization/runtime regression passed.
 - Staging migration-ledger timestamps differ from repository migration filenames, consistent with the
   existing project-wide MCP migration-application history. Do not attempt a Batch-9b-only ledger rewrite.
+
+
+## FORM-001 Actual automation — Staging DB verification — 22 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED — BROWSER A3 UAT PENDING`.
+
+- PR #30 remains open and unmerged. Production remains untouched.
+- Applied to CertiTrack-Staging:
+  - `automate_annual_plan_actual`
+  - `fix_execution_insert_guard_dispatch`
+  - `backfill_annual_plan_actual`
+- Automatic Actual now uses the authoritative execution state, checklist completeness,
+  established Finding states, execution-date ownership, aggregate multi-QA reconciliation,
+  and Admin override precedence.
+- Standalone Instructions are supported: Program-linked Instructions resolve through
+  `audit_programs.plan_id`; standalone Instructions resolve by fiscal year only when exactly
+  one Annual Plan exists. Unresolved/ambiguous trigger contexts safely no-op and do not block
+  audit execution or Finding workflows.
+- The Staging run exposed a pre-existing heterogeneous trigger-dispatch defect in
+  `guard_identity_execution_insert()`: the shared trigger referenced table-specific NEW fields
+  directly. A small compatibility migration now dispatches through `to_jsonb(NEW)`, preserving
+  all existing preparation rules without cross-table record-field errors.
+- Regression fixtures were aligned with the current locked-Team and preparation/execution guards;
+  the rollback-only `supabase/tests/form001_actual_regression.sql` now passes on Staging.
+- Post-regression cleanup verified zero `f1...` auth users, plans, instruction rows, teams,
+  and override events remained.
+- Backfill verification on the existing FY2099 UAT data proved that a previously completed,
+  qualifying audit context now materializes `aktual=true` / `aktual_auto=true` for the
+  Annual Plan revision that owns the audit Program. Non-qualifying completed contexts remain false.
+- Browser/Chrome A3 landscape pagination and visual acceptance are still pending.
