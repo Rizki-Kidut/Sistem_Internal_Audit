@@ -3224,3 +3224,51 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression now asserts that no `Hal:` appears inside the approval block and that the page number is rendered inside the right-side legend group.
 - No database, migration, RLS, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` change was made.
 - Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 final Staging/UAT closeout — 22 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED + VISUAL_UAT_ACCEPTED — PRE-MERGE REVIEW COMPLETE; MERGE REQUIRES EXPLICIT APPROVAL`.
+
+- PR #30 remains open and unmerged. Production remains untouched.
+- Final reviewed functional scope includes:
+  - controlled A3-landscape FORM-001 browser preview/print;
+  - April→March fiscal presentation;
+  - deterministic 13-process pagination with continuation pages and final-page `Lainnya` filler;
+  - inactive-process slash rendering;
+  - continuation-page approval slash;
+  - Plan Section semantics `◎/○/*1/*2`;
+  - Actual Section semantics mirroring Plan as `◉/●` with the same `*1/*2` suffixes;
+  - bottom-aligned Section headers;
+  - page numbering outside the approval box, beside the Plan/Aktual legend;
+  - neutral blank left header cell with no CertiTrack branding.
+- Real authenticated visual UAT was accepted by the user on the retained FY2098 Rev.7 Staging fixture.
+  The accepted output covered two physical pages, inactive rows, continuation approval behavior,
+  Actual month/Section marks, long Process wrapping, filler rows, page numbering, and the final header alignment.
+- Automatic Actual materialization remains authoritative:
+  completed execution + complete applicable checklist + no blocking non-final Finding + authoritative execution date.
+  ZERO FINDING is valid; ANNULLED Finding does not block.
+- Product uses `tanggal_audit_produk` with fallback to `tanggal_pelaksanaan_audit`;
+  System/Manufacturing/Shift use `tanggal_pelaksanaan_audit`.
+- Admin-only controlled override remains available through guarded RPC:
+  Set Actual, Clear Actual, and Return to Automatic, with mandatory reason for Set/Clear and append-only history.
+- Standalone Instructions resolve by fiscal year only when exactly one Annual Plan exists;
+  unresolved/ambiguous trigger contexts safely no-op rather than blocking audit execution/Finding workflow.
+- Staging migrations applied and retained:
+  - `automate_annual_plan_actual`
+  - `fix_execution_insert_guard_dispatch`
+  - `backfill_annual_plan_actual`
+- Final pre-merge rerun of rollback-only `supabase/tests/form001_actual_regression.sql` passed.
+  Post-run verification confirmed zero synthetic regression auth users, plans, Instruction rows,
+  teams, and override events remained.
+- Authorization re-check:
+  `override_annual_plan_actual` is authenticated-executable by design and internally Admin-guarded;
+  private reconciliation/resolver functions are not executable by `authenticated`;
+  override-event RLS and immutability/materialization protection triggers remain enabled.
+- GitHub pre-merge checks found no inline review threads or submitted reviews requiring action.
+  PR #30 was mergeable and 0 commits behind `main` at the reviewed implementation head.
+- Supabase Advisor still reports the expected generic SECURITY DEFINER warning for the intentionally
+  authenticated-executable, internally guarded Admin override RPC. Performance-only INFO notices remain
+  for missing covering indexes on two override-event foreign keys and the currently unused schedule-history index;
+  these are non-blocking for correctness/authorization.
+- The persistent FY2098 visual-UAT fixture is intentionally retained on Staging until post-merge cleanup/release preparation.
