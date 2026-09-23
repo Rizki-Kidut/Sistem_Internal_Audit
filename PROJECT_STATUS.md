@@ -3452,3 +3452,25 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Corrected Verification Pending and Auditor verification tasks to count exactly `AUDITOR_REVIEW` plus `AUDITOR_RETURNED`; `ADMIN_REVIEW` and `CLOSED` are excluded.
 - FORM-001 Plan/Aktual availability now additionally requires a current Annual Plan. An authorized Instruction FY without a Plan returns `plan_actual_available=false` and `Belum ada Rencana Audit Tahunan untuk FY ini.` rather than an all-zero pseudo-plan.
 - Expanded the rollback-only SQL regression with shared-row two-Section Finding/CAR isolation for both Auditees and Managers, all five execution states, four LTP workflow states, and an authorized no-Plan FY. It remains unapplied pending explicit Staging approval.
+
+
+## Dashboard Internal Audit Staging migration + regression — 23 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED BROWSER UAT PENDING`.
+
+- Applied the Dashboard read-model migration to `CertiTrack-Staging` only. Production remained untouched.
+- Staging migration ledger:
+  - `20260923072638 add_internal_audit_dashboard`
+  - `20260923073719 harden_internal_audit_dashboard_helper`
+- The initial Dashboard migration source required one pre-application PostgreSQL syntax correction: the internal fiscal-month CTE alias `month` was renamed to `month_no`. The migration had not been recorded/applied before this correction, so the repository migration remained safe to correct in place before first application.
+- Hosted Staging privilege regression found one real security hardening issue: Supabase default privileges left `dashboard_can_access_instruction_row(uuid)` executable by `authenticated`. A new additive migration `20260923140500_harden_internal_audit_dashboard_helper.sql` explicitly revokes that private helper from `PUBLIC`, `anon`, and `authenticated`, while retaining authenticated EXECUTE on the public `get_internal_audit_dashboard(...)` RPC.
+- Final privilege verification:
+  - `get_internal_audit_dashboard(integer,text,uuid)`: authenticated EXECUTE = yes; anon EXECUTE = no.
+  - `dashboard_can_access_instruction_row(uuid)`: authenticated EXECUTE = no; anon EXECUTE = no.
+- Updated the rollback-only `supabase/tests/dashboard_regression.sql` fixture harness for the current hosted schema/lifecycle: existing Lead uniqueness, Team lock RPC, annual Auditor assignments, checklist completion ordering, required CAR action ordering, valid Finding event types, and owner-level fixture mutations after role simulation.
+- Final hosted Staging execution of `dashboard_regression.sql` passed and rolled back successfully.
+- Post-run cleanup verification found zero synthetic Dashboard auth users, profiles, plans, Instruction rows, Findings, and CARs; the existing single Company Lead Auditor link was restored.
+- Real-data Admin sanity call succeeded: full-organization scope, six KPI metrics, five mutually exclusive execution statuses, 12 April→March Plan/Aktual points, and accessible FY options were returned without error.
+- Supabase Security Advisor reports the expected generic warning for the intentionally authenticated-executable `SECURITY DEFINER` public Dashboard RPC. The private Dashboard scope helper is no longer exposed. No Dashboard-specific performance advisory was reported.
+- Existing project-wide advisor findings remain outside this Dashboard change (generic SECURITY DEFINER warnings, leaked-password protection setting, unindexed foreign keys, auth RLS initplan, unused indexes, and multiple permissive policies).
+- PR #31 remains open and unmerged. Authenticated browser UAT by role is the remaining gate before final pre-merge review.
