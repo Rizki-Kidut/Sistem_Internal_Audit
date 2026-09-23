@@ -25,15 +25,16 @@ BEGIN
    (SELECT max(i.tahun_fiskal) FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE public.dashboard_can_access_instruction_row(r.id)),
    CASE WHEN extract(month from v_today)>=4 THEN extract(year from v_today)::integer ELSE extract(year from v_today)::integer-1 END)
  INTO v_year;
- WITH rows AS (
+ WITH base_rows AS (
   SELECT r.*,i.tahun_fiskal,p.nama_proses,
    CASE WHEN r.tipe_baris='Reguler' THEN 'ChecklistSistem' WHEN r.tipe_baris='AuditProduk' THEN 'ChecklistProduk' ELSE 'ChecklistManufakturShift' END audit_type,
    CASE WHEN r.tipe_baris='AuditProduk' THEN COALESCE(r.tanggal_audit_produk,r.tanggal_pelaksanaan_audit) ELSE r.tanggal_pelaksanaan_audit END execution_date,
    public.annual_actual_checklist_complete(r) checklist_complete
   FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id LEFT JOIN public.proses p ON p.id=r.proses_id
   WHERE i.tahun_fiskal=v_year AND public.dashboard_can_access_instruction_row(r.id)
-   AND (p_process_id IS NULL OR r.proses_id=p_process_id)
    AND (p_audit_type IS NULL OR CASE WHEN r.tipe_baris='Reguler' THEN 'ChecklistSistem' WHEN r.tipe_baris='AuditProduk' THEN 'ChecklistProduk' ELSE 'ChecklistManufakturShift' END=p_audit_type)
+ ), rows AS (
+  SELECT * FROM base_rows WHERE p_process_id IS NULL OR proses_id=p_process_id
  ), finding_scope AS (
   SELECT f.*,r.proses_id,r.nama_proses FROM public.findings f JOIN rows r ON r.id=f.instruction_row_id WHERE f.review_status<>'ANNULLED'
  ), car_scope AS (
@@ -50,11 +51,12 @@ BEGIN
  ), plan_chart AS (
   SELECT s.bulan,count(*) FILTER(WHERE s.plan)::integer plan,count(*) FILTER(WHERE s.aktual)::integer actual
   FROM public.audit_plan_schedule s JOIN public.audit_plan_process pp ON pp.id=s.process_id JOIN current_plan cp ON cp.id=pp.plan_id
-  WHERE (p_process_id IS NULL OR pp.proses_master_id=p_process_id) AND ((v_full AND p_audit_type IS NULL) OR EXISTS(SELECT 1 FROM rows r WHERE r.proses_id=pp.proses_master_id)) GROUP BY s.bulan
+  WHERE p_audit_type IS NULL AND (p_process_id IS NULL OR pp.proses_master_id=p_process_id) AND (v_full OR EXISTS(SELECT 1 FROM base_rows r WHERE r.proses_id=pp.proses_master_id)) GROUP BY s.bulan
  ), months AS (SELECT x month,CASE x WHEN 4 THEN 'April' WHEN 5 THEN 'Mei' WHEN 6 THEN 'Juni' WHEN 7 THEN 'Juli' WHEN 8 THEN 'Agustus' WHEN 9 THEN 'September' WHEN 10 THEN 'Oktober' WHEN 11 THEN 'November' WHEN 12 THEN 'Desember' WHEN 1 THEN 'Januari' WHEN 2 THEN 'Februari' ELSE 'Maret' END label FROM unnest(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3]) x),
  attention AS (
   SELECT count(*) FILTER(WHERE r.tanggal_plan_audit<v_today AND e.id IS NULL) plan_overdue,
-   count(*) FILTER(WHERE r.cek_selesai AND e.id IS NULL) execution_not_established FROM rows r LEFT JOIN established e ON e.id=r.id
+   count(*) FILTER(WHERE r.cek_selesai AND e.id IS NULL) execution_not_established,
+   count(DISTINCT r.id) FILTER(WHERE (r.tanggal_plan_audit<v_today OR r.cek_selesai) AND e.id IS NULL) unique_attention FROM rows r LEFT JOIN established e ON e.id=r.id
  ), latest_weakness AS (
   SELECT wr.id FROM public.weakness_analysis_reports wr
   WHERE wr.status='Final' AND (p_audit_type IS NULL OR wr.audit_type=p_audit_type)
@@ -69,7 +71,7 @@ BEGIN
   WHERE COALESCE(wi.final_problem_type,classification.approved_problem_type) IS NOT NULL
   GROUP BY 1 ORDER BY 2 DESC,1 LIMIT 5
  ), recent AS (
-  SELECT f.kode_audit label,e.event_type detail,e.created_at,NULL::text page FROM public.finding_review_events e JOIN finding_scope f ON f.id=e.finding_id
+  SELECT f.kode_audit label,e.event_type detail,e.created_at,'temuan'::text page FROM public.finding_review_events e JOIN finding_scope f ON f.id=e.finding_id
   UNION ALL SELECT f.kode_audit,e.event_type,e.created_at,'car' FROM public.car_workflow_events e JOIN car_scope c ON c.id=e.car_id JOIN finding_scope f ON f.id=c.finding_id
  ), process_stats AS (
   SELECT COALESCE(f.proses_id::text,'none') process_id,COALESCE(f.nama_proses,'Tanpa Proses') process_name,count(*)::integer total,
@@ -81,15 +83,17 @@ BEGIN
  )
  SELECT jsonb_build_object(
   'scope',jsonb_build_object('label',CASE WHEN v_full THEN 'Seluruh Internal Audit' ELSE 'Terbatas sesuai penugasan '||v_identity END,'full_organization',v_full),
-  'fiscal_years',COALESCE((SELECT jsonb_agg(y ORDER BY y DESC) FROM(SELECT DISTINCT i.tahun_fiskal y FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE public.dashboard_can_access_instruction_row(r.id))q),'[]'::jsonb),'selected_fiscal_year',v_year,
-  'processes',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',q.id,'name',q.nama_proses)ORDER BY q.nama_proses) FROM (SELECT DISTINCT r.proses_id id,p.nama_proses FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id JOIN public.proses p ON p.id=r.proses_id WHERE i.tahun_fiskal=v_year AND public.dashboard_can_access_instruction_row(r.id) AND (p_audit_type IS NULL OR CASE WHEN r.tipe_baris='Reguler' THEN 'ChecklistSistem' WHEN r.tipe_baris='AuditProduk' THEN 'ChecklistProduk' ELSE 'ChecklistManufakturShift' END=p_audit_type))q),'[]'),
+  'fiscal_years',COALESCE((SELECT jsonb_agg(y ORDER BY y DESC) FROM(SELECT v_year y UNION SELECT p.tahun FROM public.audit_plans p WHERE v_full UNION SELECT DISTINCT i.tahun_fiskal FROM public.audit_instruction_rows r JOIN public.audit_instructions i ON i.id=r.instruction_id WHERE public.dashboard_can_access_instruction_row(r.id))q),'[]'::jsonb),'selected_fiscal_year',v_year,
+  'processes',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',q.proses_id,'name',q.nama_proses)ORDER BY q.nama_proses) FROM (SELECT DISTINCT proses_id,nama_proses FROM base_rows WHERE proses_id IS NOT NULL)q),'[]'),
   'metrics',jsonb_build_array(
-   jsonb_build_object('key','planned','label','Audit Direncanakan','value',(SELECT count(*) FROM rows),'description','Konteks audit QA pada FY terpilih','page','instruksi-audit'),
+   jsonb_build_object('key','planned','label','Audit Direncanakan','value',(SELECT count(*) FROM rows WHERE tanggal_plan_audit IS NOT NULL),'description','Konteks QA dengan tanggal plan audit','page','instruksi-audit'),
    jsonb_build_object('key','established','label','Audit Established','value',(SELECT count(*) FROM established),'description','Sesuai semantik FORM-001 Actual','page','pelaksanaan'),
    jsonb_build_object('key','finding_open','label','Finding Open','value',(SELECT count(*) FROM finding_scope WHERE review_status IN('PUBLISHED','LEGACY_ESTABLISHED') AND status<>'Closed'),'description','Finding formal belum Closed','page','temuan'),
    jsonb_build_object('key','finding_pending','label','Finding Menunggu Review','value',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'description','Finding aktif belum final','page','temuan'),
    jsonb_build_object('key','ltp_overdue','label','LTP / CAR Overdue','value',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND (a.temporary_due<v_today OR a.permanent_due<v_today)),'description','Target aksi lewat dan LTP belum Closed','page','car'),
-   jsonb_build_object('key','attention','label','Audit Perlu Perhatian','value',(SELECT plan_overdue+execution_not_established FROM attention),'description','Plan lewat atau belum Established','page','pelaksanaan')),
+   jsonb_build_object('key','attention','label','Audit Perlu Perhatian','value',(SELECT unique_attention FROM attention),'description','Plan lewat atau belum Established','page','pelaksanaan')),
+  'plan_actual_available',p_audit_type IS NULL,
+  'plan_actual_message',CASE WHEN p_audit_type IS NULL THEN NULL ELSE 'Plan vs Aktual FORM-001 tidak memiliki dimensi Jenis Audit.' END,
   'plan_actual',(SELECT jsonb_agg(jsonb_build_object('month',m.month,'label',m.label||' '||CASE WHEN m.month>=4 THEN v_year ELSE v_year+1 END,'plan',COALESCE(p.plan,0),'actual',COALESCE(p.actual,0))ORDER BY array_position(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3],m.month))FROM months m LEFT JOIN plan_chart p ON p.bulan=m.month),
   'execution_status',jsonb_build_array(
    jsonb_build_object('label','Belum Mulai','value',(SELECT count(*) FROM rows WHERE NOT cek_selesai AND execution_date IS NULL)),jsonb_build_object('label','Berjalan','value',(SELECT count(*) FROM rows WHERE NOT cek_selesai AND execution_date IS NOT NULL)),jsonb_build_object('label','Execution Selesai','value',(SELECT count(*) FROM rows r LEFT JOIN established e ON e.id=r.id WHERE r.cek_selesai AND e.id IS NULL AND NOT EXISTS(SELECT 1 FROM finding_scope f WHERE f.instruction_row_id=r.id AND f.review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')))),jsonb_build_object('label','Menunggu Finalisasi Finding','value',(SELECT count(DISTINCT instruction_row_id) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED'))),jsonb_build_object('label','Established','value',(SELECT count(*) FROM established))),
@@ -104,6 +108,6 @@ BEGIN
  ) INTO v_result;
  RETURN v_result;
 END $$;
-COMMENT ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) IS 'Read-only identity-scoped dashboard. Planned counts accessible QA contexts; Established delegates checklist semantics to annual_actual_checklist_complete. LTP overdue means max applicable action target is before today while CAR is not CLOSED.';
+COMMENT ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) IS 'Read-only identity-scoped dashboard. Audit Direncanakan counts accessible QA contexts with tanggal_plan_audit; attention counts unique QA contexts; Plan/Actual is unavailable under Audit Type filters; Established delegates checklist semantics to annual_actual_checklist_complete. LTP overdue means max applicable action target is before today while CAR is not CLOSED.';
 REVOKE ALL ON FUNCTION public.dashboard_can_access_instruction_row(uuid),public.get_internal_audit_dashboard(integer,text,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) TO authenticated;

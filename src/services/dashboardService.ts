@@ -8,6 +8,7 @@ export interface DashboardListItem { label:string; detail?:string; date?:string;
 export interface DashboardData {
   scope:{label:string;full_organization:boolean}; fiscal_years:number[]; selected_fiscal_year:number;
   processes:{id:string;name:string}[]; metrics:DashboardMetric[];
+  plan_actual_available:boolean; plan_actual_message:string|null;
   plan_actual:{month:number;label:string;plan:number;actual:number}[];
   execution_status:{label:string;value:number}[];
   finding_health:{open:number;closed:number;pending_review:number;categories:Record<'A'|'B'|'C',number>};

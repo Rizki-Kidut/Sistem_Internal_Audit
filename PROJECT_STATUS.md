@@ -3429,3 +3429,15 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Kept the scope helper private and exposed only `get_internal_audit_dashboard(...)` to authenticated clients.
 - Added rollback-only `supabase/tests/dashboard_regression.sql` covering role isolation, Established/Finding/CAR semantics, FY revision/filter behavior, no-data output, personal-task scoping, and function privileges. It was not applied to Staging or Production per instruction.
 - Added dependency-free `tests/dashboard-presentation.cjs` for navigation, landing, April–March ordering, empty states, selector stability, permission-aware actions, and finite chart values. This is a structural presentation regression, not browser UAT.
+
+## Dashboard Internal Audit semantic correction follow-up — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DB REGRESSION PENDING STAGING`.
+
+- Split the RPC scope into `base_rows` (identity + FY + Audit Type) and Process-filtered `rows`; Process choices remain switchable after a selection.
+- Full-scope fiscal-year options now union Annual Plan years and authorized Instruction years; restricted identities receive only authorized-context years, and the selected FY is always present.
+- FORM-001 Plan/Aktual is returned only without an Audit Type filter. A selected Audit Type now produces `plan_actual_available=false` and the explicit message that FORM-001 has no Audit Type dimension; no schedule values are inferred by Process membership.
+- `Audit Direncanakan` now counts only accessible QA contexts with `tanggal_plan_audit`; `Audit Perlu Perhatian` counts distinct QA contexts satisfying one or more alert conditions.
+- Finding review activity now targets Temuan semantically, subject to the existing frontend capability guard.
+- Filter changes clear the prior payload before loading, preventing old metrics from appearing under new filter controls. RPC failures now provide an in-page `Coba Lagi` action.
+- Extended both Dashboard regressions for the corrected FY, Plan/Aktual availability, planned-date, unique-attention, stale-data, retry, and activity-destination contracts. The rollback-only SQL remains unapplied pending Staging authorization.

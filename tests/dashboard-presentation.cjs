@@ -20,4 +20,12 @@ assert(page.includes("canNavigate('temuan')")&&page.includes("canNavigate('anali
 const service=fs.readFileSync('src/services/dashboardService.ts','utf8');
 assert(service.includes('Number.isFinite(value)?value:0'),'chart values must normalize non-finite/unavailable values');
 assert(service.includes('WEAKNESS_PROBLEM_LABEL'),'Weakness codes must use centralized labels');
+
+assert(migration.includes('WITH base_rows AS (')&&migration.includes('SELECT * FROM base_rows WHERE p_process_id IS NULL OR proses_id=p_process_id'),'Process options and filtered widgets must use separate row scopes');
+assert(migration.includes("'plan_actual_available',p_audit_type IS NULL")&&migration.includes('Plan vs Aktual FORM-001 tidak memiliki dimensi Jenis Audit.'),'Audit Type filter must expose FORM-001 unavailability');
+assert(migration.includes('WHERE tanggal_plan_audit IS NOT NULL'),'Audit Direncanakan must require a planned date');
+assert(migration.includes('unique_attention'),'attention KPI must count unique contexts');
+assert(page.includes('setData(null)'),'filter changes must clear stale payloads');
+assert(page.includes('Coba Lagi'),'error state must provide retry');
+assert(migration.includes("'temuan'::text page FROM public.finding_review_events"),'Finding activity must target Temuan semantically');
 console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, and finite chart contracts.');
