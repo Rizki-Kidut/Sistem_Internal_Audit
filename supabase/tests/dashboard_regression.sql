@@ -82,7 +82,7 @@ ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER;
 SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000001');CREATE TEMP TABLE admin_payload AS SELECT public.get_internal_audit_dashboard(2096,NULL,NULL)p;
 SELECT pg_temp.ok((SELECT pg_temp.metric(p,'planned')=5 FROM admin_payload),'Admin full scope and undated QA excluded from Audit Direncanakan');
 SELECT pg_temp.ok((SELECT p->'fiscal_years' @> '[2095]'::jsonb FROM admin_payload),'full scope includes Annual Plan FY without Instructions');
-SELECT pg_temp.ok((SELECT pg_temp.metric(p,'attention')=1 FROM admin_payload),'Audit Perlu Perhatian counts overlapping conditions once');
+SELECT pg_temp.ok((SELECT pg_temp.metric(p,'attention')=2 FROM admin_payload),'Audit Perlu Perhatian counts two unique QA contexts while overlapping conditions on one QA count once');
 SELECT pg_temp.ok((SELECT (p->'plan_actual'->0->>'label')='April 2096' AND (p->'plan_actual'->11->>'label')='Maret 2097' FROM admin_payload),'April-March order');
 SELECT pg_temp.ok((SELECT (p->'plan_actual'->0->>'plan')::int=0 AND (p->'plan_actual'->1->>'plan')::int=1 FROM admin_payload),'only current plan revision counted');
 SELECT pg_temp.ok((SELECT pg_temp.metric(p,'established')=4 FROM admin_payload),'ZERO FINDING, Product, Manufacturing and PUBLISHED established; pending blocked');
