@@ -9,7 +9,6 @@ import type {
   AuditPlanProcess,
   AuditPlanSeksiLink,
   AuditPlanSchedule,
-  Seksi,
 } from '../lib/types';
 import { AUDIT_PLAN_STATUS, PERAN_PROSES } from '../lib/enums';
 import type { PeranProses } from '../lib/enums';
@@ -474,17 +473,22 @@ export async function getSchedulesByPlan(planId: string): Promise<AuditPlanSched
     bulan: r.bulan as number,
     plan: r.plan as boolean,
     aktual: r.aktual as boolean,
+    aktual_auto: (r.aktual_auto as boolean) ?? false,
+    aktual_override: (r.aktual_override as boolean | null) ?? null,
+    aktual_override_reason: (r.aktual_override_reason as string | null) ?? null,
+    aktual_override_actor: (r.aktual_override_actor as string | null) ?? null,
+    aktual_override_at: (r.aktual_override_at as string | null) ?? null,
     schedule_id: (r.schedule_id as string) ?? null,
     created_at: r.created_at as string,
   }));
 }
 
-// Toggle sel schedule (plan atau aktual) untuk bulan tertentu.
+// Toggle planning data only. Actual is managed by authoritative reconciliation/Admin RPC.
 // Jika belum ada row, buat baru dengan flag yang ditoggle = true.
 export async function toggleSchedule(
   processId: string,
   bulan: number,
-  field: 'plan' | 'aktual',
+  field: 'plan',
 ): Promise<void> {
   const { data: existing } = await supabase
     .from('audit_plan_schedule')
@@ -505,11 +509,28 @@ export async function toggleSchedule(
       process_id: processId,
       bulan,
       plan: field === 'plan' ? true : false,
-      aktual: field === 'aktual' ? true : false,
+      aktual: false,
     };
     const { error } = await supabase.from('audit_plan_schedule').insert(newRow);
     if (error) throw new Error(`Gagal membuat jadwal: ${error.message}`);
   }
+}
+
+export type ActualOverrideAction = 'SET_TRUE' | 'SET_FALSE' | 'RETURN_TO_AUTO';
+
+export async function overrideActualSchedule(
+  processId: string,
+  bulan: number,
+  action: ActualOverrideAction,
+  reason: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('override_annual_plan_actual', {
+    p_process_id: processId,
+    p_bulan: bulan,
+    p_action: action,
+    p_reason: reason,
+  });
+  if (error) throw new Error(`Gagal Override Aktual: ${error.message}`);
 }
 
 // Auto-populate: pastikan semua sel proses × 12 bulan ada (semua false default).

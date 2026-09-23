@@ -1441,6 +1441,126 @@ This is now an established repository convention.
 
 **Status:** `IN_PROGRESS`
 
+### FORM-001 browser print/export — 22 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; static presentation checks pass, but authenticated Staging and
+authoritative Chrome A3 Landscape Print Preview acceptance remain pending. Production was not changed.
+
+- Added the read-only `Q-120-ISE-001-FORM-001` preview and browser `window.print()` action to the existing
+  Rencana Audit Tahunan detail. It reuses the loaded Annual Plan header, plan-process rows, selected active
+  Sections, normalized annual-plan process/Section links, and annual-plan monthly schedule records; it does
+  not persist or duplicate print data.
+- The current schema owns a calendar `tahun` plus schedule `bulan` values 1–12 and has no fiscal-period start
+  field. Accordingly the print view generates January–December dynamically for the selected plan year rather
+  than guessing an April–March period. Plan and Aktual marks come only from `audit_plan_schedule.plan` and
+  `.aktual`.
+- Deterministic pagination uses 13 two-row Process slots per physical sheet. Every rendered page repeats the
+  complete header, legends, vertical Section/month headings, matrix, notes, document code, and calculated
+  `Hal: current/total`. The final page fills unused slots with a full-grid, vertically labelled `Lainnya`
+  region instead of stretching real rows.
+- Process order follows `audit_plan_process.urutan_tampil`. Master Process rows marked
+  `diaudit_tahun_ini=false` remain visible and receive a CSS bottom-left-to-top-right diagonal in every
+  Section and schedule cell on both Plan/Aktual rows. Inactive master rows not historically synchronized to
+  the plan are appended by stable master code for controlled-form visibility without inserting plan rows.
+- Page 1 approval cells show `penanggung_jawab_qms` and `disetujui_oleh`; continuation pages retain role and
+  cell geometry but replace both names with CSS diagonals. `tanggal_berlaku`, `no_revisi`, and
+  `kode_dokumen` provide the remaining controlled metadata. No image logo asset exists in active root source,
+  so the header reuses the existing textual CertiTrack brand rather than inventing a company logo.
+- Fixed controlled footnotes are centralized in the print helper because no equivalent Annual Plan storage
+  exists. Explicit buffered A3 geometry is `418mm × min-height 294mm` within `@page A3 landscape`, and print
+  rules hide the application shell/UI while preserving one complete React section per physical sheet.
+- Files changed: `src/components/pages/RencanaAuditPage.tsx`,
+  `src/components/pages/AnnualAuditPlanPrintView.tsx`,
+  `src/components/pages/annualAuditPlanPrint.css`, `src/lib/annualAuditPrint.ts`,
+  `tests/form001-presentation.cjs`, and `PROJECT_STATUS.md`. No migration, dependency, backend, RLS,
+  FORM-010/FORM-014, Production, or nested `/project` file changed.
+- Validation passed: `node tests/form001-presentation.cjs`, `npm run typecheck`, targeted ESLint,
+  `npm run build`, and `git diff --check`. Full-repository `npm run lint` remains red on pre-existing unused
+  imports in active and legacy snapshot files; the FORM-001 touched TypeScript files pass targeted ESLint.
+  No browser executable/authenticated Staging session is available in this environment, so no screenshot or
+  Chrome physical pagination PASS is claimed.
+
+#### FORM-001 correction pass — 22 Sep 2026
+
+- Section marks now preserve both authoritative `audit_plan_seksi_link` flags after the relationship symbol:
+  `◎`/`○`, optionally followed by `*1`, `*2`, or `*1*2`. Flags without a `peran` relationship remain blank.
+- FORM-001 Section resolution now reads the complete Section master through `getSeksiList()` and filters it by
+  the selected plan's `seksi_terlibat`. A selected historical Section therefore remains printed after its
+  master becomes inactive, while an inactive Section not owned by the plan remains absent. The normal editor
+  continues using `getSeksiAktif()` for new selections, and print columns retain `urutan_tampil` order.
+- Corrected the controlled table heading from `Process` to `Proses`.
+- Print actions are now explicit: `Preview FORM-001` toggles the committed screen preview; only the separately
+  visible `Cetak / Simpan PDF` button invokes `window.print()`. No pre-render print side effect remains.
+- Extended the FORM-001 presentation regression for every relationship/flag combination, the no-relationship
+  flag guard, selected inactive/unselected inactive Section behavior, and the corrected Indonesian label.
+  No geometry, pagination capacity, slash behavior, filler behavior, schema, RLS, Production, other form, or
+  legacy `/project` file changed. Browser A3 Print Preview remains pending.
+
+#### FORM-001 fiscal month-order correction — 22 Sep 2026
+
+- FORM-001 now presents its 12 schedule columns in the authoritative fiscal order April–March. For plan year
+  2026 the labels are April–December 2026 followed by January–March 2027.
+- This is presentation-only: each rendered column retains its real calendar `bulan` key (`4..12,1..3`) when
+  reading `audit_plan_schedule`; the database model and stored schedule values are unchanged.
+- Regression coverage asserts the exact Indonesian label sequence, year rollover, and calendar month-number
+  lookup sequence. No migration or other FORM-001 behavior changed; Chrome A3 browser UAT remains pending.
+
+#### FORM-001 authoritative Actual synchronization — 22 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED`; code/static validation is complete, but the additive migration and
+rollback-only SQL regression have not been applied or executed on CertiTrack-Staging. Production is untouched.
+
+- Added additive migration `20260922120000_automate_annual_plan_actual.sql`. The existing
+  `audit_plan_schedule.aktual` column remains the effective/materialized value consumed by the editor and
+  FORM-001. New provenance stores computed `aktual_auto` plus an optional active Admin override, reason,
+  actor, and timestamp.
+- Automatic reconciliation resolves QA → Instruction → Program → Annual Plan → the unique
+  `audit_plan_process.proses_master_id`; it never matches process-name text. It qualifies completed rows only
+  when the applicable Checklist is complete, an authoritative execution date exists, and every applicable
+  non-ANNULLED Finding is `PUBLISHED` or `LEGACY_ESTABLISHED`. ZERO FINDING is explicitly valid.
+- Product uses `tanggal_audit_produk` with `tanggal_pelaksanaan_audit` fallback; System, Manufacturing, and
+  Shift use `tanggal_pelaksanaan_audit`. Calendar month keys remain 1–12 despite the April–March print order.
+- Reconciliation is aggregate per Annual Plan Process + month, so one reopened QA cannot clear Actual while
+  another qualifying QA remains. Row completion/reopen/date changes and Finding insert/delete/review-state
+  changes invoke the centralized reconciler. An active Admin override wins without preventing the underlying
+  automatic value from being refreshed.
+- `override_annual_plan_actual` is an authenticated, guarded RPC that rechecks `is_admin_identity()`. Set and
+  Clear require a nonblank reason and record `auth.uid()`/timestamp; Return to Automatic clears override state
+  and reconciles immediately. Direct mutation of Actual/provenance is rejected by a database trigger.
+- Append-only `audit_plan_actual_override_events` records schedule/process/month, previous effective value,
+  override/result values, action, reason, actor, and timestamp. Ordinary authenticated users have no
+  UPDATE/DELETE grant or RLS policy. Historical `aktual=true` values are conservatively retained as explicit
+  `LEGACY_PRESERVED` overrides with an unavailable-actor explanation; historical false/default cells enter
+  automatic mode and are reconciled from current authoritative evidence.
+- Rencana Audit UI keeps Plan editing unchanged. Actual is read-only for non-Admin identities with the required
+  automatic-completion tooltip. Admin Actual cells open a reasoned Set/Clear/Return-to-Automatic modal and
+  show screen-only manual provenance; FORM-001 continues printing only `●` or blank.
+- Added rollback-only `supabase/tests/form001_actual_regression.sql` covering ZERO FINDING, pending/established/
+  ANNULLED Findings, reopen aggregation, Product/System/Manufacturing date ownership, real fiscal month keys,
+  authorization, Set/Clear/Return override behavior, override precedence, blank reasons, and immutable history.
+- Files changed in this pass: `supabase/migrations/20260922120000_automate_annual_plan_actual.sql`,
+  `supabase/tests/form001_actual_regression.sql`, `src/lib/types.ts`, `src/services/auditPlanService.ts`,
+  `src/components/pages/audit-plan/AuditMatrix.tsx`, `src/components/pages/RencanaAuditPage.tsx`, and
+  `PROJECT_STATUS.md`. No FORM-001 print geometry/content, QA numbering, Checklist content, Finding semantics,
+  LTP, FORM-010, FORM-014, Production, or nested `/project` file changed.
+
+##### Standalone Instruction compatibility correction — 22 Sep 2026
+
+- Actual resolution now mirrors the established Instruction behavior: an Instruction with `program_id` uses
+  `audit_programs.plan_id`; a standalone Instruction uses its `tahun_fiskal` only when exactly one Annual Plan
+  exists for that year. The selected Plan must then contain exactly one `audit_plan_process` matching the
+  structured `proses_master_id`; process names remain irrelevant.
+- Trigger-facing resolvers are intentionally nullable. Missing/ambiguous Annual Plans and missing/ambiguous
+  Annual Plan Process mappings now no-op without creating/changing Actual and without aborting audit
+  completion, reopen, date update, or Finding workflow. The explicit process/month reconciler remains strict
+  for invalid direct targets.
+- The rollback regression now covers Program-linked resolution plus standalone unique, missing, ambiguous,
+  and unmapped Plan cases, including successful completion/Finding mutations for unresolved cases.
+- Screen provenance now distinguishes `AUTO`, `MANUAL ADMIN`, and migrated `LEGACY PRESERVED` based on the
+  existing nullable override actor. FORM-001 remains unchanged and prints only `●` or blank.
+- Migration and rollback regression remain unapplied/unexecuted on Staging pending code review. Production
+  remains untouched.
+
 ### Implemented
 
 #### Kelola Proses
@@ -3027,3 +3147,260 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   Batch 9b authorization/runtime regression passed.
 - Staging migration-ledger timestamps differ from repository migration filenames, consistent with the
   existing project-wide MCP migration-application history. Do not attempt a Batch-9b-only ledger rewrite.
+
+
+## FORM-001 Actual automation — Staging DB verification — 22 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED — BROWSER A3 UAT PENDING`.
+
+- PR #30 remains open and unmerged. Production remains untouched.
+- Applied to CertiTrack-Staging:
+  - `automate_annual_plan_actual`
+  - `fix_execution_insert_guard_dispatch`
+  - `backfill_annual_plan_actual`
+- Automatic Actual now uses the authoritative execution state, checklist completeness,
+  established Finding states, execution-date ownership, aggregate multi-QA reconciliation,
+  and Admin override precedence.
+- Standalone Instructions are supported: Program-linked Instructions resolve through
+  `audit_programs.plan_id`; standalone Instructions resolve by fiscal year only when exactly
+  one Annual Plan exists. Unresolved/ambiguous trigger contexts safely no-op and do not block
+  audit execution or Finding workflows.
+- The Staging run exposed a pre-existing heterogeneous trigger-dispatch defect in
+  `guard_identity_execution_insert()`: the shared trigger referenced table-specific NEW fields
+  directly. A small compatibility migration now dispatches through `to_jsonb(NEW)`, preserving
+  all existing preparation rules without cross-table record-field errors.
+- Regression fixtures were aligned with the current locked-Team and preparation/execution guards;
+  the rollback-only `supabase/tests/form001_actual_regression.sql` now passes on Staging.
+- Post-regression cleanup verified zero `f1...` auth users, plans, instruction rows, teams,
+  and override events remained.
+- Backfill verification on the existing FY2099 UAT data proved that a previously completed,
+  qualifying audit context now materializes `aktual=true` / `aktual_auto=true` for the
+  Annual Plan revision that owns the audit Program. Non-qualifying completed contexts remain false.
+- Browser/Chrome A3 landscape pagination and visual acceptance are still pending.
+
+
+## FORM-001 visual correction after A3 UAT — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — RE-TEST PENDING`.
+
+- Real Staging visual UAT confirmed the overall A3 FORM-001 layout is close to the controlled reference.
+- Removed CertiTrack/Internal Audit branding from the print header while retaining the bordered left header cell and centered title geometry.
+- Moved dynamic physical-page numbering (`Hal: current/total`) from the bottom-right footer to the right-side header directly below the approval/signature block.
+- The bottom footer now keeps only the controlled notes and authoritative document code.
+- For active processes, when at least one effective monthly `audit_plan_schedule.aktual=true` exists, the Actual row now renders `●` in every related Section cell that has an authoritative `audit_plan_seksi_link.peran`. Plan-row `◎/○/*1/*2` rendering is unchanged.
+- Processes without any Actual month keep the Actual Section row blank. Inactive processes retain the diagonal slash on both Plan and Actual rows.
+- Presentation regression coverage was extended for the neutral header, header page numbering, footer placement, Actual Section dots, no-Actual blank behavior, and inactive-process slashes.
+- No database migration, RLS, Actual automation/override logic, A3 pagination rule, filler behavior, FORM-010, FORM-014, Production data, or nested `/project` scope changed in this correction.
+- Authenticated Chrome A3 re-test remains required before merge.
+
+
+## FORM-001 Actual symbol/alignment correction — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — A3 RE-TEST PENDING`.
+
+- Based on the latest real visual UAT, Actual-row Section marks now mirror the same authoritative Plan relationship and suffix semantics instead of rendering a generic black dot.
+- Controlled mapping is:
+  - `◎ → ◉`, `○ → ●`
+  - `◎*1 → ◉*1`, `○*1 → ●*1`
+  - `◎*2 → ◉*2`, `○*2 → ●*2`
+  - `◎*1*2 → ◉*1*2`, `○*1*2 → ●*1*2`.
+- Actual Section marks appear only when the active Process has at least one effective Actual schedule month. No-Actual Processes remain blank; inactive Processes remain slashed. Month Actual cells remain plain `●`.
+- Added centralized `formatAnnualAuditActualSectionMark()`, derived from the same Plan formatter so relationship and *1/*2 suffix semantics cannot drift.
+- Section header cells under `Seksi yang diaudit` now use a dedicated `form001-section-header` class and absolute bottom anchoring (`bottom: 1mm`) so every vertical Section name is consistently bottom-aligned. Month-header behavior and overall table geometry are unchanged.
+- Presentation regression now covers all eight Plan→Actual mappings, rendered utama/terkait Actual marks, no-Actual blanks, inactive slashes, and the bottom-alignment CSS contract.
+- No migration, database logic, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` scope changed.
+- Authenticated Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 page-number placement correction — 22 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — A3 RE-TEST PENDING`.
+
+- Real visual UAT showed that the physical-page indicator was still visually attached to the approval block.
+- `Hal: current/total` is now removed from the approval/control box entirely.
+- The page indicator is rendered on the separate legend row, immediately to the right of the `Plan: ○  Aktual: ●` legend and aligned toward the far-right edge.
+- Approval geometry/signature slash behavior is unchanged.
+- Footer placement remains unchanged: controlled notes at left and document code at right.
+- Presentation regression now asserts that no `Hal:` appears inside the approval block and that the page number is rendered inside the right-side legend group.
+- No database, migration, RLS, Actual automation/Admin override behavior, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 final Staging/UAT closeout — 22 Sep 2026
+
+**Status:** `STAGING_DB_VERIFIED + VISUAL_UAT_ACCEPTED — PRE-MERGE REVIEW COMPLETE; MERGE REQUIRES EXPLICIT APPROVAL`.
+
+- PR #30 remains open and unmerged. Production remains untouched.
+- Final reviewed functional scope includes:
+  - controlled A3-landscape FORM-001 browser preview/print;
+  - April→March fiscal presentation;
+  - deterministic 13-process pagination with continuation pages and final-page `Lainnya` filler;
+  - inactive-process slash rendering;
+  - continuation-page approval slash;
+  - Plan Section semantics `◎/○/*1/*2`;
+  - Actual Section semantics mirroring Plan as `◉/●` with the same `*1/*2` suffixes;
+  - bottom-aligned Section headers;
+  - page numbering outside the approval box, beside the Plan/Aktual legend;
+  - neutral blank left header cell with no CertiTrack branding.
+- Real authenticated visual UAT was accepted by the user on the retained FY2098 Rev.7 Staging fixture.
+  The accepted output covered two physical pages, inactive rows, continuation approval behavior,
+  Actual month/Section marks, long Process wrapping, filler rows, page numbering, and the final header alignment.
+- Automatic Actual materialization remains authoritative:
+  completed execution + complete applicable checklist + no blocking non-final Finding + authoritative execution date.
+  ZERO FINDING is valid; ANNULLED Finding does not block.
+- Product uses `tanggal_audit_produk` with fallback to `tanggal_pelaksanaan_audit`;
+  System/Manufacturing/Shift use `tanggal_pelaksanaan_audit`.
+- Admin-only controlled override remains available through guarded RPC:
+  Set Actual, Clear Actual, and Return to Automatic, with mandatory reason for Set/Clear and append-only history.
+- Standalone Instructions resolve by fiscal year only when exactly one Annual Plan exists;
+  unresolved/ambiguous trigger contexts safely no-op rather than blocking audit execution/Finding workflow.
+- Staging migrations applied and retained:
+  - `automate_annual_plan_actual`
+  - `fix_execution_insert_guard_dispatch`
+  - `backfill_annual_plan_actual`
+- Final pre-merge rerun of rollback-only `supabase/tests/form001_actual_regression.sql` passed.
+  Post-run verification confirmed zero synthetic regression auth users, plans, Instruction rows,
+  teams, and override events remained.
+- Authorization re-check:
+  `override_annual_plan_actual` is authenticated-executable by design and internally Admin-guarded;
+  private reconciliation/resolver functions are not executable by `authenticated`;
+  override-event RLS and immutability/materialization protection triggers remain enabled.
+- GitHub pre-merge checks found no inline review threads or submitted reviews requiring action.
+  PR #30 was mergeable and 0 commits behind `main` at the reviewed implementation head.
+- Supabase Advisor still reports the expected generic SECURITY DEFINER warning for the intentionally
+  authenticated-executable, internally guarded Admin override RPC. Performance-only INFO notices remain
+  for missing covering indexes on two override-event foreign keys and the currently unused schedule-history index;
+  these are non-blocking for correctness/authorization.
+- The persistent FY2098 visual-UAT fixture is intentionally retained on Staging until post-merge cleanup/release preparation.
+
+
+## FORM-001 deterministic Section-header alignment correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Root cause of the remaining visual mismatch was overlapping CSS ownership:
+  Section labels matched both the generic vertical-header span rule and the Section-specific span rule,
+  leaving part of their geometry dependent on intrinsic content size.
+- Every Section header now uses one explicit structure:
+  `<th className="form001-section-header"><span className="form001-section-header-label">...</span></th>`.
+  The fallback/empty Section header uses the same dedicated label class.
+- Section labels now have one deterministic positioning system:
+  absolute positioning, `left:50%`, `bottom:1mm`, `writing-mode:vertical-rl`,
+  and `translateX(-50%) rotate(180deg)`.
+- Month labels are intentionally isolated under
+  `.form001-vertical-headers > th:not(.form001-section-header) > span`
+  so they keep their prior behavior and no longer compete with Section-specific rules.
+- Presentation regression now covers both a short and a long Section name, verifies the dedicated
+  header/label classes on every rendered physical page, checks the deterministic bottom anchor,
+  and asserts the old competing generic Section selectors are absent.
+- No database migration, Actual automation/Admin override behavior, A3 pagination logic,
+  Production, FORM-010, FORM-014, or nested `/project` scope changed.
+- Authenticated Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 Section-header flex baseline correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- The previous absolute-positioning correction still showed inconsistent visual bottoms in Chrome for Section labels with different wrapped heights.
+- The Section header implementation now uses a fixed-height inner wrapper instead of absolute positioning:
+  `form001-section-header-box` is 40mm high, full-width, `display:flex`,
+  `align-items:flex-end`, `justify-content:center`, with a fixed 1mm bottom padding.
+- The vertical label itself remains `writing-mode:vertical-rl` + `rotate(180deg)`,
+  but no longer owns absolute bottom positioning. This makes the physical bottom edge come from one
+  shared flex container rather than each label's intrinsic/wrapped box.
+- Every Section header, including the fallback cell, uses the same wrapper structure.
+- Month headers remain on their existing independent vertical-label selector and were not changed.
+- Regression assertions now require the fixed wrapper on every Section header and reject reintroduction
+  of absolute positioning on `form001-section-header-label`.
+- No database, migration, Actual automation/Admin override behavior, A3 pagination, Production,
+  FORM-010, FORM-014, or nested `/project` change was made.
+- Chrome A3 visual re-test is required before merge.
+
+
+## FORM-001 transform-free Section baseline + vector inactive slash — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL/PRINT RE-TEST PENDING`.
+
+- The previous fixed-height flex wrapper still produced different visual bottoms because the Section text itself used
+  `writing-mode:vertical-rl` plus `rotate(180deg)`. A transformed element's visual bottom does not correspond
+  to the pre-transform flex bottom, so different wrapped heights could still look misaligned.
+- Section labels now remove the transform entirely and use native vertical flow:
+  `writing-mode:vertical-rl`, `direction:rtl`, `text-orientation:mixed`, `transform:none`.
+  The existing common 40mm flex wrapper can therefore bottom-align the actual visual box rather than its pre-transform box.
+- Month headers intentionally retain their previous independent rotated rendering.
+- Inactive-process slash rendering was changed from a CSS diagonal `linear-gradient` to an inline SVG vector line
+  running bottom-left to top-right. The line uses `vector-effect:non-scaling-stroke` so it remains sharp in browser/PDF print output.
+- `form001-inactive-cell` no longer paints the diagonal as a rasterized CSS gradient.
+- Presentation regression now requires the native transform-free Section rule, the SVG slash markup/vector styling,
+  and rejects reintroduction of the inactive-cell gradient.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014,
+  or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test is required before merge.
+
+
+## FORM-001 shared Section/month vertical-header alignment — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT confirmed that the month headers already had the desired orientation and bottom alignment, while the Section headers still differed because they were being rendered through a separate wrapper/positioning system.
+- The Section-specific wrapper/classes were removed entirely. Section headers now use the exact same simple `<th><span>...</span></th>` structure as month headers.
+- The CSS is now unified under one selector:
+  `.form001-vertical-headers > th > span`
+  with the same `writing-mode:vertical-rl`, `rotate(180deg)`, and `vertical-align:bottom` behavior for both Sections and months.
+- All special Section header rules (`form001-section-header`, `form001-section-header-box`, `form001-section-header-label`) were removed so there is no second alignment/orientation system.
+- The SVG vector slash for inactive processes is retained unchanged to preserve sharp Print Preview/PDF output.
+- Presentation regression now asserts that Section-specific header classes/rules are absent and that both Section and month headers share the same generic vertical-header styling.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 wrapped vertical-header baseline correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT showed that short month labels were bottom-aligned correctly while several long Section labels, especially the Staging-only UAT Sections (33–50 characters), wrapped into multiple vertical columns and appeared visually centered.
+- Root cause: the shared vertical-header rule used intrinsic height plus `max-height:40mm`. Wrapped vertical text therefore created partial columns whose visual start point differed by content length.
+- The shared Section/month header rule now uses a fixed 40mm content box:
+  `display:block; width:100%; height:40mm; writing-mode:vertical-rl; transform:rotate(180deg); text-align:start`.
+  Because the pre-rotation inline start maps to the visual bottom after 180° rotation, all single- and multi-column vertical labels now start from the same bottom baseline.
+- Section and month headers still use one shared CSS rule; no Section-specific positioning system was reintroduced.
+- The SVG vector slash for inactive-process cells remains unchanged.
+- Presentation regression now requires the fixed-height/text-align-start vertical-header contract.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 vertical-header center correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT confirmed the fixed 40mm vertical header height successfully anchored Section/month labels to the bottom, but the shared span used `width:100%`, which caused the transformed text box to occupy the full cell width and appear visually right-aligned.
+- The shared Section/month header rule now keeps the fixed 40mm height for bottom anchoring but uses:
+  `display:inline-block; width:auto; max-width:100%; vertical-align:bottom`.
+- Header cells explicitly use `text-align:center`, so the intrinsic-width vertical label box is horizontally centered within every Section/month column while preserving the same visual bottom baseline.
+- Section and month headers still use one shared CSS rule.
+- SVG vector inactive-process slashes remain unchanged.
+- Presentation regression now requires both `vertical-align:bottom;text-align:center` on the header cells and the intrinsic-width inline-block label contract.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 final visual acceptance — 23 Sep 2026
+
+**Status:** `FINAL_VISUAL_UAT_ACCEPTED — READY FOR MERGE WITH EXPLICIT APPROVAL`.
+
+- The final authenticated Staging visual re-test was accepted by the user after the last vertical-header centering correction.
+- Final accepted vertical-header behavior:
+  - Section and month headers share the same CSS mechanism;
+  - fixed 40mm vertical text height preserves a common bottom baseline;
+  - intrinsic-width `inline-block` labels plus `text-align:center` on the header cell provide horizontal centering;
+  - orientation remains consistent with the month headers.
+- Inactive-process slashes remain SVG vector lines and are retained for sharper Chrome Print Preview / PDF rendering.
+- All previously accepted FORM-001 behavior remains unchanged:
+  A3 landscape, April→March ordering, deterministic 13-process pagination, continuation approval slash,
+  final-page `Lainnya` filler, Plan/Actual Section symbols and flags, page number beside the Plan/Aktual legend,
+  neutral header, and browser print isolation.
+- The latest correction is presentation-only; no database migration, Actual automation/Admin override logic,
+  RLS, Production data, FORM-010, FORM-014, or nested `/project` scope changed after the last Staging DB regression PASS.
+- PR #30 remains open and unmerged pending explicit merge approval.

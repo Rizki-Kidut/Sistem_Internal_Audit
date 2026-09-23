@@ -3,9 +3,9 @@
 // "Salin dari Tahun Lalu" saat membuat plan baru — menyalin seksi & proses sebagai starting point.
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Copy, Save, FileText, FileCheck } from 'lucide-react';
+import { Plus, Copy, Save, FileText, FileCheck, Printer, X } from 'lucide-react';
 import type { AuditPlan, AuditPlanProcess, AuditPlanSeksiLink, AuditPlanSchedule, Seksi, Proses } from '../../lib/types';
-import { AUDIT_PLAN_STATUS, PERAN_PROSES } from '../../lib/enums';
+import { AUDIT_PLAN_STATUS } from '../../lib/enums';
 import type { PeranProses } from '../../lib/enums';
 import {
   getAuditPlans,
@@ -13,7 +13,6 @@ import {
   saveAuditPlan,
   approveAuditPlan,
   createRevision,
-  deleteAuditPlan,
   getProcessesByPlan,
   deleteProcess,
   reorderProcesses,
@@ -23,13 +22,14 @@ import {
   ensureSeksiLinks,
   getSchedulesByPlan,
   toggleSchedule,
-  ensureSchedules,
   copyFromPreviousYear,
   findPreviousYearPlan,
   syncProcessesFromMaster,
+  overrideActualSchedule,
 } from '../../services/auditPlanService';
-import { getSeksiAktif } from '../../services/seksiService';
-import { getActiveProses } from '../../services/prosesService';
+import type { ActualOverrideAction } from '../../services/auditPlanService';
+import { getSeksiAktif, getSeksiList } from '../../services/seksiService';
+import { getActiveProses, getAllProses } from '../../services/prosesService';
 import { createProgramFromPlan, getNextNomorKe } from '../../services/auditProgramService';
 import { JENIS_RONDE } from '../../lib/enums';
 import type { JenisRonde } from '../../lib/enums';
@@ -37,16 +37,22 @@ import { PlanHeader } from './audit-plan/PlanHeader';
 import { AuditMatrix } from './audit-plan/AuditMatrix';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { Field, Input, Select } from '../ui/Field';
+import { Field, Input, Select, Textarea } from '../ui/Field';
 import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
+import { AnnualAuditPlanPrintView } from './AnnualAuditPlanPrintView';
+import { annualActualProvenance, resolveAnnualAuditSections } from '../../lib/annualAuditPrint';
+import { useAuth } from '../../contexts/AuthContext';
+import { BULAN_LABEL } from '../../lib/enums';
 
 interface RencanaAuditPageProps {
   onNavigateToProgram?: (programId: string) => void;
 }
 
 export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps = {}) {
+  const { profile } = useAuth();
   const [plans, setPlans] = useState<AuditPlan[]>([]);
   const [seksiAktif, setSeksiAktif] = useState<Seksi[]>([]);
+  const [allSections, setAllSections] = useState<Seksi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +82,13 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
 
   // Master proses map (untuk flag *1, *2 di matriks)
   const [masterProsesMap, setMasterProsesMap] = useState<Map<string, Proses>>(new Map());
+  const [allMasterProcesses, setAllMasterProcesses] = useState<Proses[]>([]);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [actualOverrideTarget, setActualOverrideTarget] = useState<{ processId: string; bulan: number; schedule?: AuditPlanSchedule } | null>(null);
+  const [actualOverrideAction, setActualOverrideAction] = useState<ActualOverrideAction>('SET_TRUE');
+  const [actualOverrideReason, setActualOverrideReason] = useState('');
+  const [actualOverrideError, setActualOverrideError] = useState<string | null>(null);
+  const [savingActualOverride, setSavingActualOverride] = useState(false);
 
   // Confirm: hapus proses
   const [confirmDeleteProcess, setConfirmDeleteProcess] = useState<string | null>(null);
@@ -97,13 +110,17 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     setLoading(true);
     setError(null);
     try {
-      const [planList, seksiList, masterProses] = await Promise.all([getAuditPlans(), getSeksiAktif(), getActiveProses()]);
+      const [planList, seksiList, sectionList, masterProses, allProcesses] = await Promise.all([
+        getAuditPlans(), getSeksiAktif(), getSeksiList(), getActiveProses(), getAllProses(),
+      ]);
       setPlans(planList);
       setSeksiAktif(seksiList);
+      setAllSections(sectionList);
       // Build master proses map
       const map = new Map<string, Proses>();
       masterProses.forEach((p) => map.set(p.id, p));
       setMasterProsesMap(map);
+      setAllMasterProcesses(allProcesses);
       if (planList.length > 0 && !selectedPlanId) {
         setSelectedPlanId(planList[0].id);
       }
@@ -311,16 +328,6 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     }
   }
 
-  async function handleToggleSeksi(processId: string, seksiId: string, currentPeran: PeranProses | null) {
-    if (!plan) return;
-    try {
-      await cycleSeksiPeran(processId, seksiId, currentPeran);
-      await loadDetail(plan.id);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal toggle seksi');
-    }
-  }
-
   async function handleToggleFlag(
     processId: string,
     seksiId: string,
@@ -335,13 +342,44 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
     }
   }
 
-  async function handleToggleSchedule(processId: string, bulan: number, field: 'plan' | 'aktual') {
+  async function handleToggleSchedule(processId: string, bulan: number, field: 'plan') {
     if (!plan) return;
     try {
       await toggleSchedule(processId, bulan, field);
       await loadDetail(plan.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal toggle jadwal');
+    }
+  }
+
+  function openActualOverride(processId: string, bulan: number, schedule: AuditPlanSchedule | undefined) {
+    setActualOverrideTarget({ processId, bulan, schedule });
+    setActualOverrideAction(schedule?.aktual ? 'SET_FALSE' : 'SET_TRUE');
+    setActualOverrideReason('');
+    setActualOverrideError(null);
+  }
+
+  async function handleActualOverride() {
+    if (!plan || !actualOverrideTarget) return;
+    if (actualOverrideAction !== 'RETURN_TO_AUTO' && !actualOverrideReason.trim()) {
+      setActualOverrideError('Alasan Override Aktual wajib diisi.');
+      return;
+    }
+    setSavingActualOverride(true);
+    setActualOverrideError(null);
+    try {
+      await overrideActualSchedule(
+        actualOverrideTarget.processId,
+        actualOverrideTarget.bulan,
+        actualOverrideAction,
+        actualOverrideAction === 'RETURN_TO_AUTO' ? null : actualOverrideReason.trim(),
+      );
+      setActualOverrideTarget(null);
+      await loadDetail(plan.id);
+    } catch (e) {
+      setActualOverrideError(e instanceof Error ? e.message : 'Gagal menyimpan Override Aktual');
+    } finally {
+      setSavingActualOverride(false);
     }
   }
 
@@ -380,8 +418,13 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
   // --- Render ---
   if (loading) return <LoadingSpinner message="Memuat rencana audit..." />;
 
+  const printSections = plan
+    ? resolveAnnualAuditSections(plan.seksi_terlibat, allSections)
+    : [];
+
   return (
     <div>
+      <div className="annual-audit-screen-ui">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Rencana Audit Tahunan</h1>
@@ -454,6 +497,18 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
                 onRevise={() => setConfirmRevise(true)}
               />
 
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setShowPrintPreview((visible) => !visible)}>
+                  <FileText size={16} /> Preview FORM-001
+                </Button>
+                {showPrintPreview && (
+                  <>
+                    <Button onClick={() => window.print()}><Printer size={16} /> Cetak / Simpan PDF</Button>
+                    <Button variant="ghost" onClick={() => setShowPrintPreview(false)}><X size={16} /> Tutup Preview</Button>
+                  </>
+                )}
+              </div>
+
               {/* Tombol Buat Program Internal Audit — hanya saat Approved */}
               {isReadOnly && (
                 <div className="mb-4">
@@ -500,6 +555,8 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
                   onCycleSeksi={handleCycleSeksi}
                   onToggleFlag={handleToggleFlag}
                   onToggleSchedule={handleToggleSchedule}
+                  canOverrideActual={profile?.identity_type === 'ADMIN'}
+                  onOverrideActual={openActualOverride}
                   onReorder={handleReorder}
                   onDeleteProcess={(id) => setConfirmDeleteProcess(id)}
                 />
@@ -702,6 +759,32 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
 
       {/* Modal: Buat Program Internal Audit */}
       <Modal
+        open={!!actualOverrideTarget}
+        onClose={() => setActualOverrideTarget(null)}
+        title="Override Aktual"
+        size="sm"
+        footer={<><Button variant="secondary" onClick={() => setActualOverrideTarget(null)}>Batal</Button><Button disabled={savingActualOverride} onClick={() => void handleActualOverride()}>{savingActualOverride ? 'Menyimpan...' : 'Simpan Override'}</Button></>}
+      >
+        <div className="space-y-4">
+          {actualOverrideError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actualOverrideError}</div>}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Aktual normalnya diisi otomatis setelah pelaksanaan selesai dan seluruh Temuan formal final.
+            Override Admin tercatat dalam riwayat audit.
+          </div>
+          <Field label="Bulan"><Input disabled value={actualOverrideTarget ? BULAN_LABEL[actualOverrideTarget.bulan - 1] : ''} /></Field>
+          <Field label="Provenance saat ini"><Input disabled value={annualActualProvenance(actualOverrideTarget?.schedule)} /></Field>
+          <Field label="Aksi" required>
+            <Select value={actualOverrideAction} onChange={(event) => setActualOverrideAction(event.target.value as ActualOverrideAction)}>
+              <option value="SET_TRUE">Set Aktual</option>
+              <option value="SET_FALSE">Kosongkan Aktual</option>
+              <option value="RETURN_TO_AUTO">Kembalikan ke Otomatis</option>
+            </Select>
+          </Field>
+          {actualOverrideAction !== 'RETURN_TO_AUTO' && <Field label="Alasan" required><Textarea rows={4} value={actualOverrideReason} onChange={(event) => setActualOverrideReason(event.target.value)} placeholder="Jelaskan alasan pengecualian manual..." /></Field>}
+        </div>
+      </Modal>
+
+      <Modal
         open={programModalOpen}
         onClose={() => setProgramModalOpen(false)}
         title="Buat Program Internal Audit"
@@ -747,6 +830,17 @@ export function RencanaAuditPage({ onNavigateToProgram }: RencanaAuditPageProps 
           </Field>
         </div>
       </Modal>
+      </div>
+      {showPrintPreview && plan && (
+        <AnnualAuditPlanPrintView
+          plan={plan}
+          processes={processes}
+          masterProcesses={allMasterProcesses}
+          sections={printSections}
+          sectionLinks={seksiLinks}
+          schedules={schedules}
+        />
+      )}
     </div>
   );
 }
