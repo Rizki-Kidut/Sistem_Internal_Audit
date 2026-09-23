@@ -3353,3 +3353,19 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression now asserts that Section-specific header classes/rules are absent and that both Section and month headers share the same generic vertical-header styling.
 - No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
 - Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 wrapped vertical-header baseline correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT showed that short month labels were bottom-aligned correctly while several long Section labels, especially the Staging-only UAT Sections (33–50 characters), wrapped into multiple vertical columns and appeared visually centered.
+- Root cause: the shared vertical-header rule used intrinsic height plus `max-height:40mm`. Wrapped vertical text therefore created partial columns whose visual start point differed by content length.
+- The shared Section/month header rule now uses a fixed 40mm content box:
+  `display:block; width:100%; height:40mm; writing-mode:vertical-rl; transform:rotate(180deg); text-align:start`.
+  Because the pre-rotation inline start maps to the visual bottom after 180° rotation, all single- and multi-column vertical labels now start from the same bottom baseline.
+- Section and month headers still use one shared CSS rule; no Section-specific positioning system was reintroduced.
+- The SVG vector slash for inactive-process cells remains unchanged.
+- Presentation regression now requires the fixed-height/text-align-start vertical-header contract.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
