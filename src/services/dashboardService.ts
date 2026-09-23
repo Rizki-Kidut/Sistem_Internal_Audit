@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { WEAKNESS_PROBLEM_LABEL } from '../lib/enums';
 
 export type DashboardAuditType = 'ChecklistSistem'|'ChecklistProduk'|'ChecklistManufakturShift'|null;
 export interface DashboardFilters { fiscal_year:number; audit_type:DashboardAuditType; process_id:string|null }
@@ -15,8 +16,17 @@ export interface DashboardData {
   weaknesses:{label:string;count:number}[]; attention:DashboardListItem[]; my_actions:DashboardListItem[];
   upcoming:DashboardListItem[]; recent_activity:DashboardListItem[];
 }
+export function normalizeDashboardData(data:DashboardData):DashboardData{
+  const finite=(value:number)=>Number.isFinite(value)?value:0;
+  return {...data,
+    metrics:data.metrics.map(value=>({...value,value:finite(value.value)})),
+    plan_actual:data.plan_actual.map(value=>({...value,plan:finite(value.plan),actual:finite(value.actual)})),
+    execution_status:data.execution_status.map(value=>({...value,value:finite(value.value)})),
+    weaknesses:data.weaknesses.map(value=>({...value,label:WEAKNESS_PROBLEM_LABEL[value.label]??value.label,count:finite(value.count)})),
+  };
+}
 export async function getInternalAuditDashboard(filters:Partial<DashboardFilters>):Promise<DashboardData>{
   const {data,error}=await supabase.rpc('get_internal_audit_dashboard',{p_fiscal_year:filters.fiscal_year??null,p_audit_type:filters.audit_type??null,p_process_id:filters.process_id??null});
   if(error)throw new Error(`Gagal memuat Dashboard Internal Audit: ${error.message}`);
-  return data as DashboardData;
+  return normalizeDashboardData(data as DashboardData);
 }

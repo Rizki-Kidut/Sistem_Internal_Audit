@@ -1,0 +1,85 @@
+-- Run only after 20260923120000 in an isolated local database. Every fixture is rolled back.
+BEGIN;
+CREATE OR REPLACE FUNCTION pg_temp.ok(value boolean,message text)RETURNS void LANGUAGE plpgsql AS $$BEGIN IF NOT COALESCE(value,false)THEN RAISE EXCEPTION 'DASHBOARD ASSERT: %',message;END IF;END$$;
+CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);PERFORM set_config('role','authenticated',true);END$$;
+CREATE OR REPLACE FUNCTION pg_temp.metric(payload jsonb,key text)RETURNS integer LANGUAGE sql AS $$SELECT COALESCE((SELECT (x->>'value')::integer FROM jsonb_array_elements(payload->'metrics')x WHERE x->>'key'=key),0)$$;
+RESET ROLE;SELECT set_config('request.jwt.claim.sub','',true);SELECT set_config('request.jwt.claims','{}',true);
+-- Admin, lead, two ordinary Auditors, two Auditees and two Managers.
+INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) SELECT '00000000-0000-0000-0000-000000000000',id,'authenticated','authenticated',name||'@dashboard.test','',now(),'{}','{}',now(),now() FROM(VALUES
+('d0000000-0000-0000-0000-000000000001'::uuid,'admin'),('d0000000-0000-0000-0000-000000000002','lead'),('d0000000-0000-0000-0000-000000000003','auditor'),('d0000000-0000-0000-0000-000000000004','other-auditor'),('d0000000-0000-0000-0000-000000000005','auditee'),('d0000000-0000-0000-0000-000000000006','other-auditee'),('d0000000-0000-0000-0000-000000000007','manager'),('d0000000-0000-0000-0000-000000000008','other-manager'))v(id,name);
+INSERT INTO public.user_profiles(id,display_name,identity_type,status)VALUES
+('d0000000-0000-0000-0000-000000000001','Admin','ADMIN','Aktif'),('d0000000-0000-0000-0000-000000000002','Lead','AUDITOR','Aktif'),('d0000000-0000-0000-0000-000000000003','Auditor','AUDITOR','Aktif'),('d0000000-0000-0000-0000-000000000004','Other Auditor','AUDITOR','Aktif'),('d0000000-0000-0000-0000-000000000005','Auditee','AUDITEE','Aktif'),('d0000000-0000-0000-0000-000000000006','Other Auditee','AUDITEE','Aktif'),('d0000000-0000-0000-0000-000000000007','Manager','SECTION_MANAGER','Aktif'),('d0000000-0000-0000-0000-000000000008','Other Manager','SECTION_MANAGER','Aktif');
+INSERT INTO public.auditors(id,nama,tanggal_berlaku,status)VALUES('d0100000-0000-0000-0000-000000000001','Lead',current_date+10000,'Aktif'),('d0100000-0000-0000-0000-000000000002','Assigned',current_date+10000,'Aktif'),('d0100000-0000-0000-0000-000000000003','Other',current_date+10000,'Aktif');
+INSERT INTO public.user_auditor_links(user_id,auditor_id,is_lead_auditor)VALUES('d0000000-0000-0000-0000-000000000002','d0100000-0000-0000-0000-000000000001',true),('d0000000-0000-0000-0000-000000000003','d0100000-0000-0000-0000-000000000002',false),('d0000000-0000-0000-0000-000000000004','d0100000-0000-0000-0000-000000000003',false);
+INSERT INTO public.seksi(id,nama)VALUES('d0200000-0000-0000-0000-000000000001','Dashboard Section'),('d0200000-0000-0000-0000-000000000002','Unrelated Section');
+INSERT INTO public.section_identity_assignments(user_id,seksi_id,assignment_type,status)VALUES('d0000000-0000-0000-0000-000000000005','d0200000-0000-0000-0000-000000000001','AUDIT_PIC','Aktif'),('d0000000-0000-0000-0000-000000000006','d0200000-0000-0000-0000-000000000002','AUDIT_PIC','Aktif'),('d0000000-0000-0000-0000-000000000007','d0200000-0000-0000-0000-000000000001','SECTION_MANAGER','Aktif'),('d0000000-0000-0000-0000-000000000008','d0200000-0000-0000-0000-000000000002','SECTION_MANAGER','Aktif');
+INSERT INTO public.proses(id,nama_proses,kode_proses)VALUES('d0300000-0000-0000-0000-000000000001','Dashboard Process','DB-P1'),('d0300000-0000-0000-0000-000000000002','Unrelated Process','DB-P2');
+-- Revision 1 must be superseded by revision 2.
+INSERT INTO public.audit_plans(id,tahun,tanggal_berlaku,no_revisi,kode_dokumen,status)VALUES('d0400000-0000-0000-0000-000000000001',2096,'2096-04-01',1,'DB-OLD','Approved'),('d0400000-0000-0000-0000-000000000002',2096,'2096-04-02',2,'DB-CURRENT','Approved');
+INSERT INTO public.audit_plan_process(id,plan_id,proses_master_id,nama_proses,urutan_tampil)VALUES('d0500000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000001','d0300000-0000-0000-0000-000000000001','Dashboard Process',1),('d0500000-0000-0000-0000-000000000002','d0400000-0000-0000-0000-000000000002','d0300000-0000-0000-0000-000000000001','Dashboard Process',1),('d0500000-0000-0000-0000-000000000003','d0400000-0000-0000-0000-000000000002','d0300000-0000-0000-0000-000000000002','Unrelated Process',2);
+SELECT set_config('certitrack.annual_actual_write','1',true);
+INSERT INTO public.audit_plan_schedule(process_id,bulan,plan,aktual,aktual_auto)VALUES('d0500000-0000-0000-0000-000000000001',4,true,true,true),('d0500000-0000-0000-0000-000000000002',5,true,true,true),('d0500000-0000-0000-0000-000000000003',6,true,false,false);
+SELECT set_config('certitrack.annual_actual_write','',true);
+INSERT INTO public.audit_team_masters(id,plan_id,kode_tim,nama_tim,status,is_locked)VALUES('d0600000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','DB-T1','Assigned Team','Aktif',true),('d0600000-0000-0000-0000-000000000002','d0400000-0000-0000-0000-000000000002','DB-T2','Other Team','Aktif',true);
+INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('d0600000-0000-0000-0000-000000000001','d0100000-0000-0000-0000-000000000002','Lead',1,true),('d0600000-0000-0000-0000-000000000002','d0100000-0000-0000-0000-000000000003','Lead',1,true);
+INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('d0700000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','Berkala',1,2096,'2096-04-01','Approved');
+INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('d0800000-0000-0000-0000-000000000001','d0700000-0000-0000-0000-000000000001',2096,'Selesai');
+ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER;
+INSERT INTO public.audit_instruction_rows(id,instruction_id,kode_audit,proses_id,team_master_id,tipe_baris,seksi_marks,tanggal_plan_audit,tanggal_pelaksanaan_audit,tanggal_audit_produk,cek_selesai,urutan_tampil)VALUES
+('d0900000-0000-0000-0000-000000000001','d0800000-0000-0000-0000-000000000001','QA-DB01','d0300000-0000-0000-0000-000000000001','d0600000-0000-0000-0000-000000000001','Reguler','[{"seksi_id":"d0200000-0000-0000-0000-000000000001","tipe":"target"}]','2096-04-01','2096-04-02',NULL,true,1),
+('d0900000-0000-0000-0000-000000000002','d0800000-0000-0000-0000-000000000001','QA-DB02','d0300000-0000-0000-0000-000000000001','d0600000-0000-0000-0000-000000000001','Reguler','[{"seksi_id":"d0200000-0000-0000-0000-000000000001","tipe":"target"}]','2096-05-01','2096-05-02',NULL,false,2),
+('d0900000-0000-0000-0000-000000000003','d0800000-0000-0000-0000-000000000001','QA-DB03','d0300000-0000-0000-0000-000000000002','d0600000-0000-0000-0000-000000000002','Reguler','[{"seksi_id":"d0200000-0000-0000-0000-000000000002","tipe":"target"}]','2096-06-01','2096-06-02',NULL,true,3),
+('d0900000-0000-0000-0000-000000000004','d0800000-0000-0000-0000-000000000001','QA-DB04','d0300000-0000-0000-0000-000000000001','d0600000-0000-0000-0000-000000000001','AuditProduk','[]','2097-01-01','2096-12-01','2097-01-02',true,4),
+('d0900000-0000-0000-0000-000000000005','d0800000-0000-0000-0000-000000000001','QA-DB05','d0300000-0000-0000-0000-000000000001','d0600000-0000-0000-0000-000000000001','AuditManufaktur','[]','2097-03-01','2097-03-02',NULL,true,5);
+ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER;
+-- Complete System checklist fixtures; Product/Manufacturing date ownership is asserted from status payload entries.
+INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist)SELECT ('d1000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('d0900000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'QA-DB0'||n,'Dashboard' FROM generate_series(1,3)n;
+ALTER TABLE public.checklist_items DISABLE TRIGGER USER;
+INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)SELECT ('d1100000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('d1000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi','O','Observed' FROM generate_series(1,3)n;
+ALTER TABLE public.checklist_items ENABLE TRIGGER USER;
+INSERT INTO public.checklist_produk(id,row_id,kode_audit,status)VALUES('d1400000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000004','QA-DB04','Selesai');
+INSERT INTO public.checklist_produk_fase(id,checklist_produk_id,nama_fase,dokumen_bukti)VALUES('d1410000-0000-0000-0000-000000000001','d1400000-0000-0000-0000-000000000001','Fase','["fixture"]');
+ALTER TABLE public.checklist_produk_items DISABLE TRIGGER USER;
+INSERT INTO public.checklist_produk_items(id,fase_id,item_pemeriksaan,hasil_pemeriksaan,judgment)VALUES('d1420000-0000-0000-0000-000000000001','d1410000-0000-0000-0000-000000000001','Item','OK','OK');
+ALTER TABLE public.checklist_produk_items ENABLE TRIGGER USER;
+INSERT INTO public.checklist_manufaktur_shift(id,row_id,kode_audit,status)VALUES('d1500000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000005','QA-DB05','Selesai');
+ALTER TABLE public.checklist_manufaktur_items DISABLE TRIGGER USER;
+INSERT INTO public.checklist_manufaktur_items(id,checklist_id,no_proses_dicek,hasil_pengamatan,hasil)VALUES('d1510000-0000-0000-0000-000000000001','d1500000-0000-0000-0000-000000000001','1','Observed','O');
+ALTER TABLE public.checklist_manufaktur_items ENABLE TRIGGER USER;
+ALTER TABLE public.findings DISABLE TRIGGER USER;
+INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,status,review_status,seksi_auditee_id)VALUES
+('d1200000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000002','QA-DB02','DB-F1',1,'ChecklistSistem','d1100000-0000-0000-0000-000000000002','A','P','L','E','R','2096-05-02','Open','DRAFT','d0200000-0000-0000-0000-000000000001'),
+('d1200000-0000-0000-0000-000000000002','d0900000-0000-0000-0000-000000000003','QA-DB03','DB-F2',1,'ChecklistSistem','d1100000-0000-0000-0000-000000000003','B','P','L','E','R','2096-06-02','Closed','PUBLISHED','d0200000-0000-0000-0000-000000000002');
+ALTER TABLE public.findings ENABLE TRIGGER USER;
+INSERT INTO public.cars(id,finding_id,kode_car,seksi_auditee_id,status)VALUES('d1300000-0000-0000-0000-000000000001','d1200000-0000-0000-0000-000000000001','DB-F1','d0200000-0000-0000-0000-000000000001','AUDITEE_DRAFT'),('d1300000-0000-0000-0000-000000000002','d1200000-0000-0000-0000-000000000002','DB-F2','d0200000-0000-0000-0000-000000000002','CLOSED');
+INSERT INTO public.car_actions(car_id,action_type,description,due_date)VALUES('d1300000-0000-0000-0000-000000000001','TEMPORARY','Temporary',current_date-1),('d1300000-0000-0000-0000-000000000001','CORRECTIVE','Permanent',current_date-1),('d1300000-0000-0000-0000-000000000002','TEMPORARY','Closed overdue',current_date-10);
+-- Full organization identities see all five contexts; assigned identities never see the unrelated row.
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000001');CREATE TEMP TABLE admin_payload AS SELECT public.get_internal_audit_dashboard(2096,NULL,NULL)p;
+SELECT pg_temp.ok((SELECT pg_temp.metric(p,'planned')=5 FROM admin_payload),'Admin full scope');
+SELECT pg_temp.ok((SELECT (p->'plan_actual'->0->>'label')='April 2096' AND (p->'plan_actual'->11->>'label')='Maret 2097' FROM admin_payload),'April-March order');
+SELECT pg_temp.ok((SELECT (p->'plan_actual'->0->>'plan')::int=0 AND (p->'plan_actual'->1->>'plan')::int=1 FROM admin_payload),'only current plan revision counted');
+SELECT pg_temp.ok((SELECT pg_temp.metric(p,'established')=4 FROM admin_payload),'ZERO FINDING, Product, Manufacturing and PUBLISHED established; pending blocked');
+SELECT pg_temp.ok((SELECT (p->'finding_health'->>'open')::int=0 AND (p->'finding_health'->>'closed')::int=1 AND (p->'finding_health'->>'pending_review')::int=1 FROM admin_payload),'Finding states');
+SELECT pg_temp.ok((SELECT (p->'finding_health'->'categories'->>'A')::int=1 AND (p->'finding_health'->'categories'->>'B')::int=1 AND (p->'finding_health'->'categories'->>'C')::int=0 FROM admin_payload),'A/B/C categories');
+SELECT pg_temp.ok((SELECT (p->'ltp_health'->>'temporary_overdue')::int=1 AND (p->'ltp_health'->>'permanent_overdue')::int=1 FROM admin_payload),'open Temporary/Permanent overdue and Closed excluded');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000002');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=5,'Company Lead full scope');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000003');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=4,'Auditor assigned rows only');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,'d0300000-0000-0000-0000-000000000002'),'planned')=0,'Auditor unrelated Process hidden');
+SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistProduk',NULL),'planned')=1,'Audit Type filter');SELECT pg_temp.ok((public.get_internal_audit_dashboard(2096,NULL,NULL)->'my_actions'->0->>'count')::int=1,'Auditor Tugas Saya excludes unrelated rows');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,'d0300000-0000-0000-0000-000000000001'),'planned')=4,'Process filter');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000004');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=1,'unrelated Auditor isolated');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000005');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=1,'Auditee CAR-authorized context only');SELECT pg_temp.ok((public.get_internal_audit_dashboard(2096,NULL,NULL)->'my_actions'->0->>'count')::int=1,'Auditee Tugas Saya uses only authorized CAR work');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000006');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=1,'unrelated Auditee cannot see first Auditee context');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000007');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=2,'Manager authorized Section contexts only');
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000008');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'planned')=1,'unrelated Section isolated');
+SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2080,NULL,NULL),'planned')=0,'no-data FY valid zero payload');
+RESET ROLE;
+SELECT pg_temp.ok(has_function_privilege('authenticated','public.get_internal_audit_dashboard(integer,text,uuid)','EXECUTE'),'authenticated may execute Dashboard RPC');
+SELECT pg_temp.ok(NOT has_function_privilege('authenticated','public.dashboard_can_access_instruction_row(uuid)','EXECUTE'),'private scope helper is not client executable');
+-- Established review-state matrix: PUBLISHED and LEGACY permit; ANNULLED does not block; pending blocks.
+ALTER TABLE public.findings DISABLE TRIGGER USER;UPDATE public.findings SET review_status='LEGACY_ESTABLISHED' WHERE id='d1200000-0000-0000-0000-000000000002';ALTER TABLE public.findings ENABLE TRIGGER USER;
+SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000001');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'established')=4,'LEGACY_ESTABLISHED permits Established');
+ALTER TABLE public.findings DISABLE TRIGGER USER;UPDATE public.findings SET review_status='ANNULLED' WHERE id='d1200000-0000-0000-0000-000000000001';ALTER TABLE public.findings ENABLE TRIGGER USER;
+SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'established')=5,'ANNULLED does not block Established');
+-- Product/Manufacturing rows use their authoritative execution-date columns; their dates appear in chronological output.
+SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistProduk',NULL),'established')=1,'Product Established uses tanggal_audit_produk with fallback semantics');
+SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistManufakturShift',NULL),'established')=1,'Manufacturing Established uses tanggal_pelaksanaan_audit');
+ROLLBACK;

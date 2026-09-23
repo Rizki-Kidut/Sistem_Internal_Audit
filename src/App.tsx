@@ -37,6 +37,7 @@ function App() {
   if(!session)return <LoginPage/>;
   if(!profile)return <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6"><div className="bg-white rounded-xl shadow p-8 text-center max-w-md"><h1 className="text-xl font-bold text-gray-900">Akses CertiTrack</h1><p className="mt-3 text-gray-600">{profileError??'Akun belum dikonfigurasi untuk CertiTrack.'}</p><Button className="mt-6" onClick={()=>void logout()}>Logout</Button></div></div>;
   const identityType=profile.identity_type;
+  const isCompanyLeadAuditor=profile.is_company_lead_auditor;
   const landing=landingPage(identityType);
   if(!landing)return null;
 
@@ -48,7 +49,10 @@ function App() {
   function renderPage() {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={setCurrentPage} />;
+        return <DashboardPage
+          onNavigate={setCurrentPage}
+          canNavigate={(page) => canAccessPage(identityType, page, isCompanyLeadAuditor)}
+        />;
       case 'rencana-audit':
         return <RencanaAuditPage onNavigateToProgram={handleNavigateToProgram} />;
       case 'program-audit':

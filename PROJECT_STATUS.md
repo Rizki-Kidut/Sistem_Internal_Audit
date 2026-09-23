@@ -3417,3 +3417,15 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Weakness content comes only from the latest relevant Final Weakness report with accessible Findings; raw Findings are not converted into synthetic Weakness classifications.
 - No dashboard-owned tables, generic activity log, new persisted business status, new dependency, Production change, or nested `/project` change was made.
 - Validation: root TypeScript typecheck and production build pass. Repository-wide lint remains blocked by pre-existing unused imports in active and legacy snapshot files; the only initially reported Dashboard lint issue was removed. Database migration execution, authorization regression against Supabase, and authenticated browser visual UAT remain pending.
+
+## Dashboard Internal Audit correctness/security correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — LOCAL/STAGING DATABASE REGRESSION PENDING`.
+
+- Corrected Top Weakness Point to aggregate authoritative `final_problem_type` snapshots with the accepted legacy fallback to approved classification data; UI labels reuse `WEAKNESS_PROBLEM_LABEL`.
+- Replaced the fake constant Process Weakness value with the count of accessible Findings belonging to the latest relevant Final Weakness report.
+- Made every Dashboard drill-down capability-aware through `canAccessPage`; disallowed cards, rows, and panel links are non-actionable instead of navigating to Access Denied.
+- Process filter options now come from the accessible FY/audit-type population independently of the selected Process, so selecting one Process does not collapse the selector.
+- Kept the scope helper private and exposed only `get_internal_audit_dashboard(...)` to authenticated clients.
+- Added rollback-only `supabase/tests/dashboard_regression.sql` covering role isolation, Established/Finding/CAR semantics, FY revision/filter behavior, no-data output, personal-task scoping, and function privileges. It was not applied to Staging or Production per instruction.
+- Added dependency-free `tests/dashboard-presentation.cjs` for navigation, landing, April–March ordering, empty states, selector stability, permission-aware actions, and finite chart values. This is a structural presentation regression, not browser UAT.

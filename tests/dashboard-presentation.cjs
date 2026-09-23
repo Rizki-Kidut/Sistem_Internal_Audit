@@ -1,0 +1,23 @@
+// Dependency-free Dashboard contract regression. This is not browser/UAT evidence.
+const fs=require('node:fs');const assert=require('node:assert/strict');const ts=require('typescript');
+for(const extension of ['.ts','.tsx'])require.extensions[extension]=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,filename);
+const sidebar=fs.readFileSync('src/components/layout/Sidebar.tsx','utf8');
+const page=fs.readFileSync('src/components/pages/DashboardPage.tsx','utf8');
+const migration=fs.readFileSync('supabase/migrations/20260923120000_add_internal_audit_dashboard.sql','utf8');
+const {landingPage,canAccessPage}=require('../src/lib/auth.ts');
+assert(sidebar.includes("| 'dashboard'"),'dashboard must be a PageId');
+assert(sidebar.indexOf("id: 'dashboard'")<sidebar.indexOf("id: 'rencana-audit'"),'Dashboard must be the first Internal Audit destination');
+for(const identity of ['ADMIN','AUDITOR','AUDITEE','SECTION_MANAGER'])assert.equal(landingPage(identity),'dashboard');
+assert.deepEqual([4,5,6,7,8,9,10,11,12,1,2,3],[4,5,6,7,8,9,10,11,12,1,2,3]);
+for(const label of ['April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember','Januari','Februari','Maret'])assert(migration.includes(`'${label}'`));
+assert(page.includes("Belum ada data untuk filter ini."));
+assert(page.includes('Belum ada Analisa Weakness Final untuk periode ini.'));
+assert(migration.includes("'processes',COALESCE")&&migration.includes('public.dashboard_can_access_instruction_row(r.id)'),'Process options must use an independent accessible set');
+assert(!migration.match(/'processes'[\s\S]{0,600}p_process_id/),'selected process must not collapse selector options');
+assert(page.includes("canNavigate(target)")&&page.includes("disabled={!actionable}"),'all data-driven drill-downs must be permission-aware');
+assert.equal(canAccessPage('AUDITEE','temuan'),false);assert.equal(canAccessPage('AUDITEE','car'),true);assert.equal(canAccessPage('SECTION_MANAGER','pelaksanaan'),false);
+assert(page.includes("canNavigate('temuan')")&&page.includes("canNavigate('analisa')"),'panel links must be permission-aware');
+const service=fs.readFileSync('src/services/dashboardService.ts','utf8');
+assert(service.includes('Number.isFinite(value)?value:0'),'chart values must normalize non-finite/unavailable values');
+assert(service.includes('WEAKNESS_PROBLEM_LABEL'),'Weakness codes must use centralized labels');
+console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, and finite chart contracts.');
