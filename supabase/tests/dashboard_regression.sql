@@ -45,15 +45,17 @@ INSERT INTO public.checklists(id,row_id,kode_audit,judul_checklist)SELECT ('d100
 ALTER TABLE public.checklist_items DISABLE TRIGGER USER;
 INSERT INTO public.checklist_items(id,checklist_id,sub_proses,kelompok_ipo,nomor,pertanyaan_utama,metode_verifikasi,hasil,komentar_auditor)SELECT ('d1100000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,('d1000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'Sub','Input Proses',n::text,'Question','Observasi','O','Observed' FROM generate_series(1,3)n;
 ALTER TABLE public.checklist_items ENABLE TRIGGER USER;
-INSERT INTO public.checklist_produk(id,row_id,kode_audit,status)VALUES('d1400000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000004','QA-DB04','Selesai');
+INSERT INTO public.checklist_produk(id,row_id,kode_audit,status)VALUES('d1400000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000004','QA-DB04','Draft');
 INSERT INTO public.checklist_produk_fase(id,checklist_produk_id,nama_fase,dokumen_bukti)VALUES('d1410000-0000-0000-0000-000000000001','d1400000-0000-0000-0000-000000000001','Fase','["fixture"]');
 ALTER TABLE public.checklist_produk_items DISABLE TRIGGER USER;
 INSERT INTO public.checklist_produk_items(id,fase_id,item_pemeriksaan,hasil_pemeriksaan,judgment)VALUES('d1420000-0000-0000-0000-000000000001','d1410000-0000-0000-0000-000000000001','Item','OK','OK');
 ALTER TABLE public.checklist_produk_items ENABLE TRIGGER USER;
-INSERT INTO public.checklist_manufaktur_shift(id,row_id,kode_audit,status)VALUES('d1500000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000005','QA-DB05','Selesai');
+UPDATE public.checklist_produk SET status='Selesai' WHERE id='d1400000-0000-0000-0000-000000000001';
+INSERT INTO public.checklist_manufaktur_shift(id,row_id,kode_audit,status)VALUES('d1500000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000005','QA-DB05','Draft');
 ALTER TABLE public.checklist_manufaktur_items DISABLE TRIGGER USER;
 INSERT INTO public.checklist_manufaktur_items(id,checklist_id,no_proses_dicek,hasil_pengamatan,hasil)VALUES('d1510000-0000-0000-0000-000000000001','d1500000-0000-0000-0000-000000000001','1','Observed','O');
 ALTER TABLE public.checklist_manufaktur_items ENABLE TRIGGER USER;
+UPDATE public.checklist_manufaktur_shift SET status='Selesai' WHERE id='d1500000-0000-0000-0000-000000000001';
 ALTER TABLE public.findings DISABLE TRIGGER USER;
 INSERT INTO public.findings(id,instruction_row_id,kode_audit,kode_temuan,nomor_urut_temuan,source_type,source_item_id,kategori,problem,location,objective_evidence,reference,tanggal_temuan,status,review_status,seksi_auditee_id)VALUES
 ('d1200000-0000-0000-0000-000000000001','d0900000-0000-0000-0000-000000000002','QA-DB02','DB-F1',1,'ChecklistSistem','d1100000-0000-0000-0000-000000000002','A','P','L','E','R','2096-05-02','Open','DRAFT','d0200000-0000-0000-0000-000000000001'),
