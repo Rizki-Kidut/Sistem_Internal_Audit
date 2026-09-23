@@ -3,7 +3,9 @@ CREATE OR REPLACE FUNCTION public.dashboard_can_access_instruction_row(p_row_id 
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  SELECT public.is_admin_identity() OR public.current_auditor_is_lead_auditor()
  OR (public.current_identity_type()='AUDITOR' AND public.auditor_can_access_instruction_row(p_row_id))
- OR (public.current_identity_type()='SECTION_MANAGER' AND public.manager_can_access_instruction_row(p_row_id))
+ OR (public.current_identity_type()='SECTION_MANAGER' AND (public.manager_can_access_instruction_row(p_row_id) OR EXISTS(
+   SELECT 1 FROM public.findings f JOIN public.cars c ON c.finding_id=f.id
+   WHERE f.instruction_row_id=p_row_id AND public.car_accessible_to_current_identity(c.id))))
  OR (public.current_identity_type()='AUDITEE' AND EXISTS(
    SELECT 1 FROM public.findings f JOIN public.cars c ON c.finding_id=f.id
    WHERE f.instruction_row_id=p_row_id AND public.car_accessible_to_current_identity(c.id)))
@@ -36,9 +38,12 @@ BEGIN
  ), rows AS (
   SELECT * FROM base_rows WHERE p_process_id IS NULL OR proses_id=p_process_id
  ), finding_scope AS (
-  SELECT f.*,r.proses_id,r.nama_proses FROM public.findings f JOIN rows r ON r.id=f.instruction_row_id WHERE f.review_status<>'ANNULLED'
+  SELECT f.*,r.proses_id,r.nama_proses FROM public.findings f JOIN rows r ON r.id=f.instruction_row_id
+  WHERE f.review_status<>'ANNULLED' AND (v_full OR v_identity='AUDITOR' OR EXISTS(
+    SELECT 1 FROM public.cars authorized_car WHERE authorized_car.finding_id=f.id AND public.car_accessible_to_current_identity(authorized_car.id)))
  ), car_scope AS (
   SELECT c.*,f.proses_id,f.nama_proses FROM public.cars c JOIN finding_scope f ON f.id=c.finding_id
+  WHERE v_full OR public.car_accessible_to_current_identity(c.id)
  ), action_rollup AS (
   SELECT c.id car_id,max(a.due_date) FILTER(WHERE a.action_type='TEMPORARY') temporary_due,
    max(a.due_date) FILTER(WHERE a.action_type IN('CORRECTIVE','PREVENTIVE')) permanent_due
@@ -46,6 +51,14 @@ BEGIN
  ), established AS (
   SELECT r.id FROM rows r WHERE r.cek_selesai AND r.execution_date IS NOT NULL AND r.checklist_complete
    AND NOT EXISTS(SELECT 1 FROM public.findings f WHERE f.instruction_row_id=r.id AND f.source_type=r.audit_type AND f.review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED','ANNULLED'))
+ ), row_execution_status AS (
+  SELECT r.id,CASE
+   WHEN e.id IS NOT NULL THEN 'Established'
+   WHEN EXISTS(SELECT 1 FROM finding_scope f WHERE f.instruction_row_id=r.id AND f.review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')) THEN 'Menunggu Finalisasi Finding'
+   WHEN r.cek_selesai THEN 'Execution Selesai'
+   WHEN r.execution_date IS NOT NULL THEN 'Berjalan'
+   ELSE 'Belum Mulai' END status
+  FROM rows r LEFT JOIN established e ON e.id=r.id
  ), current_plan AS (
   SELECT p.id,p.tahun FROM public.audit_plans p WHERE p.tahun=v_year ORDER BY p.no_revisi DESC,p.updated_at DESC,p.id DESC LIMIT 1
  ), plan_chart AS (
@@ -92,22 +105,26 @@ BEGIN
    jsonb_build_object('key','finding_pending','label','Finding Menunggu Review','value',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'description','Finding aktif belum final','page','temuan'),
    jsonb_build_object('key','ltp_overdue','label','LTP / CAR Overdue','value',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND (a.temporary_due<v_today OR a.permanent_due<v_today)),'description','Target aksi lewat dan LTP belum Closed','page','car'),
    jsonb_build_object('key','attention','label','Audit Perlu Perhatian','value',(SELECT unique_attention FROM attention),'description','Plan lewat atau belum Established','page','pelaksanaan')),
-  'plan_actual_available',p_audit_type IS NULL,
-  'plan_actual_message',CASE WHEN p_audit_type IS NULL THEN NULL ELSE 'Plan vs Aktual FORM-001 tidak memiliki dimensi Jenis Audit.' END,
+  'plan_actual_available',p_audit_type IS NULL AND EXISTS(SELECT 1 FROM current_plan),
+  'plan_actual_message',CASE WHEN p_audit_type IS NOT NULL THEN 'Plan vs Aktual FORM-001 tidak memiliki dimensi Jenis Audit.' WHEN NOT EXISTS(SELECT 1 FROM current_plan) THEN 'Belum ada Rencana Audit Tahunan untuk FY ini.' ELSE NULL END,
   'plan_actual',(SELECT jsonb_agg(jsonb_build_object('month',m.month,'label',m.label||' '||CASE WHEN m.month>=4 THEN v_year ELSE v_year+1 END,'plan',COALESCE(p.plan,0),'actual',COALESCE(p.actual,0))ORDER BY array_position(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3],m.month))FROM months m LEFT JOIN plan_chart p ON p.bulan=m.month),
   'execution_status',jsonb_build_array(
-   jsonb_build_object('label','Belum Mulai','value',(SELECT count(*) FROM rows WHERE NOT cek_selesai AND execution_date IS NULL)),jsonb_build_object('label','Berjalan','value',(SELECT count(*) FROM rows WHERE NOT cek_selesai AND execution_date IS NOT NULL)),jsonb_build_object('label','Execution Selesai','value',(SELECT count(*) FROM rows r LEFT JOIN established e ON e.id=r.id WHERE r.cek_selesai AND e.id IS NULL AND NOT EXISTS(SELECT 1 FROM finding_scope f WHERE f.instruction_row_id=r.id AND f.review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')))),jsonb_build_object('label','Menunggu Finalisasi Finding','value',(SELECT count(DISTINCT instruction_row_id) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED'))),jsonb_build_object('label','Established','value',(SELECT count(*) FROM established))),
+   jsonb_build_object('label','Belum Mulai','value',(SELECT count(*) FROM row_execution_status WHERE status='Belum Mulai')),
+   jsonb_build_object('label','Berjalan','value',(SELECT count(*) FROM row_execution_status WHERE status='Berjalan')),
+   jsonb_build_object('label','Execution Selesai','value',(SELECT count(*) FROM row_execution_status WHERE status='Execution Selesai')),
+   jsonb_build_object('label','Menunggu Finalisasi Finding','value',(SELECT count(*) FROM row_execution_status WHERE status='Menunggu Finalisasi Finding')),
+   jsonb_build_object('label','Established','value',(SELECT count(*) FROM row_execution_status WHERE status='Established'))),
   'finding_health',jsonb_build_object('open',(SELECT count(*) FROM finding_scope WHERE review_status IN('PUBLISHED','LEGACY_ESTABLISHED') AND status<>'Closed'),'closed',(SELECT count(*) FROM finding_scope WHERE review_status IN('PUBLISHED','LEGACY_ESTABLISHED') AND status='Closed'),'pending_review',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'categories',jsonb_build_object('A',(SELECT count(*) FROM finding_scope WHERE kategori='A'),'B',(SELECT count(*) FROM finding_scope WHERE kategori='B'),'C',(SELECT count(*) FROM finding_scope WHERE kategori='C'))),
-  'ltp_health',jsonb_build_object('open',(SELECT count(*) FROM car_scope WHERE status<>'CLOSED'),'temporary_overdue',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND a.temporary_due<v_today),'permanent_overdue',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND a.permanent_due<v_today),'verification_pending',(SELECT count(*) FROM car_scope WHERE status IN('AUDITOR_REVIEW','ADMIN_REVIEW'))),
+  'ltp_health',jsonb_build_object('open',(SELECT count(*) FROM car_scope WHERE status<>'CLOSED'),'temporary_overdue',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND a.temporary_due<v_today),'permanent_overdue',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND a.permanent_due<v_today),'verification_pending',(SELECT count(*) FROM car_scope WHERE status IN('AUDITOR_REVIEW','AUDITOR_RETURNED'))),
   'process_findings',COALESCE((SELECT jsonb_agg(jsonb_build_object('process_id',process_id,'process_name',process_name,'total',total,'open',open,'overdue_ltp',overdue_ltp,'weakness',weakness))FROM process_stats),'[]'),
   'weaknesses',COALESCE((SELECT jsonb_agg(jsonb_build_object('label',label,'count',count))FROM weaknesses),'[]'),
   'attention',jsonb_build_array(jsonb_build_object('label','LTP melewati target','count',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND(a.temporary_due<v_today OR a.permanent_due<v_today)),'page','car'),jsonb_build_object('label','Finding masih menunggu review','count',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'page','temuan'),jsonb_build_object('label','Audit selesai execution tetapi belum Established','count',(SELECT execution_not_established FROM attention),'page','pelaksanaan'),jsonb_build_object('label','Audit melewati tanggal plan','count',(SELECT plan_overdue FROM attention),'page','pelaksanaan')),
-  'my_actions',CASE WHEN v_full THEN jsonb_build_array(jsonb_build_object('label','Review Finding tertunda','count',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'page','temuan'),jsonb_build_object('label','Tindak lanjut LTP overdue','count',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND(a.temporary_due<v_today OR a.permanent_due<v_today)),'page','car')) WHEN v_identity='AUDITOR' THEN jsonb_build_array(jsonb_build_object('label','Audit penugasan belum selesai','count',(SELECT count(*) FROM rows WHERE NOT cek_selesai),'page','pelaksanaan'),jsonb_build_object('label','Verifikasi LTP menunggu','count',(SELECT count(*) FROM car_scope WHERE status='AUDITOR_REVIEW'),'page','car')) WHEN v_identity='AUDITEE' THEN jsonb_build_array(jsonb_build_object('label','LTP memerlukan tindakan Auditee','count',(SELECT count(*) FROM car_scope WHERE status IN('AUDITEE_DRAFT','AUDITEE_RETURNED')),'page','car')) ELSE jsonb_build_array(jsonb_build_object('label','LTP menunggu review Section Manager','count',(SELECT count(*) FROM car_scope WHERE status='MANAGER_REVIEW'),'page','car')) END,
+  'my_actions',CASE WHEN v_full THEN jsonb_build_array(jsonb_build_object('label','Review Finding tertunda','count',(SELECT count(*) FROM finding_scope WHERE review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED')),'page','temuan'),jsonb_build_object('label','Tindak lanjut LTP overdue','count',(SELECT count(*) FROM car_scope c JOIN action_rollup a ON a.car_id=c.id WHERE c.status<>'CLOSED' AND(a.temporary_due<v_today OR a.permanent_due<v_today)),'page','car')) WHEN v_identity='AUDITOR' THEN jsonb_build_array(jsonb_build_object('label','Audit penugasan belum selesai','count',(SELECT count(*) FROM rows WHERE NOT cek_selesai),'page','pelaksanaan'),jsonb_build_object('label','Verifikasi LTP menunggu','count',(SELECT count(*) FROM car_scope WHERE status IN('AUDITOR_REVIEW','AUDITOR_RETURNED')),'page','car')) WHEN v_identity='AUDITEE' THEN jsonb_build_array(jsonb_build_object('label','LTP memerlukan tindakan Auditee','count',(SELECT count(*) FROM car_scope WHERE status IN('AUDITEE_DRAFT','AUDITEE_RETURNED')),'page','car')) ELSE jsonb_build_array(jsonb_build_object('label','LTP menunggu review Section Manager','count',(SELECT count(*) FROM car_scope WHERE status='MANAGER_REVIEW'),'page','car')) END,
   'upcoming',COALESCE((SELECT jsonb_agg(jsonb_build_object('date',d,'label',label,'detail',detail,'page',page)ORDER BY d) FROM(SELECT tanggal_plan_audit d,kode_audit label,CASE WHEN tanggal_plan_audit<v_today THEN 'Rencana audit overdue' ELSE 'Audit dijadwalkan' END detail,'instruksi-audit' page FROM rows WHERE tanggal_plan_audit IS NOT NULL ORDER BY abs(tanggal_plan_audit-v_today) LIMIT 6)q),'[]'),
   'recent_activity',COALESCE((SELECT jsonb_agg(jsonb_build_object('label',label,'detail',detail,'date',created_at::date,'page',page)ORDER BY created_at DESC)FROM(SELECT * FROM recent ORDER BY created_at DESC LIMIT 8)q),'[]')
  ) INTO v_result;
  RETURN v_result;
 END $$;
-COMMENT ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) IS 'Read-only identity-scoped dashboard. Audit Direncanakan counts accessible QA contexts with tanggal_plan_audit; attention counts unique QA contexts; Plan/Actual is unavailable under Audit Type filters; Established delegates checklist semantics to annual_actual_checklist_complete. LTP overdue means max applicable action target is before today while CAR is not CLOSED.';
+COMMENT ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) IS 'Read-only identity-scoped dashboard. Audit Direncanakan counts accessible QA contexts with tanggal_plan_audit; attention counts unique QA contexts; Finding/CAR aggregates are independently CAR-authorized for Auditee/Manager; execution statuses are mutually exclusive; verification pending is AUDITOR_REVIEW or AUDITOR_RETURNED; Plan/Actual is unavailable under Audit Type filters or without an Annual Plan; Established delegates checklist semantics to annual_actual_checklist_complete. LTP overdue means max applicable action target is before today while CAR is not CLOSED.';
 REVOKE ALL ON FUNCTION public.dashboard_can_access_instruction_row(uuid),public.get_internal_audit_dashboard(integer,text,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.get_internal_audit_dashboard(integer,text,uuid) TO authenticated;

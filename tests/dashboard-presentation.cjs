@@ -28,4 +28,9 @@ assert(migration.includes('unique_attention'),'attention KPI must count unique c
 assert(page.includes('setData(null)'),'filter changes must clear stale payloads');
 assert(page.includes('Coba Lagi'),'error state must provide retry');
 assert(migration.includes("'temuan'::text page FROM public.finding_review_events"),'Finding activity must target Temuan semantically');
+assert(migration.includes("authorized_car.finding_id=f.id")&&migration.includes("public.car_accessible_to_current_identity(c.id)"),'Finding and CAR aggregates must be independently identity-authorized');
+assert(migration.includes('row_execution_status AS (')&&migration.includes("WHEN e.id IS NOT NULL THEN 'Established'")&&migration.includes("ELSE 'Belum Mulai' END status"),'execution status must use one precedence CASE per row');
+assert(migration.includes("status IN('AUDITOR_REVIEW','AUDITOR_RETURNED')")&&!migration.includes("status IN('AUDITOR_REVIEW','ADMIN_REVIEW')"),'verification pending must use Auditor Review and Auditor Returned only');
+assert(migration.includes('Belum ada Rencana Audit Tahunan untuk FY ini.'),'missing Annual Plan must have an explicit unavailable message');
+
 console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, and finite chart contracts.');

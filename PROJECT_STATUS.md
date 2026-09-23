@@ -3441,3 +3441,14 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Finding review activity now targets Temuan semantically, subject to the existing frontend capability guard.
 - Filter changes clear the prior payload before loading, preventing old metrics from appearing under new filter controls. RPC failures now provide an in-page `Coba Lagi` action.
 - Extended both Dashboard regressions for the corrected FY, Plan/Aktual availability, planned-date, unique-attention, stale-data, retry, and activity-destination contracts. The rollback-only SQL remains unapplied pending Staging authorization.
+
+## Dashboard Internal Audit final backend scope correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DB REGRESSION PENDING STAGING`.
+
+- Hardened Finding aggregation for Auditee and Section Manager identities: an authorized QA row no longer grants access to every Finding on that row. Each Finding must have a canonical CAR allowed by `car_accessible_to_current_identity`, while Admin/Company Lead retain full scope and Auditor findings remain constrained by authorized Team rows.
+- Hardened `car_scope` independently through `car_accessible_to_current_identity` for every restricted identity. A shared QA containing Findings for different Sections therefore exposes only each identity's own canonical Finding/CAR aggregates, activity, Weakness data, attention items, and tasks.
+- Added one mutually exclusive `row_execution_status` precedence: Established → Menunggu Finalisasi Finding → Execution Selesai → Berjalan → Belum Mulai. The regression asserts the five-category sum equals the Dashboard row population.
+- Corrected Verification Pending and Auditor verification tasks to count exactly `AUDITOR_REVIEW` plus `AUDITOR_RETURNED`; `ADMIN_REVIEW` and `CLOSED` are excluded.
+- FORM-001 Plan/Aktual availability now additionally requires a current Annual Plan. An authorized Instruction FY without a Plan returns `plan_actual_available=false` and `Belum ada Rencana Audit Tahunan untuk FY ini.` rather than an all-zero pseudo-plan.
+- Expanded the rollback-only SQL regression with shared-row two-Section Finding/CAR isolation for both Auditees and Managers, all five execution states, four LTP workflow states, and an authorized no-Plan FY. It remains unapplied pending explicit Staging approval.
