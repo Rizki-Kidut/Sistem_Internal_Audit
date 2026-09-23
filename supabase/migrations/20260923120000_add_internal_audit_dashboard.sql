@@ -65,7 +65,7 @@ BEGIN
   SELECT s.bulan,count(*) FILTER(WHERE s.plan)::integer plan,count(*) FILTER(WHERE s.aktual)::integer actual
   FROM public.audit_plan_schedule s JOIN public.audit_plan_process pp ON pp.id=s.process_id JOIN current_plan cp ON cp.id=pp.plan_id
   WHERE p_audit_type IS NULL AND (p_process_id IS NULL OR pp.proses_master_id=p_process_id) AND (v_full OR EXISTS(SELECT 1 FROM base_rows r WHERE r.proses_id=pp.proses_master_id)) GROUP BY s.bulan
- ), months AS (SELECT x month,CASE x WHEN 4 THEN 'April' WHEN 5 THEN 'Mei' WHEN 6 THEN 'Juni' WHEN 7 THEN 'Juli' WHEN 8 THEN 'Agustus' WHEN 9 THEN 'September' WHEN 10 THEN 'Oktober' WHEN 11 THEN 'November' WHEN 12 THEN 'Desember' WHEN 1 THEN 'Januari' WHEN 2 THEN 'Februari' ELSE 'Maret' END label FROM unnest(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3]) x),
+ ), months AS (SELECT x AS month_no,CASE x WHEN 4 THEN 'April' WHEN 5 THEN 'Mei' WHEN 6 THEN 'Juni' WHEN 7 THEN 'Juli' WHEN 8 THEN 'Agustus' WHEN 9 THEN 'September' WHEN 10 THEN 'Oktober' WHEN 11 THEN 'November' WHEN 12 THEN 'Desember' WHEN 1 THEN 'Januari' WHEN 2 THEN 'Februari' ELSE 'Maret' END label FROM unnest(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3]) x),
  attention AS (
   SELECT count(*) FILTER(WHERE r.tanggal_plan_audit<v_today AND e.id IS NULL) plan_overdue,
    count(*) FILTER(WHERE r.cek_selesai AND e.id IS NULL) execution_not_established,
@@ -107,7 +107,7 @@ BEGIN
    jsonb_build_object('key','attention','label','Audit Perlu Perhatian','value',(SELECT unique_attention FROM attention),'description','Plan lewat atau belum Established','page','pelaksanaan')),
   'plan_actual_available',p_audit_type IS NULL AND EXISTS(SELECT 1 FROM current_plan),
   'plan_actual_message',CASE WHEN p_audit_type IS NOT NULL THEN 'Plan vs Aktual FORM-001 tidak memiliki dimensi Jenis Audit.' WHEN NOT EXISTS(SELECT 1 FROM current_plan) THEN 'Belum ada Rencana Audit Tahunan untuk FY ini.' ELSE NULL END,
-  'plan_actual',(SELECT jsonb_agg(jsonb_build_object('month',m.month,'label',m.label||' '||CASE WHEN m.month>=4 THEN v_year ELSE v_year+1 END,'plan',COALESCE(p.plan,0),'actual',COALESCE(p.actual,0))ORDER BY array_position(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3],m.month))FROM months m LEFT JOIN plan_chart p ON p.bulan=m.month),
+  'plan_actual',(SELECT jsonb_agg(jsonb_build_object('month',m.month_no,'label',m.label||' '||CASE WHEN m.month_no>=4 THEN v_year ELSE v_year+1 END,'plan',COALESCE(p.plan,0),'actual',COALESCE(p.actual,0))ORDER BY array_position(ARRAY[4,5,6,7,8,9,10,11,12,1,2,3],m.month_no))FROM months m LEFT JOIN plan_chart p ON p.bulan=m.month_no),
   'execution_status',jsonb_build_array(
    jsonb_build_object('label','Belum Mulai','value',(SELECT count(*) FROM row_execution_status WHERE status='Belum Mulai')),
    jsonb_build_object('label','Berjalan','value',(SELECT count(*) FROM row_execution_status WHERE status='Berjalan')),
