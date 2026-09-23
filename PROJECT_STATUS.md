@@ -3369,3 +3369,18 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression now requires the fixed-height/text-align-start vertical-header contract.
 - No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
 - Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 vertical-header center correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT confirmed the fixed 40mm vertical header height successfully anchored Section/month labels to the bottom, but the shared span used `width:100%`, which caused the transformed text box to occupy the full cell width and appear visually right-aligned.
+- The shared Section/month header rule now keeps the fixed 40mm height for bottom anchoring but uses:
+  `display:inline-block; width:auto; max-width:100%; vertical-align:bottom`.
+- Header cells explicitly use `text-align:center`, so the intrinsic-width vertical label box is horizontally centered within every Section/month column while preserving the same visual bottom baseline.
+- Section and month headers still use one shared CSS rule.
+- SVG vector inactive-process slashes remain unchanged.
+- Presentation regression now requires both `vertical-align:bottom;text-align:center` on the header cells and the intrinsic-width inline-block label contract.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
