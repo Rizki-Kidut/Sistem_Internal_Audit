@@ -15,10 +15,13 @@
 .form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);white-space:normal;max-height:40mm;overflow-wrap:anywhere}
 .form001-section-header{height:42mm!important;padding:0!important;vertical-align:bottom!important}
 .form001-section-header-box{box-sizing:border-box;width:100%;height:40mm;display:flex;align-items:flex-end;justify-content:center;padding:0 0 1mm}
-.form001-section-header-label{display:block;writing-mode:vertical-rl;transform:rotate(180deg);transform-origin:center;white-space:normal;max-height:39mm;overflow-wrap:anywhere;line-height:1.05}
+.form001-section-header-label{display:block;writing-mode:vertical-rl;direction:rtl;text-orientation:mixed;transform:none;white-space:normal;max-height:39mm;overflow-wrap:anywhere;line-height:1.05}
 .form001-process-row{height:7mm}
 .form001-process-name{text-align:left!important;font-size:7.2pt!important;line-height:1.15;overflow-wrap:anywhere}.form001-process-row>th{font-weight:600;font-size:6.7pt}.form001-process-row>td{font-size:8.5pt}
-.form001-inactive-cell{background:linear-gradient(to top right,transparent calc(50% - .5px),#111 calc(50% - .5px),#111 calc(50% + .5px),transparent calc(50% + .5px))}.form001-filler-row{height:7mm}
+.form001-inactive-cell{position:relative;padding:0!important;background:none}
+.form001-inactive-slash{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;overflow:visible}
+.form001-inactive-slash line{stroke:#111;stroke-width:.22mm;vector-effect:non-scaling-stroke;shape-rendering:geometricPrecision}
+.form001-filler-row{height:7mm}
 .form001-other-label{padding:0!important;writing-mode:vertical-rl;transform:rotate(180deg);font-size:7pt!important;letter-spacing:.08em;font-weight:700}.form001-footer{margin-top:auto;min-height:14mm;border:1px solid #111;border-top:0;display:grid;grid-template-columns:1fr auto;align-items:end;column-gap:6mm;padding:1.5mm 2mm;font-size:7pt}
 .form001-footer strong{white-space:nowrap;text-align:right}
 @media print{html,body,#root,body>div,#root>div,main,main>div{height:auto!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important;background:#fff!important}aside,nav,.annual-audit-screen-ui{display:none!important}.annual-audit-print-view{display:block!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important}.annual-audit-print-page{width:418mm;min-height:294mm;margin:0;padding:5mm;break-after:page;page-break-after:always}.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}.form001-process-row,.form001-header,.form001-footer{break-inside:avoid;page-break-inside:avoid}}
