@@ -3474,3 +3474,18 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Supabase Security Advisor reports the expected generic warning for the intentionally authenticated-executable `SECURITY DEFINER` public Dashboard RPC. The private Dashboard scope helper is no longer exposed. No Dashboard-specific performance advisory was reported.
 - Existing project-wide advisor findings remain outside this Dashboard change (generic SECURITY DEFINER warnings, leaked-password protection setting, unindexed foreign keys, auth RLS initplan, unused indexes, and multiple permissive policies).
 - PR #31 remains open and unmerged. Authenticated browser UAT by role is the remaining gate before final pre-merge review.
+
+
+## Dashboard Status Pelaksanaan chart refinement — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #31 — AUTHENTICATED VISUAL UAT PENDING`.
+
+- Replaced the previous single stacked Status Pelaksanaan composition with five separate horizontal category bars.
+- Preserved the authoritative mutually-exclusive execution-status order and semantics:
+  Belum Mulai → Berjalan → Execution Selesai → Menunggu Finalisasi Finding → Established.
+- The chart now uses one non-stacked ECharts bar series with direct category labels on the left and numeric values at the end of each bar; the legend is no longer required.
+- All five categories are explicitly materialized in the frontend and missing values normalize to zero, so zero-value statuses remain structurally present.
+- When all five values are zero, the card renders `Belum ada status pelaksanaan untuk filter ini.` instead of an empty chart.
+- Existing status colors are retained: gray, blue, amber, orange, and green.
+- No backend SQL, RPC shape, service contract, execution-status precedence, KPI, filter, authorization, Staging schema, or Production state changed.
+- Dashboard presentation regression now rejects stacked execution bars and requires all five ordered categories plus the all-zero empty state.
