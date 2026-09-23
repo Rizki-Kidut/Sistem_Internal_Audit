@@ -24,7 +24,6 @@ INSERT INTO public.audit_plan_schedule(process_id,bulan,plan,aktual,aktual_auto)
 SELECT set_config('certitrack.annual_actual_write','',true);
 INSERT INTO public.audit_team_masters(id,plan_id,kode_tim,nama_tim,status,is_locked)VALUES('d0600000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','DB-T1','Assigned Team','Aktif',false),('d0600000-0000-0000-0000-000000000002','d0400000-0000-0000-0000-000000000002','DB-T2','Other Team','Aktif',false);
 INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('d0600000-0000-0000-0000-000000000001','d0100000-0000-0000-0000-000000000002','Lead',1,true),('d0600000-0000-0000-0000-000000000002','d0100000-0000-0000-0000-000000000003','Lead',1,true);
-UPDATE public.audit_team_masters SET is_locked=true WHERE id IN('d0600000-0000-0000-0000-000000000001','d0600000-0000-0000-0000-000000000002');
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('d0700000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','Berkala',1,2096,'2096-04-01','Approved');
 INSERT INTO public.audit_instructions(id,program_id,tahun_fiskal,status)VALUES('d0800000-0000-0000-0000-000000000001','d0700000-0000-0000-0000-000000000001',2096,'Selesai'),('d0800000-0000-0000-0000-000000000002',NULL,2094,'Draft');
 ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER;
