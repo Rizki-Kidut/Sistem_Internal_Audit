@@ -3272,3 +3272,27 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   for missing covering indexes on two override-event foreign keys and the currently unused schedule-history index;
   these are non-blocking for correctness/authorization.
 - The persistent FY2098 visual-UAT fixture is intentionally retained on Staging until post-merge cleanup/release preparation.
+
+
+## FORM-001 deterministic Section-header alignment correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Root cause of the remaining visual mismatch was overlapping CSS ownership:
+  Section labels matched both the generic vertical-header span rule and the Section-specific span rule,
+  leaving part of their geometry dependent on intrinsic content size.
+- Every Section header now uses one explicit structure:
+  `<th className="form001-section-header"><span className="form001-section-header-label">...</span></th>`.
+  The fallback/empty Section header uses the same dedicated label class.
+- Section labels now have one deterministic positioning system:
+  absolute positioning, `left:50%`, `bottom:1mm`, `writing-mode:vertical-rl`,
+  and `translateX(-50%) rotate(180deg)`.
+- Month labels are intentionally isolated under
+  `.form001-vertical-headers > th:not(.form001-section-header) > span`
+  so they keep their prior behavior and no longer compete with Section-specific rules.
+- Presentation regression now covers both a short and a long Section name, verifies the dedicated
+  header/label classes on every rendered physical page, checks the deterministic bottom anchor,
+  and asserts the old competing generic Section selectors are absent.
+- No database migration, Actual automation/Admin override behavior, A3 pagination logic,
+  Production, FORM-010, FORM-014, or nested `/project` scope changed.
+- Authenticated Chrome A3 visual re-test remains required before merge.
