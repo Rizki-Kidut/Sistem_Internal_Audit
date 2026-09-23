@@ -3404,3 +3404,16 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The latest correction is presentation-only; no database migration, Actual automation/Admin override logic,
   RLS, Production data, FORM-010, FORM-014, or nested `/project` scope changed after the last Staging DB regression PASS.
 - PR #30 remains open and unmerged pending explicit merge approval.
+
+## Dashboard Internal Audit command center — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DATABASE MIGRATION/UAT PENDING`.
+
+- Added `dashboard` as the default authenticated landing page and first navigation item for ADMIN, AUDITOR, AUDITEE, and SECTION_MANAGER; active Company Lead Auditor access follows the existing AUDITOR capability model.
+- Added a read-only responsive command center with global FY (April–March), audit-type, and Process filters; six operational KPIs; FORM-001 Plan/Aktual chart; execution, Finding, and LTP health; Process concentration; latest relevant Final Weakness summary; attention, role-aware task, due-date, and authoritative activity panels.
+- Added one reusable TypeScript dashboard service and an SVG ECharts lifecycle wrapper. React does not query Supabase tables or redefine KPI rules.
+- Added migration `20260923120000_add_internal_audit_dashboard.sql` with authenticated, identity-scoped `get_internal_audit_dashboard(...)` and `dashboard_can_access_instruction_row(...)` helpers. Full-company scope is limited to Admin and active Company Lead Auditor. Restricted roles reuse authoritative team, section, and CAR access helpers; no display-name ownership inference is used.
+- `Audit Direncanakan` counts accessible QA / Instruction row contexts in the selected FY. Plan-vs-Actual separately counts schedule marks from only the highest Annual Plan revision. `Audit Established` reuses `annual_actual_checklist_complete(...)` plus the same completion/date/non-final-Finding rule as FORM-001 Actual. LTP overdue uses the maximum TEMPORARY or CORRECTIVE/PREVENTIVE action due date and excludes `CLOSED` CARs.
+- Weakness content comes only from the latest relevant Final Weakness report with accessible Findings; raw Findings are not converted into synthetic Weakness classifications.
+- No dashboard-owned tables, generic activity log, new persisted business status, new dependency, Production change, or nested `/project` change was made.
+- Validation: root TypeScript typecheck and production build pass. Repository-wide lint remains blocked by pre-existing unused imports in active and legacy snapshot files; the only initially reported Dashboard lint issue was removed. Database migration execution, authorization regression against Supabase, and authenticated browser visual UAT remain pending.

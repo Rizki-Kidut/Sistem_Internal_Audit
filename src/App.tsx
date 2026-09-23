@@ -23,10 +23,11 @@ import { useAuth } from './contexts/AuthContext';
 import { canAccessPage, landingPage } from './lib/auth';
 import { LoginPage } from './components/pages/LoginPage';
 import { LoadingSpinner, Button } from './components/ui';
+import { DashboardPage } from './components/pages/DashboardPage';
 
 function App() {
   const {session,profile,loading,profileError,logout}=useAuth();
-  const [currentPage, setCurrentPage] = useState<PageId>('rencana-audit');
+  const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   // State untuk navigasi cross-page: ketika "Buat Program Internal Audit" diklik
   // di RencanaAuditPage, kita navigasi ke ProgramAuditPage dengan programId ter-prefill
   const [initialProgramId, setInitialProgramId] = useState<string | null>(null);
@@ -46,6 +47,8 @@ function App() {
 
   function renderPage() {
     switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPage onNavigate={setCurrentPage} />;
       case 'rencana-audit':
         return <RencanaAuditPage onNavigateToProgram={handleNavigateToProgram} />;
       case 'program-audit':
