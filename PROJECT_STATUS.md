@@ -3296,3 +3296,23 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - No database migration, Actual automation/Admin override behavior, A3 pagination logic,
   Production, FORM-010, FORM-014, or nested `/project` scope changed.
 - Authenticated Chrome A3 visual re-test remains required before merge.
+
+
+## FORM-001 Section-header flex baseline correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- The previous absolute-positioning correction still showed inconsistent visual bottoms in Chrome for Section labels with different wrapped heights.
+- The Section header implementation now uses a fixed-height inner wrapper instead of absolute positioning:
+  `form001-section-header-box` is 40mm high, full-width, `display:flex`,
+  `align-items:flex-end`, `justify-content:center`, with a fixed 1mm bottom padding.
+- The vertical label itself remains `writing-mode:vertical-rl` + `rotate(180deg)`,
+  but no longer owns absolute bottom positioning. This makes the physical bottom edge come from one
+  shared flex container rather than each label's intrinsic/wrapped box.
+- Every Section header, including the fallback cell, uses the same wrapper structure.
+- Month headers remain on their existing independent vertical-label selector and were not changed.
+- Regression assertions now require the fixed wrapper on every Section header and reject reintroduction
+  of absolute positioning on `form001-section-header-label`.
+- No database, migration, Actual automation/Admin override behavior, A3 pagination, Production,
+  FORM-010, FORM-014, or nested `/project` change was made.
+- Chrome A3 visual re-test is required before merge.
