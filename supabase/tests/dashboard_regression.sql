@@ -2,7 +2,8 @@ BEGIN;
 -- Run only after 20260923120000 in an isolated local database. Every fixture is rolled back.
 CREATE OR REPLACE FUNCTION pg_temp.ok(value boolean,message text)RETURNS void LANGUAGE plpgsql AS $$BEGIN IF NOT COALESCE(value,false)THEN RAISE EXCEPTION 'DASHBOARD ASSERT: %',message;END IF;END$$;
 CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);PERFORM set_config('role','authenticated',true);END$$;
-CREATE OR REPLACE FUNCTION pg_temp.metric(payload jsonb,key text)RETURNS integer LANGUAGE sql AS $$SELECT COALESCE((SELECT (x->>'value')::integer FROM jsonb_array_elements(payload->'metrics')x WHERE x->>'key'=key),0)$$;
+CREATE OR REPLACE FUNCTION pg_temp.metric(payload jsonb,key text)RETURNS integer LANGUAGE sql AS $SELECT COALESCE((SELECT (x->>'value')::integer FROM jsonb_array_elements(payload->'metrics')x WHERE x->>'key'=key),0)$;
+CREATE OR REPLACE FUNCTION pg_temp.owner_exec(p_sql text)RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $BEGIN EXECUTE p_sql;END$;
 RESET ROLE;SELECT set_config('request.jwt.claim.sub','',true);SELECT set_config('request.jwt.claims','{}',true);
 -- Staging may already have the one allowed Company Lead Auditor. Temporarily demote it inside this transaction; ROLLBACK restores the original state.
 UPDATE public.user_auditor_links SET is_lead_auditor=false WHERE is_lead_auditor=true;
@@ -109,15 +110,15 @@ RESET ROLE;
 SELECT pg_temp.ok(has_function_privilege('authenticated','public.get_internal_audit_dashboard(integer,text,uuid)','EXECUTE'),'authenticated may execute Dashboard RPC');
 SELECT pg_temp.ok(NOT has_function_privilege('authenticated','public.dashboard_can_access_instruction_row(uuid)','EXECUTE'),'private scope helper is not client executable');
 -- Established review-state matrix: PUBLISHED and LEGACY permit; ANNULLED does not block; pending blocks.
-ALTER TABLE public.findings DISABLE TRIGGER USER;UPDATE public.findings SET review_status='LEGACY_ESTABLISHED' WHERE id='d1200000-0000-0000-0000-000000000002';ALTER TABLE public.findings ENABLE TRIGGER USER;
+SELECT pg_temp.owner_exec('ALTER TABLE public.findings DISABLE TRIGGER USER');SELECT pg_temp.owner_exec($q$UPDATE public.findings SET review_status='LEGACY_ESTABLISHED' WHERE id='d1200000-0000-0000-0000-000000000002'$q$);SELECT pg_temp.owner_exec('ALTER TABLE public.findings ENABLE TRIGGER USER');
 SELECT pg_temp.actor('d0000000-0000-0000-0000-000000000001');SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'established')=4,'LEGACY_ESTABLISHED permits Established');
-ALTER TABLE public.findings DISABLE TRIGGER USER;UPDATE public.findings SET review_status='ANNULLED' WHERE id='d1200000-0000-0000-0000-000000000001';ALTER TABLE public.findings ENABLE TRIGGER USER;
+SELECT pg_temp.owner_exec('ALTER TABLE public.findings DISABLE TRIGGER USER');SELECT pg_temp.owner_exec($q$UPDATE public.findings SET review_status='ANNULLED' WHERE id='d1200000-0000-0000-0000-000000000001'$q$);SELECT pg_temp.owner_exec('ALTER TABLE public.findings ENABLE TRIGGER USER');
 SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,NULL,NULL),'established')=5,'ANNULLED does not block Established');
 -- Product/Manufacturing rows use their authoritative execution-date columns; their dates appear in chronological output.
 SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistProduk',NULL),'established')=1,'Product Established uses tanggal_audit_produk');
-ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER;UPDATE public.audit_instruction_rows SET tanggal_audit_produk=NULL WHERE id='d0900000-0000-0000-0000-000000000004';ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER;
+SELECT pg_temp.owner_exec('ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER');SELECT pg_temp.owner_exec($q$UPDATE public.audit_instruction_rows SET tanggal_audit_produk=NULL WHERE id='d0900000-0000-0000-0000-000000000004'$q$);SELECT pg_temp.owner_exec('ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER');
 SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistProduk',NULL),'established')=1,'Product Established falls back to tanggal_pelaksanaan_audit');
 SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistManufakturShift',NULL),'established')=1,'Manufacturing Established uses tanggal_pelaksanaan_audit');
-ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER;UPDATE public.audit_instruction_rows SET tanggal_pelaksanaan_audit=NULL WHERE id='d0900000-0000-0000-0000-000000000001';ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER;
+SELECT pg_temp.owner_exec('ALTER TABLE public.audit_instruction_rows DISABLE TRIGGER USER');SELECT pg_temp.owner_exec($q$UPDATE public.audit_instruction_rows SET tanggal_pelaksanaan_audit=NULL WHERE id='d0900000-0000-0000-0000-000000000001'$q$);SELECT pg_temp.owner_exec('ALTER TABLE public.audit_instruction_rows ENABLE TRIGGER USER');
 SELECT pg_temp.ok(pg_temp.metric(public.get_internal_audit_dashboard(2096,'ChecklistSistem',NULL),'established')=2,'System Established requires tanggal_pelaksanaan_audit');
 ROLLBACK;
