@@ -4,6 +4,8 @@ CREATE OR REPLACE FUNCTION pg_temp.ok(value boolean,message text)RETURNS void LA
 CREATE OR REPLACE FUNCTION pg_temp.actor(id uuid)RETURNS void LANGUAGE plpgsql AS $$BEGIN PERFORM set_config('request.jwt.claim.sub',id::text,true);PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',id,'role','authenticated')::text,true);PERFORM set_config('role','authenticated',true);END$$;
 CREATE OR REPLACE FUNCTION pg_temp.metric(payload jsonb,key text)RETURNS integer LANGUAGE sql AS $$SELECT COALESCE((SELECT (x->>'value')::integer FROM jsonb_array_elements(payload->'metrics')x WHERE x->>'key'=key),0)$$;
 RESET ROLE;SELECT set_config('request.jwt.claim.sub','',true);SELECT set_config('request.jwt.claims','{}',true);
+-- Staging may already have the one allowed Company Lead Auditor. Temporarily demote it inside this transaction; ROLLBACK restores the original state.
+UPDATE public.user_auditor_links SET is_lead_auditor=false WHERE is_lead_auditor=true;
 -- Admin, lead, two ordinary Auditors, two Auditees and two Managers.
 INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) SELECT '00000000-0000-0000-0000-000000000000',id,'authenticated','authenticated',name||'@dashboard.test','',now(),'{}','{}',now(),now() FROM(VALUES
 ('d0000000-0000-0000-0000-000000000001'::uuid,'admin'),('d0000000-0000-0000-0000-000000000002','lead'),('d0000000-0000-0000-0000-000000000003','auditor'),('d0000000-0000-0000-0000-000000000004','other-auditor'),('d0000000-0000-0000-0000-000000000005','auditee'),('d0000000-0000-0000-0000-000000000006','other-auditee'),('d0000000-0000-0000-0000-000000000007','manager'),('d0000000-0000-0000-0000-000000000008','other-manager'))v(id,name);
