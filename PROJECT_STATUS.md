@@ -3384,3 +3384,23 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression now requires both `vertical-align:bottom;text-align:center` on the header cells and the intrinsic-width inline-block label contract.
 - No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
 - Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
+
+
+## FORM-001 final visual acceptance — 23 Sep 2026
+
+**Status:** `FINAL_VISUAL_UAT_ACCEPTED — READY FOR MERGE WITH EXPLICIT APPROVAL`.
+
+- The final authenticated Staging visual re-test was accepted by the user after the last vertical-header centering correction.
+- Final accepted vertical-header behavior:
+  - Section and month headers share the same CSS mechanism;
+  - fixed 40mm vertical text height preserves a common bottom baseline;
+  - intrinsic-width `inline-block` labels plus `text-align:center` on the header cell provide horizontal centering;
+  - orientation remains consistent with the month headers.
+- Inactive-process slashes remain SVG vector lines and are retained for sharper Chrome Print Preview / PDF rendering.
+- All previously accepted FORM-001 behavior remains unchanged:
+  A3 landscape, April→March ordering, deterministic 13-process pagination, continuation approval slash,
+  final-page `Lainnya` filler, Plan/Actual Section symbols and flags, page number beside the Plan/Aktual legend,
+  neutral header, and browser print isolation.
+- The latest correction is presentation-only; no database migration, Actual automation/Admin override logic,
+  RLS, Production data, FORM-010, FORM-014, or nested `/project` scope changed after the last Staging DB regression PASS.
+- PR #30 remains open and unmerged pending explicit merge approval.
