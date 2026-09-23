@@ -3316,3 +3316,24 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - No database, migration, Actual automation/Admin override behavior, A3 pagination, Production,
   FORM-010, FORM-014, or nested `/project` change was made.
 - Chrome A3 visual re-test is required before merge.
+
+
+## FORM-001 transform-free Section baseline + vector inactive slash — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL/PRINT RE-TEST PENDING`.
+
+- The previous fixed-height flex wrapper still produced different visual bottoms because the Section text itself used
+  `writing-mode:vertical-rl` plus `rotate(180deg)`. A transformed element's visual bottom does not correspond
+  to the pre-transform flex bottom, so different wrapped heights could still look misaligned.
+- Section labels now remove the transform entirely and use native vertical flow:
+  `writing-mode:vertical-rl`, `direction:rtl`, `text-orientation:mixed`, `transform:none`.
+  The existing common 40mm flex wrapper can therefore bottom-align the actual visual box rather than its pre-transform box.
+- Month headers intentionally retain their previous independent rotated rendering.
+- Inactive-process slash rendering was changed from a CSS diagonal `linear-gradient` to an inline SVG vector line
+  running bottom-left to top-right. The line uses `vector-effect:non-scaling-stroke` so it remains sharp in browser/PDF print output.
+- `form001-inactive-cell` no longer paints the diagonal as a rasterized CSS gradient.
+- Presentation regression now requires the native transform-free Section rule, the SVG slash markup/vector styling,
+  and rejects reintroduction of the inactive-cell gradient.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014,
+  or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test is required before merge.
