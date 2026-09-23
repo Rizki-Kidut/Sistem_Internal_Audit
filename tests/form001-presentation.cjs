@@ -78,7 +78,8 @@ const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, 
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
 for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', '>QA<', 'Seksi dengan nama lengkap yang sangat panjang untuk uji alignment', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
 assert.equal((html.match(/class="form001-section-header"/g) || []).length, sections.length * 2, 'Every Section th must use the dedicated Section header class on every rendered page');
-assert.equal((html.match(/class="form001-section-header-label"/g) || []).length, sections.length * 2, 'Every Section label must use the same dedicated bottom-aligned label class');
+assert.equal((html.match(/class="form001-section-header-box"/g) || []).length, sections.length * 2, 'Every Section header must use the same fixed-height bottom-alignment wrapper');
+assert.equal((html.match(/class="form001-section-header-label"/g) || []).length, sections.length * 2, 'Every Section label must use the same dedicated vertical label class');
 assert(!html.includes('>Process<'));
 assert(!html.includes('CertiTrack'));
 assert(html.includes('class="form001-legend-right"'));
@@ -113,9 +114,10 @@ assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header-label{position:absolute;left:50%;bottom:1mm;writing-mode:vertical-rl;transform:translateX(-50%) rotate(180deg)', '.form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{height:42mm!important;padding:0!important;vertical-align:bottom!important}', '.form001-section-header-box{box-sizing:border-box;width:100%;height:40mm;display:flex;align-items:flex-end;justify-content:center;padding:0 0 1mm}', '.form001-section-header-label{display:block;writing-mode:vertical-rl;transform:rotate(180deg)', '.form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('.form001-vertical-headers span{'));
 assert(!css.includes('.form001-section-header span{'));
+assert(!css.includes('.form001-section-header-label{position:absolute'));
 assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, deterministic bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, fixed-height flex bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
