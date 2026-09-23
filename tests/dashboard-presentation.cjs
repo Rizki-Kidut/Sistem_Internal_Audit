@@ -32,5 +32,11 @@ assert(migration.includes("authorized_car.finding_id=f.id")&&migration.includes(
 assert(migration.includes('row_execution_status AS (')&&migration.includes("WHEN e.id IS NOT NULL THEN 'Established'")&&migration.includes("ELSE 'Belum Mulai' END status"),'execution status must use one precedence CASE per row');
 assert(migration.includes("status IN('AUDITOR_REVIEW','AUDITOR_RETURNED')")&&!migration.includes("status IN('AUDITOR_REVIEW','ADMIN_REVIEW')"),'verification pending must use Auditor Review and Auditor Returned only');
 assert(migration.includes('Belum ada Rencana Audit Tahunan untuk FY ini.'),'missing Annual Plan must have an explicit unavailable message');
+for(const label of ['Belum Mulai','Berjalan','Execution Selesai','Menunggu Finalisasi Finding','Established'])assert(page.includes(`'${label}'`),'execution status chart must retain every ordered category');
+assert(page.includes("series:[{name:'Status Pelaksanaan',type:'bar'"),'Status Pelaksanaan must use one bar series');
+assert(page.includes("yAxis:{type:'category',inverse:true"),'Status Pelaksanaan must render separate horizontal category rows');
+assert(!page.includes("stack:'total'"),'Status Pelaksanaan must not use stacked bars');
+assert(page.includes("current?.value??0"),'missing execution status values must normalize to zero');
+assert(page.includes('Belum ada status pelaksanaan untuk filter ini.'),'all-zero execution status must render a clean empty state');
 
-console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, and finite chart contracts.');
+console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, separate execution-status bars, and finite chart contracts.');
