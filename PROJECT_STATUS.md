@@ -3337,3 +3337,19 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014,
   or nested `/project` change was made.
 - Authenticated screen + Chrome A3 Print Preview re-test is required before merge.
+
+
+## FORM-001 shared Section/month vertical-header alignment — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #30 — VISUAL RE-TEST PENDING`.
+
+- Latest visual UAT confirmed that the month headers already had the desired orientation and bottom alignment, while the Section headers still differed because they were being rendered through a separate wrapper/positioning system.
+- The Section-specific wrapper/classes were removed entirely. Section headers now use the exact same simple `<th><span>...</span></th>` structure as month headers.
+- The CSS is now unified under one selector:
+  `.form001-vertical-headers > th > span`
+  with the same `writing-mode:vertical-rl`, `rotate(180deg)`, and `vertical-align:bottom` behavior for both Sections and months.
+- All special Section header rules (`form001-section-header`, `form001-section-header-box`, `form001-section-header-label`) were removed so there is no second alignment/orientation system.
+- The SVG vector slash for inactive processes is retained unchanged to preserve sharp Print Preview/PDF output.
+- Presentation regression now asserts that Section-specific header classes/rules are absent and that both Section and month headers share the same generic vertical-header styling.
+- No database, migration, Actual automation/Admin override behavior, pagination, Production, FORM-010, FORM-014, or nested `/project` change was made.
+- Authenticated screen + Chrome A3 Print Preview re-test remains required before merge.
