@@ -14,7 +14,13 @@ interface Props {
 }
 
 function MatrixCell({ inactive, value }: { inactive: boolean; value?: string }) {
-  return <td className={inactive ? 'form001-inactive-cell' : undefined}>{inactive ? '' : value}</td>;
+  return <td className={inactive ? 'form001-inactive-cell' : undefined}>
+    {inactive
+      ? <svg className="form001-inactive-slash" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" y1="100" x2="100" y2="0" />
+        </svg>
+      : value}
+  </td>;
 }
 
 export function AnnualAuditPlanPrintView({ plan, processes, masterProcesses, sections, sectionLinks, schedules }: Props) {
