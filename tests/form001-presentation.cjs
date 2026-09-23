@@ -62,7 +62,10 @@ const resolvedSections = resolveAnnualAuditSections(['active-selected', 'inactiv
 assert.deepEqual(resolvedSections.map((section) => section.id), ['inactive-selected', 'active-selected']);
 
 const plan = { tahun: 2026, tanggal_berlaku: '2026-01-02', no_revisi: 1, kode_dokumen: 'Q-120-ISE-001-FORM-001', penanggung_jawab_qms: 'PJ QMS', disetujui_oleh: 'Direktur' };
-const sections = [{ id: 'section-1', nama: 'Seksi dengan nama lengkap yang panjang', urutan_tampil: 1 }];
+const sections = [
+  { id: 'section-1', nama: 'QA', urutan_tampil: 1 },
+  { id: 'section-2', nama: 'Seksi dengan nama lengkap yang sangat panjang untuk uji alignment', urutan_tampil: 2 },
+];
 const links = [
   { process_id: 'plan-1', seksi_id: 'section-1', peran: 'utama', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: true },
   { process_id: 'plan-2', seksi_id: 'section-1', peran: 'terkait', flag_audit_proses_shift_produk: true, flag_lingkup_pdca: false },
@@ -73,7 +76,9 @@ const schedules = [
 ];
 const html = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, { plan, processes, masterProcesses: master, sections, sectionLinks: links, schedules }));
 assert.equal((html.match(/annual-audit-print-page/g) || []).length, 2);
-for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', 'Seksi dengan nama lengkap yang panjang', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
+for (const value of ['Rencana Internal Audit Tahunan', '>Proses<', '>QA<', 'Seksi dengan nama lengkap yang sangat panjang untuk uji alignment', 'April 2026', 'Januari 2027', 'Maret 2027', '◎*1*2', '○*1', '●', 'Lainnya', 'Hal: 1/2', 'Hal: 2/2', 'Q-120-ISE-001-FORM-001']) assert(html.includes(value));
+assert.equal((html.match(/class="form001-section-header"/g) || []).length, sections.length * 2, 'Every Section th must use the dedicated Section header class on every rendered page');
+assert.equal((html.match(/class="form001-section-header-label"/g) || []).length, sections.length * 2, 'Every Section label must use the same dedicated bottom-aligned label class');
 assert(!html.includes('>Process<'));
 assert(!html.includes('CertiTrack'));
 assert(html.includes('class="form001-legend-right"'));
@@ -108,7 +113,9 @@ assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header span{position:absolute;left:50%;bottom:1mm', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{position:relative;vertical-align:bottom!important}', '.form001-section-header-label{position:absolute;left:50%;bottom:1mm;writing-mode:vertical-rl;transform:translateX(-50%) rotate(180deg)', '.form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+assert(!css.includes('.form001-vertical-headers span{'));
+assert(!css.includes('.form001-section-header span{'));
 assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, deterministic bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
