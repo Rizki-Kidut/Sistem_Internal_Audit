@@ -24,6 +24,9 @@ INSERT INTO public.audit_plan_schedule(process_id,bulan,plan,aktual,aktual_auto)
 SELECT set_config('certitrack.annual_actual_write','',true);
 INSERT INTO public.audit_team_masters(id,plan_id,kode_tim,nama_tim,status,is_locked)VALUES('d0600000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','DB-T1','Assigned Team','Aktif',false),('d0600000-0000-0000-0000-000000000002','d0400000-0000-0000-0000-000000000002','DB-T2','Other Team','Aktif',false);
 INSERT INTO public.audit_team_master_members(team_id,auditor_id,peran,urutan_tampil,is_team_leader)VALUES('d0600000-0000-0000-0000-000000000001','d0100000-0000-0000-0000-000000000002','Lead',1,true),('d0600000-0000-0000-0000-000000000002','d0100000-0000-0000-0000-000000000003','Lead',1,true);
+INSERT INTO public.user_audit_plan_assignments(user_id,plan_id,team_id,status)VALUES
+('d0000000-0000-0000-0000-000000000003','d0400000-0000-0000-0000-000000000002','d0600000-0000-0000-0000-000000000001','Aktif'),
+('d0000000-0000-0000-0000-000000000004','d0400000-0000-0000-0000-000000000002','d0600000-0000-0000-0000-000000000002','Aktif');
 SELECT public.lock_audit_team_master('d0600000-0000-0000-0000-000000000001');
 SELECT public.lock_audit_team_master('d0600000-0000-0000-0000-000000000002');
 INSERT INTO public.audit_programs(id,plan_id,jenis_ronde,nomor_ke,tahun,tanggal_dibuat,status)VALUES('d0700000-0000-0000-0000-000000000001','d0400000-0000-0000-0000-000000000002','Berkala',1,2096,'2096-04-01','Approved');
