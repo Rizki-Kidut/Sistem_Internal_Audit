@@ -99,6 +99,8 @@ assert(html.includes('●*1'), 'Actual terkait must use a filled dot and preserv
 assert((html.match(/>●<\/td>/g) || []).length >= 2, 'Actual month cells must remain filled dots');
 assert.equal((html.match(/form001-signature-slashed/g) || []).length, 2);
 assert(html.includes('form001-inactive-cell'));
+assert(html.includes('class="form001-inactive-slash"'), 'Inactive cells must render a dedicated vector SVG slash');
+assert(html.includes('<line x1="0" y1="100" x2="100" y2="0"></line>'), 'Inactive SVG slash must run bottom-left to top-right');
 assert.equal((html.match(/>PJ QMS</g) || []).length, 1);
 assert.equal((html.match(/>Direktur</g) || []).length, 1);
 const noActualHtml = renderToStaticMarkup(React.createElement(AnnualAuditPlanPrintView, {
@@ -114,10 +116,11 @@ assert(historicalHtml.includes('Seksi Aktif Terpilih'));
 assert(!historicalHtml.includes('Seksi Nonaktif Tidak Terpilih'));
 
 const css = fs.readFileSync(path.join(__dirname, '../src/components/pages/annualAuditPlanPrint.css'), 'utf8');
-for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', 'linear-gradient(to top right', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{height:42mm!important;padding:0!important;vertical-align:bottom!important}', '.form001-section-header-box{box-sizing:border-box;width:100%;height:40mm;display:flex;align-items:flex-end;justify-content:center;padding:0 0 1mm}', '.form001-section-header-label{display:block;writing-mode:vertical-rl;transform:rotate(180deg)', '.form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
+for (const rule of ['size:A3 landscape', 'width:418mm', 'min-height:294mm', 'border-collapse:collapse', 'table-layout:fixed', 'writing-mode:vertical-rl', '.form001-page-number{', '.form001-legend-right{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:8mm', '.form001-section-header{height:42mm!important;padding:0!important;vertical-align:bottom!important}', '.form001-section-header-box{box-sizing:border-box;width:100%;height:40mm;display:flex;align-items:flex-end;justify-content:center;padding:0 0 1mm}', '.form001-section-header-label{display:block;writing-mode:vertical-rl;direction:rtl;text-orientation:mixed;transform:none', '.form001-vertical-headers>th:not(.form001-section-header)>span{display:inline-block;writing-mode:vertical-rl', '.form001-inactive-cell{position:relative;padding:0!important;background:none}', '.form001-inactive-slash{position:absolute;inset:0;width:100%;height:100%', '.form001-inactive-slash line{stroke:#111;stroke-width:.22mm;vector-effect:non-scaling-stroke;shape-rendering:geometricPrecision}', '.annual-audit-print-page:last-child{break-after:auto;page-break-after:auto}']) assert(css.includes(rule));
 assert(!css.includes('.form001-vertical-headers span{'));
 assert(!css.includes('.form001-section-header span{'));
 assert(!css.includes('.form001-section-header-label{position:absolute'));
+assert(!css.includes('.form001-inactive-cell{background:linear-gradient'));
 assert(!css.includes('.form001-logo b'));
 assert(!css.includes('overflow:hidden'));
-console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, fixed-height flex bottom-aligned Section headers, inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
+console.log('PASS: FORM-001 pagination, neutral header, legend-row page numbering outside approval, Plan-to-Actual Section symbol mapping with flags, transform-free bottom-aligned Section headers, vector inactive-process slashes, historical Sections, continuation signatures, filler grid, April–March fiscal months, and buffered A3 CSS.');
