@@ -3567,3 +3567,20 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Existing project-wide Advisor warnings unrelated to this Dashboard PR remain deferred and are not introduced by PR #31.
 - Final accepted Dashboard scope includes: role-aware landing/navigation, centralized read model, KPI cards, FORM-001 Plan vs Aktual, mutually-exclusive execution status, Finding/LTP health, Temuan per Proses, Top Weakness Point, Perlu Perhatian, Tugas Saya, Upcoming/Overdue, Recent Activity, and Top 5 normalized Finding clauses.
 - Production has not been modified during this PR workflow. PR #31 remains unmerged pending explicit approval.
+
+
+## FORM-015 portrait print isolation — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON NEW PR — BROWSER PRINT UAT PENDING`.
+
+- Latest browser print showed `Laporan Internal Audit` (FORM-015) being printed in landscape even though its own CSS declared `A4 portrait`.
+- Root cause: multiple print modules are statically bundled and publish global `@page` rules. FORM-001 / FORM-010 / FORM-014 include landscape page rules, so browser cascade/order can override another module's unqualified `@page`.
+- FORM-015 now uses a named page:
+  `@page form015-report { size: A4 portrait; margin: 0; }`.
+- Every printable FORM-015 article binds explicitly with:
+  `page: form015-report;`.
+- The previous bare/unqualified FORM-015 `@page` rule was removed, so FORM-015 no longer participates in global page-orientation contention.
+- Existing FORM-015 physical geometry remains `210mm × min-height 297mm`; content layout, pagination, findings, signatures, footer, watermark, and report data are unchanged.
+- No database/RPC/migration/authorization/Production change is involved.
+- Added dependency-free regression `tests/form015-print-orientation.cjs` requiring the named A4 portrait page binding and rejecting a bare FORM-015 global `@page`.
+- Authenticated Chrome Print Preview / Save-as-PDF visual re-test remains required before merge.
