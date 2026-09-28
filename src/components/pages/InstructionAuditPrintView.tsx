@@ -117,7 +117,11 @@ function AuditRow({ row, data }: { row: InstructionAuditPrintRow; data: Instruct
     <td className="form003-roster">{members.length ? members.map((member) => member.nama).join('\n') : ''}</td>
     <MatrixBody row={row} data={data} />
     {product ? <><td>{date(row.tanggal_audit_produk) || '-'}</td><td>{row.nama_auditor_produk || '-'}</td><td>{row.kualifikasi || '-'}</td></> : <><InactiveCell/><InactiveCell/><InactiveCell/></>}
-    <td>{row.item_lain_diperiksa || ''}</td><td>{date(row.tanggal_plan_audit)}</td><td>{date(row.execution_date)}</td><td>{date(row.cek_selesai_date)}</td><td className="form003-status-cell"><StatusQuadrants status={row.status_progress} cell /></td>
+    <td>{row.item_lain_diperiksa || ''}</td><td>{date(row.tanggal_plan_audit)}</td><td>{date(row.execution_date)}</td>
+    {row.formal_finding_count === 0
+      ? <td className="form003-check-zero"><Slash /></td>
+      : <td>{date(row.cek_selesai_date)}</td>}
+    <td className="form003-status-cell"><StatusQuadrants status={row.status_progress} cell /></td>
   </tr>;
 }
 
