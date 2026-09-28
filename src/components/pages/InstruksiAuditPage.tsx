@@ -2,25 +2,26 @@
 // List menampilkan semua instruksi; detail menampilkan header + RowsTable.
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileCheck, Plus, Trash2, Pencil, Eye, Sparkles } from 'lucide-react';
+import { FileCheck, Plus, Trash2, Pencil, Eye, Sparkles, Printer, ArrowLeft } from 'lucide-react';
 import type {
   AuditInstruction, AuditInstructionRow,
   Proses, Seksi, Auditor,
   Plant, TargetModel, Shift,
   AuditProgram,
   AuditTeamMaster,
+  InstructionAuditPrintData,
 } from '../../lib/types';
 import {
-  getInstructions, getInstructionById, saveInstruction, deleteInstruction,
+  getInstructions, saveInstruction, deleteInstruction,
   getRowsByInstruction, generateFromProgram,
+  getInstructionPrintData,
 } from '../../services/auditInstructionService';
 import { getAuditPrograms } from '../../services/auditProgramService';
 import { getAllProses } from '../../services/prosesService';
 import { getSeksiList } from '../../services/seksiService';
 import { getActiveAuditors } from '../../services/auditorService';
 import { getPlants, getTargetModels, getShifts } from '../../services/plantService';
-import { INSTRUCTION_STATUS_LIST, KODE_DOKUMEN_INSTRUCTION } from '../../lib/enums';
-import type { InstructionStatus } from '../../lib/enums';
+import { KODE_DOKUMEN_INSTRUCTION } from '../../lib/enums';
 import { formatTanggal, toDateInput } from '../../lib/utils';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -29,13 +30,14 @@ import { Button, Card, Badge, EmptyState, LoadingSpinner } from '../ui';
 import { InstructionHeader } from './instruksi-audit/InstructionHeader';
 import { RowsTable } from './instruksi-audit/RowsTable';
 import { getAuditTeamMastersByPlan, resolveInstructionPlanId } from '../../services/auditTeamMasterService';
+import { InstructionAuditPrintView } from './InstructionAuditPrintView';
 
 const STATUS_BADGE: Record<string, 'gray' | 'green' | 'blue'> = {
   Draft: 'gray', Berjalan: 'blue', Selesai: 'green',
 };
 
 export function InstruksiAuditPage() {
-  const [view, setView] = useState<'list' | 'detail'>('list');
+  const [view, setView] = useState<'list' | 'detail' | 'print'>('list');
   const [instructions, setInstructions] = useState<AuditInstruction[]>([]);
   const [detailInstruction, setDetailInstruction] = useState<AuditInstruction | null>(null);
   const [rows, setRows] = useState<AuditInstructionRow[]>([]);
@@ -54,6 +56,8 @@ export function InstruksiAuditPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<AuditInstruction | null>(null);
   const [headerChanged, setHeaderChanged] = useState(false);
+  const [printData, setPrintData] = useState<InstructionAuditPrintData | null>(null);
+  const [printLoading, setPrintLoading] = useState(false);
 
   // Generate dari Program state
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -191,7 +195,34 @@ export function InstruksiAuditPage() {
     setHeaderChanged(true);
   }
 
+  async function openPrintPreview() {
+    if (!detailInstruction) return;
+    setPrintLoading(true);
+    setError(null);
+    try {
+      setPrintData(await getInstructionPrintData(detailInstruction.id));
+      setView('print');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyusun FORM-003');
+    } finally {
+      setPrintLoading(false);
+    }
+  }
+
   if (loading && view === 'list') return <LoadingSpinner message="Memuat instruksi audit..." />;
+
+  if (view === 'print' && printData) return (
+    <div>
+      <div className="form003-screen-only mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <Button variant="secondary" onClick={() => setView('detail')}><ArrowLeft size={16}/> Kembali ke Detail</Button>
+        <div className="text-right">
+          <Button onClick={() => window.print()}><Printer size={16}/> Cetak / Simpan PDF</Button>
+          <p className="mt-1 text-xs text-gray-500">Gunakan Scale 100%, Margins None, dan nonaktifkan Headers and footers.</p>
+        </div>
+      </div>
+      <InstructionAuditPrintView data={printData}/>
+    </div>
+  );
 
   if (view === 'detail' && detailInstruction) {
     const readOnly = detailInstruction.status === 'Selesai';
@@ -210,6 +241,12 @@ export function InstruksiAuditPage() {
             <Button onClick={handleHeaderSave}>Simpan Header</Button>
           </div>
         )}
+
+        <div className="mb-4 flex justify-end">
+          <Button variant="secondary" onClick={() => void openPrintPreview()} disabled={printLoading}>
+            <Printer size={16}/> {printLoading ? 'Menyusun FORM-003...' : 'Preview FORM-003'}
+          </Button>
+        </div>
 
           <RowsTable
             instructionId={detailInstruction.id}

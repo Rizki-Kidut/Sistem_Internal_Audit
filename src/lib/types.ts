@@ -388,6 +388,36 @@ export interface AuditTeamMaster {
 
 export type RowStatusProgress = StatusProgress;
 
+export type InstructionAuditPrintStatus = 1 | 2 | 3 | 4 | 5 | 0;
+export interface InstructionAuditPrintRosterMember {
+  nama: string;
+  peran: 'Lead' | 'Member';
+  urutan_tampil: number;
+}
+export interface InstructionAuditPrintRow extends AuditInstructionRow {
+  proses_nama: string | null;
+  team_kode: string | null;
+  team_roster: InstructionAuditPrintRosterMember[];
+  execution_date: string | null;
+  established: boolean;
+  formal_finding_count: number;
+  required_report_count: number;
+  final_report_count: number;
+  required_ltp_count: number;
+  submitted_ltp_count: number;
+  effective_closed_ltp_count: number;
+  status_progress: InstructionAuditPrintStatus;
+}
+export interface InstructionAuditPrintData {
+  instruction: AuditInstruction;
+  completion_date: string | null;
+  sections: Seksi[];
+  plants: Plant[];
+  target_models: TargetModel[];
+  shifts: Shift[];
+  rows: InstructionAuditPrintRow[];
+}
+
 export interface AuditExecutionCounter { O: number; A: number; B: number; C: number; evaluated: number; total: number; }
 export interface AuditExecutionFindingSummary { id: string; source_item_id: string; source_type: FindingSourceType; source_label: string; kode_temuan: string | null; draft_reference: string | null; kategori: KategoriTemuan; plor_complete: boolean; disposition: FindingSourceDisposition | null; }
 export interface AuditExecutionSummary {
