@@ -38,9 +38,9 @@ function Approval({ data, continuation }: { data: InstructionAuditPrintData; con
 }
 
 function StatusQuadrants({ status, cell = false }: { status: number; cell?: boolean }) {
-  if (!status) return null;
-  const filledQuadrants = Math.max(0, Math.min(4, status - 1));
-  return <span className={cell ? 'form003-status-grid form003-status-grid-cell' : 'form003-status-grid'} aria-label={`Status ${status}`}>
+  if (!status && !cell) return null;
+  const filledQuadrants = Math.max(0, Math.min(4, status ? status - 1 : 0));
+  return <span className={cell ? 'form003-status-grid form003-status-grid-cell' : 'form003-status-grid'} aria-label={status ? `Status ${status}` : 'Status belum tersedia'}>
     {[0, 1, 2, 3].map((quadrant) => <span
       key={quadrant}
       className={quadrant < filledQuadrants ? 'form003-status-quadrant is-filled' : 'form003-status-quadrant'}
