@@ -5,6 +5,7 @@ const sidebar=fs.readFileSync('src/components/layout/Sidebar.tsx','utf8');
 const page=fs.readFileSync('src/components/pages/DashboardPage.tsx','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260923120000_add_internal_audit_dashboard.sql','utf8');
 const topClauseMigration=fs.readFileSync('supabase/migrations/20260928080000_add_dashboard_top_clauses.sql','utf8');
+const topClauseSortMigration=fs.readFileSync('supabase/migrations/20260928093000_sort_dashboard_top_clauses_numeric.sql','utf8');
 const {landingPage,canAccessPage}=require('../src/lib/auth.ts');
 assert(sidebar.includes("| 'dashboard'"),'dashboard must be a PageId');
 assert(sidebar.indexOf("id: 'dashboard'")<sidebar.indexOf("id: 'rencana-audit'"),'Dashboard must be the first Internal Audit destination');
@@ -49,7 +50,8 @@ assert(topClauseMigration.includes('clause_finding_tokens AS ('),'Top clause rea
 assert(topClauseMigration.includes("WHERE f.review_status IN('PUBLISHED','LEGACY_ESTABLISHED')"),'Top clauses must use finalized Findings only');
 assert(topClauseMigration.includes('SELECT DISTINCT f.id finding_id,m.parts[1] clause'),'Repeated clause text in one Finding must be deduplicated');
 assert(topClauseMigration.includes("regexp_matches(COALESCE(f.reference,''),'[0-9]+(?:[.][0-9]+)+'"),'Clause normalization must extract dotted numeric tokens from Finding reference text');
-assert(topClauseMigration.includes('ORDER BY count DESC,clause ASC')&&topClauseMigration.includes('LIMIT 5'),'Top clauses must be deterministically ranked and limited to five');
+assert(topClauseMigration.includes('ORDER BY count DESC,clause ASC')&&topClauseMigration.includes('LIMIT 5'),'Initial Top clause migration must be deterministically ranked and limited to five');
+assert(topClauseSortMigration.includes("ORDER BY count DESC,string_to_array(clause,'.')::integer[] ASC,clause ASC"),'Equal-count Top clauses must use numeric/hierarchical dotted-clause ordering');
 assert(topClauseMigration.includes("'top_clauses',COALESCE"),'Dashboard RPC payload must expose top_clauses');
 
 console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, separate execution-status bars, Top 5 normalized clauses, and finite chart contracts.');
