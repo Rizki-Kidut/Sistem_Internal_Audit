@@ -3528,3 +3528,18 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
     `10.2.1`, `7.2`, `7.2.3`, `7.5.3.2.2`, and `9.2.2`, each count 1.
 - This confirms the Dashboard RPC now emits the new `top_clauses` payload correctly. Browser visual UAT should use FY2099 to verify rendering until FY2026 has finalized Finding clause data.
 - PR #31 remains open and unmerged.
+
+
+## Dashboard Top Klausul numeric tie-break — 28 Sep 2026
+
+**Status:** `STAGING PASS — VISUAL RE-TEST PENDING`.
+
+- Refined only the secondary ordering for `Klausul Terbanyak`: Finding count descending remains the primary rank, while equal-count clauses now sort by numeric/hierarchical dotted-clause order instead of plain text order.
+- Example equal-count ordering is now: `7.2 → 7.2.3 → 7.5.3.2.2 → 9.2.2 → 10.2.1`.
+- Implemented through additive migration `20260928093000_sort_dashboard_top_clauses_numeric.sql`; previously applied Dashboard migrations remain frozen.
+- The RPC uses `string_to_array(clause,'.')::integer[]` as the tie-break key after count descending. Clause text remains an additional deterministic final tie-break.
+- Staging ledger entry: `20260928022303 sort_dashboard_top_clauses_numeric`.
+- Hosted rollback-only Dashboard regression passed after updating the equal-count ordering assertion.
+- Post-regression cleanup verified zero synthetic Dashboard auth/Finding/CAR fixtures.
+- Real-data FY2099 sanity check now returns, in order: `7.2`, `7.2.3`, `7.5.3.2.2`, `9.2.2`, `10.2.1`, each count 1.
+- Production remains untouched. PR #31 remains open and unmerged.
