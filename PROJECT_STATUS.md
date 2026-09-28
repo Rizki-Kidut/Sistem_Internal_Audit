@@ -3404,3 +3404,166 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The latest correction is presentation-only; no database migration, Actual automation/Admin override logic,
   RLS, Production data, FORM-010, FORM-014, or nested `/project` scope changed after the last Staging DB regression PASS.
 - PR #30 remains open and unmerged pending explicit merge approval.
+
+## Dashboard Internal Audit command center — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DATABASE MIGRATION/UAT PENDING`.
+
+- Added `dashboard` as the default authenticated landing page and first navigation item for ADMIN, AUDITOR, AUDITEE, and SECTION_MANAGER; active Company Lead Auditor access follows the existing AUDITOR capability model.
+- Added a read-only responsive command center with global FY (April–March), audit-type, and Process filters; six operational KPIs; FORM-001 Plan/Aktual chart; execution, Finding, and LTP health; Process concentration; latest relevant Final Weakness summary; attention, role-aware task, due-date, and authoritative activity panels.
+- Added one reusable TypeScript dashboard service and an SVG ECharts lifecycle wrapper. React does not query Supabase tables or redefine KPI rules.
+- Added migration `20260923120000_add_internal_audit_dashboard.sql` with authenticated, identity-scoped `get_internal_audit_dashboard(...)` and `dashboard_can_access_instruction_row(...)` helpers. Full-company scope is limited to Admin and active Company Lead Auditor. Restricted roles reuse authoritative team, section, and CAR access helpers; no display-name ownership inference is used.
+- `Audit Direncanakan` counts accessible QA / Instruction row contexts in the selected FY. Plan-vs-Actual separately counts schedule marks from only the highest Annual Plan revision. `Audit Established` reuses `annual_actual_checklist_complete(...)` plus the same completion/date/non-final-Finding rule as FORM-001 Actual. LTP overdue uses the maximum TEMPORARY or CORRECTIVE/PREVENTIVE action due date and excludes `CLOSED` CARs.
+- Weakness content comes only from the latest relevant Final Weakness report with accessible Findings; raw Findings are not converted into synthetic Weakness classifications.
+- No dashboard-owned tables, generic activity log, new persisted business status, new dependency, Production change, or nested `/project` change was made.
+- Validation: root TypeScript typecheck and production build pass. Repository-wide lint remains blocked by pre-existing unused imports in active and legacy snapshot files; the only initially reported Dashboard lint issue was removed. Database migration execution, authorization regression against Supabase, and authenticated browser visual UAT remain pending.
+
+## Dashboard Internal Audit correctness/security correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — LOCAL/STAGING DATABASE REGRESSION PENDING`.
+
+- Corrected Top Weakness Point to aggregate authoritative `final_problem_type` snapshots with the accepted legacy fallback to approved classification data; UI labels reuse `WEAKNESS_PROBLEM_LABEL`.
+- Replaced the fake constant Process Weakness value with the count of accessible Findings belonging to the latest relevant Final Weakness report.
+- Made every Dashboard drill-down capability-aware through `canAccessPage`; disallowed cards, rows, and panel links are non-actionable instead of navigating to Access Denied.
+- Process filter options now come from the accessible FY/audit-type population independently of the selected Process, so selecting one Process does not collapse the selector.
+- Kept the scope helper private and exposed only `get_internal_audit_dashboard(...)` to authenticated clients.
+- Added rollback-only `supabase/tests/dashboard_regression.sql` covering role isolation, Established/Finding/CAR semantics, FY revision/filter behavior, no-data output, personal-task scoping, and function privileges. It was not applied to Staging or Production per instruction.
+- Added dependency-free `tests/dashboard-presentation.cjs` for navigation, landing, April–March ordering, empty states, selector stability, permission-aware actions, and finite chart values. This is a structural presentation regression, not browser UAT.
+
+## Dashboard Internal Audit semantic correction follow-up — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DB REGRESSION PENDING STAGING`.
+
+- Split the RPC scope into `base_rows` (identity + FY + Audit Type) and Process-filtered `rows`; Process choices remain switchable after a selection.
+- Full-scope fiscal-year options now union Annual Plan years and authorized Instruction years; restricted identities receive only authorized-context years, and the selected FY is always present.
+- FORM-001 Plan/Aktual is returned only without an Audit Type filter. A selected Audit Type now produces `plan_actual_available=false` and the explicit message that FORM-001 has no Audit Type dimension; no schedule values are inferred by Process membership.
+- `Audit Direncanakan` now counts only accessible QA contexts with `tanggal_plan_audit`; `Audit Perlu Perhatian` counts distinct QA contexts satisfying one or more alert conditions.
+- Finding review activity now targets Temuan semantically, subject to the existing frontend capability guard.
+- Filter changes clear the prior payload before loading, preventing old metrics from appearing under new filter controls. RPC failures now provide an in-page `Coba Lagi` action.
+- Extended both Dashboard regressions for the corrected FY, Plan/Aktual availability, planned-date, unique-attention, stale-data, retry, and activity-destination contracts. The rollback-only SQL remains unapplied pending Staging authorization.
+
+## Dashboard Internal Audit final backend scope correction — 23 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — DB REGRESSION PENDING STAGING`.
+
+- Hardened Finding aggregation for Auditee and Section Manager identities: an authorized QA row no longer grants access to every Finding on that row. Each Finding must have a canonical CAR allowed by `car_accessible_to_current_identity`, while Admin/Company Lead retain full scope and Auditor findings remain constrained by authorized Team rows.
+- Hardened `car_scope` independently through `car_accessible_to_current_identity` for every restricted identity. A shared QA containing Findings for different Sections therefore exposes only each identity's own canonical Finding/CAR aggregates, activity, Weakness data, attention items, and tasks.
+- Added one mutually exclusive `row_execution_status` precedence: Established → Menunggu Finalisasi Finding → Execution Selesai → Berjalan → Belum Mulai. The regression asserts the five-category sum equals the Dashboard row population.
+- Corrected Verification Pending and Auditor verification tasks to count exactly `AUDITOR_REVIEW` plus `AUDITOR_RETURNED`; `ADMIN_REVIEW` and `CLOSED` are excluded.
+- FORM-001 Plan/Aktual availability now additionally requires a current Annual Plan. An authorized Instruction FY without a Plan returns `plan_actual_available=false` and `Belum ada Rencana Audit Tahunan untuk FY ini.` rather than an all-zero pseudo-plan.
+- Expanded the rollback-only SQL regression with shared-row two-Section Finding/CAR isolation for both Auditees and Managers, all five execution states, four LTP workflow states, and an authorized no-Plan FY. It remains unapplied pending explicit Staging approval.
+
+
+## Dashboard Internal Audit Staging migration + regression — 23 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED BROWSER UAT PENDING`.
+
+- Applied the Dashboard read-model migration to `CertiTrack-Staging` only. Production remained untouched.
+- Staging migration ledger:
+  - `20260923072638 add_internal_audit_dashboard`
+  - `20260923073719 harden_internal_audit_dashboard_helper`
+- The initial Dashboard migration source required one pre-application PostgreSQL syntax correction: the internal fiscal-month CTE alias `month` was renamed to `month_no`. The migration had not been recorded/applied before this correction, so the repository migration remained safe to correct in place before first application.
+- Hosted Staging privilege regression found one real security hardening issue: Supabase default privileges left `dashboard_can_access_instruction_row(uuid)` executable by `authenticated`. A new additive migration `20260923140500_harden_internal_audit_dashboard_helper.sql` explicitly revokes that private helper from `PUBLIC`, `anon`, and `authenticated`, while retaining authenticated EXECUTE on the public `get_internal_audit_dashboard(...)` RPC.
+- Final privilege verification:
+  - `get_internal_audit_dashboard(integer,text,uuid)`: authenticated EXECUTE = yes; anon EXECUTE = no.
+  - `dashboard_can_access_instruction_row(uuid)`: authenticated EXECUTE = no; anon EXECUTE = no.
+- Updated the rollback-only `supabase/tests/dashboard_regression.sql` fixture harness for the current hosted schema/lifecycle: existing Lead uniqueness, Team lock RPC, annual Auditor assignments, checklist completion ordering, required CAR action ordering, valid Finding event types, and owner-level fixture mutations after role simulation.
+- Final hosted Staging execution of `dashboard_regression.sql` passed and rolled back successfully.
+- Post-run cleanup verification found zero synthetic Dashboard auth users, profiles, plans, Instruction rows, Findings, and CARs; the existing single Company Lead Auditor link was restored.
+- Real-data Admin sanity call succeeded: full-organization scope, six KPI metrics, five mutually exclusive execution statuses, 12 April→March Plan/Aktual points, and accessible FY options were returned without error.
+- Supabase Security Advisor reports the expected generic warning for the intentionally authenticated-executable `SECURITY DEFINER` public Dashboard RPC. The private Dashboard scope helper is no longer exposed. No Dashboard-specific performance advisory was reported.
+- Existing project-wide advisor findings remain outside this Dashboard change (generic SECURITY DEFINER warnings, leaked-password protection setting, unindexed foreign keys, auth RLS initplan, unused indexes, and multiple permissive policies).
+- PR #31 remains open and unmerged. Authenticated browser UAT by role is the remaining gate before final pre-merge review.
+
+
+## Dashboard Status Pelaksanaan chart refinement — 23 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #31 — AUTHENTICATED VISUAL UAT PENDING`.
+
+- Replaced the previous single stacked Status Pelaksanaan composition with five separate horizontal category bars.
+- Preserved the authoritative mutually-exclusive execution-status order and semantics:
+  Belum Mulai → Berjalan → Execution Selesai → Menunggu Finalisasi Finding → Established.
+- The chart now uses one non-stacked ECharts bar series with direct category labels on the left and numeric values at the end of each bar; the legend is no longer required.
+- All five categories are explicitly materialized in the frontend and missing values normalize to zero, so zero-value statuses remain structurally present.
+- When all five values are zero, the card renders `Belum ada status pelaksanaan untuk filter ini.` instead of an empty chart.
+- Existing status colors are retained: gray, blue, amber, orange, and green.
+- No backend SQL, RPC shape, service contract, execution-status precedence, KPI, filter, authorization, Staging schema, or Production state changed.
+- Dashboard presentation regression now rejects stacked execution bars and requires all five ordered categories plus the all-zero empty state.
+
+
+## Dashboard Top 5 klausul Finding — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #31 — STAGING MIGRATION/DB REGRESSION + AUTHENTICATED VISUAL UAT PENDING`.
+
+- Added a compact `Klausul Terbanyak` panel that shows only the Top 5 normalized clause numbers, proportional horizontal bars, and visible Finding counts.
+- Finding clause analytics remain read-only. The original Finding `reference` text is not mutated; dotted numeric clause tokens such as `6.1.2`, `7.2`, and `8.5.1.1` are extracted from the stored reference text for Dashboard aggregation only.
+- Repeated occurrences of the same clause within one Finding are deduplicated through `DISTINCT finding_id + clause`; multiple different clauses in one Finding contribute once to each distinct clause.
+- Only finalized formal Findings in `PUBLISHED` or `LEGACY_ESTABLISHED` contribute. Draft/review and `ANNULLED` Findings do not contribute.
+- Aggregation is performed over the existing authorization/filter-scoped `finding_scope`, so Fiscal Year, Audit Type, Process, Auditor assignment, Auditee, and Section Manager isolation remain unchanged.
+- Results are ordered by Finding count descending, then clause ascending, and limited to five rows. Empty result renders `Belum ada data klausul untuk filter ini.`.
+- The existing applied Dashboard migration `20260923120000_add_internal_audit_dashboard.sql` remains frozen. The new backend behavior is isolated in additive migration `20260928080000_add_dashboard_top_clauses.sql`, which replaces only the public Dashboard read-model RPC and preserves its existing authenticated-only privilege contract.
+- Dashboard service now exposes and finite-normalizes `top_clauses: { clause, count }[]`.
+- The analytics layout keeps `Temuan per Proses` as a dedicated panel and places `Klausul Terbanyak` beside `Top Weakness Point` for compact comparison of requirement concentration versus systemic weakness.
+- Rollback SQL regression now covers descriptive clause text, repeated clause deduplication, multi-clause Findings, finalized-only inclusion, Top-5 limiting/order, and Auditee authorization isolation.
+- Presentation regression covers panel title, empty state, compact bar renderer, service payload, finalized Finding scope, deduplication, normalization, deterministic Top-5 limit, and RPC payload exposure.
+- Production remains untouched. Additive migration has not yet been applied to Staging; DB regression and authenticated visual UAT for this new panel remain pending.
+
+
+## Dashboard Top 5 klausul — Staging verification — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED VISUAL UAT PENDING`.
+
+- Applied additive migration `20260928080000_add_dashboard_top_clauses.sql` to `CertiTrack-Staging` only. Production remained untouched.
+- Staging ledger recorded the migration as `20260928015351 add_dashboard_top_clauses` (MCP ledger timestamp differs from repository filename, consistent with prior project migration history).
+- The migration replaces only the existing read-only `get_internal_audit_dashboard(integer,text,uuid)` RPC and preserves the already-hardened privilege model.
+- Final privilege verification after apply:
+  - public Dashboard RPC: authenticated EXECUTE = yes;
+  - public Dashboard RPC: anon EXECUTE = no;
+  - private `dashboard_can_access_instruction_row(uuid)`: authenticated EXECUTE = no.
+- Hosted rollback-only `supabase/tests/dashboard_regression.sql` passed after the Top-Clause additions.
+- Regression cleanup verification found zero synthetic Dashboard auth users, profiles, Instruction rows, Findings, and CARs after rollback.
+- Real-data Admin sanity check:
+  - FY2026 currently returns an empty `top_clauses` array because there are no finalized FY2026 Findings with clause data;
+  - FY2099 returns five clause rows from existing Staging data:
+    `10.2.1`, `7.2`, `7.2.3`, `7.5.3.2.2`, and `9.2.2`, each count 1.
+- This confirms the Dashboard RPC now emits the new `top_clauses` payload correctly. Browser visual UAT should use FY2099 to verify rendering until FY2026 has finalized Finding clause data.
+- PR #31 remains open and unmerged.
+
+
+## Dashboard Top Klausul numeric tie-break — 28 Sep 2026
+
+**Status:** `STAGING PASS — VISUAL RE-TEST PENDING`.
+
+- Refined only the secondary ordering for `Klausul Terbanyak`: Finding count descending remains the primary rank, while equal-count clauses now sort by numeric/hierarchical dotted-clause order instead of plain text order.
+- Example equal-count ordering is now: `7.2 → 7.2.3 → 7.5.3.2.2 → 9.2.2 → 10.2.1`.
+- Implemented through additive migration `20260928093000_sort_dashboard_top_clauses_numeric.sql`; previously applied Dashboard migrations remain frozen.
+- The RPC uses `string_to_array(clause,'.')::integer[]` as the tie-break key after count descending. Clause text remains an additional deterministic final tie-break.
+- Staging ledger entry: `20260928022303 sort_dashboard_top_clauses_numeric`.
+- Hosted rollback-only Dashboard regression passed after updating the equal-count ordering assertion.
+- Post-regression cleanup verified zero synthetic Dashboard auth/Finding/CAR fixtures.
+- Real-data FY2099 sanity check now returns, in order: `7.2`, `7.2.3`, `7.5.3.2.2`, `9.2.2`, `10.2.1`, each count 1.
+- Production remains untouched. PR #31 remains open and unmerged.
+
+
+## Dashboard Internal Audit final pre-merge review — 28 Sep 2026
+
+**Status:** `READY FOR MERGE — EXPLICIT MERGE APPROVAL REQUIRED`.
+
+- Final review performed on PR #31 after authenticated visual acceptance of the Dashboard, separate Status Pelaksanaan bars, Top 5 Klausul panel, and numeric/hierarchical clause tie ordering.
+- PR is open, non-draft, mergeable, and not behind `main`. No unresolved review thread remains.
+- Vercel preview is successful on the reviewed implementation head.
+- Final Staging migration chain for this PR is fully applied:
+  - repository `20260923120000_add_internal_audit_dashboard.sql` → ledger `20260923072638 add_internal_audit_dashboard`;
+  - repository `20260923140500_harden_internal_audit_dashboard_helper.sql` → ledger `20260923073719 harden_internal_audit_dashboard_helper`;
+  - repository `20260928080000_add_dashboard_top_clauses.sql` → ledger `20260928015351 add_dashboard_top_clauses`;
+  - repository `20260928093000_sort_dashboard_top_clauses_numeric.sql` → ledger `20260928022303 sort_dashboard_top_clauses_numeric`.
+- Latest rollback-only hosted Staging Dashboard regression passed after the final clause-order migration; post-run synthetic Dashboard fixtures were clean.
+- Final privilege verification:
+  - `get_internal_audit_dashboard(integer,text,uuid)` is `SECURITY DEFINER` with explicit `search_path=pg_catalog, public`;
+  - authenticated EXECUTE = yes;
+  - anon EXECUTE = no;
+  - private `dashboard_can_access_instruction_row(uuid)`: authenticated/anon EXECUTE = no.
+- Supabase Security Advisor retains the expected generic warning for the intentionally authenticated-executable public Dashboard `SECURITY DEFINER` RPC. Its authorization/scoping behavior is covered by the hosted regression. No Dashboard-specific performance advisory is reported.
+- Existing project-wide Advisor warnings unrelated to this Dashboard PR remain deferred and are not introduced by PR #31.
+- Final accepted Dashboard scope includes: role-aware landing/navigation, centralized read model, KPI cards, FORM-001 Plan vs Aktual, mutually-exclusive execution status, Finding/LTP health, Temuan per Proses, Top Weakness Point, Perlu Perhatian, Tugas Saya, Upcoming/Overdue, Recent Activity, and Top 5 normalized Finding clauses.
+- Production has not been modified during this PR workflow. PR #31 remains unmerged pending explicit approval.

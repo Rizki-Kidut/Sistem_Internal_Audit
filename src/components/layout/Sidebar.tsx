@@ -1,9 +1,10 @@
 import { type ReactNode } from 'react';
-import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow, Factory, LogOut } from 'lucide-react';
+import { ClipboardList, CalendarCheck, ListChecks, Users, FileCheck, ClipboardCheck, TriangleAlert as AlertTriangle, FileText, ChartBar as BarChart3, Settings, Wrench, GraduationCap, Workflow, Factory, LogOut, LayoutDashboard } from 'lucide-react';
 import type { UserProfile } from '../../lib/auth';
 import { allowedPages } from '../../lib/auth';
 
 export type PageId =
+  | 'dashboard'
   | 'kalibrasi'
   | 'training'
   | 'rencana-audit'
@@ -36,6 +37,7 @@ interface NavItem {
 // Struktur menu — modul yang sudah ada + modul baru (batch bertahap).
 // Item yang belum dibangun ditandai disabled.
 const navItems: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, group: 'Internal Audit' },
   // Modul yang sudah ada
   { id: 'kalibrasi', label: 'Kalibrasi Alat Ukur', icon: <Wrench size={18} />, group: 'Modul Eksisting' },
   { id: 'training', label: 'Training & Kompetensi', icon: <GraduationCap size={18} />, group: 'Modul Eksisting' },
