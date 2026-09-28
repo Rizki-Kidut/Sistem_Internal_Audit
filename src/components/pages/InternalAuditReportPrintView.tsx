@@ -391,6 +391,36 @@ export function InternalAuditReportPrintView({
 
   return (
     <div className="form015-preview">
+      <style>{`@media print {
+        @page { size: A4 portrait; margin: 0; }
+        html, body { margin: 0 !important; padding: 0 !important; }
+        body:has(.form015-preview) { margin: 0 !important; padding: 0 !important; background: white !important; }
+        body:has(.form015-preview) aside,
+        body:has(.form015-preview) nav { display: none !important; }
+        body:has(.form015-preview) #root,
+        body:has(.form015-preview) #root > div,
+        body:has(.form015-preview) main,
+        body:has(.form015-preview) main > div {
+          height: auto !important;
+          min-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          max-width: none !important;
+          overflow: visible !important;
+          background: white !important;
+        }
+        body:has(.form015-preview) .form015-preview {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: white !important;
+        }
+      }`}</style>
       {findingPages.map((groups, index) => {
         const pageNumber = index + 1;
         const isLastPage = pageNumber === findingPages.length;
