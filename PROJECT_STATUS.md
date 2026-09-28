@@ -3507,3 +3507,24 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Rollback SQL regression now covers descriptive clause text, repeated clause deduplication, multi-clause Findings, finalized-only inclusion, Top-5 limiting/order, and Auditee authorization isolation.
 - Presentation regression covers panel title, empty state, compact bar renderer, service payload, finalized Finding scope, deduplication, normalization, deterministic Top-5 limit, and RPC payload exposure.
 - Production remains untouched. Additive migration has not yet been applied to Staging; DB regression and authenticated visual UAT for this new panel remain pending.
+
+
+## Dashboard Top 5 klausul — Staging verification — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED VISUAL UAT PENDING`.
+
+- Applied additive migration `20260928080000_add_dashboard_top_clauses.sql` to `CertiTrack-Staging` only. Production remained untouched.
+- Staging ledger recorded the migration as `20260928015351 add_dashboard_top_clauses` (MCP ledger timestamp differs from repository filename, consistent with prior project migration history).
+- The migration replaces only the existing read-only `get_internal_audit_dashboard(integer,text,uuid)` RPC and preserves the already-hardened privilege model.
+- Final privilege verification after apply:
+  - public Dashboard RPC: authenticated EXECUTE = yes;
+  - public Dashboard RPC: anon EXECUTE = no;
+  - private `dashboard_can_access_instruction_row(uuid)`: authenticated EXECUTE = no.
+- Hosted rollback-only `supabase/tests/dashboard_regression.sql` passed after the Top-Clause additions.
+- Regression cleanup verification found zero synthetic Dashboard auth users, profiles, Instruction rows, Findings, and CARs after rollback.
+- Real-data Admin sanity check:
+  - FY2026 currently returns an empty `top_clauses` array because there are no finalized FY2026 Findings with clause data;
+  - FY2099 returns five clause rows from existing Staging data:
+    `10.2.1`, `7.2`, `7.2.3`, `7.5.3.2.2`, and `9.2.2`, each count 1.
+- This confirms the Dashboard RPC now emits the new `top_clauses` payload correctly. Browser visual UAT should use FY2099 to verify rendering until FY2026 has finalized Finding clause data.
+- PR #31 remains open and unmerged.
