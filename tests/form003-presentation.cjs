@@ -37,13 +37,14 @@ assert.match(view, /\[0, 1, 2, 3\]\.map/, 'status motif must always render four 
 assert.match(css, /grid-template-columns:repeat\(2,1fr\);grid-template-rows:repeat\(2,1fr\)/, 'status motif must be a 2x2 square');
 assert.match(css, /form003-status-quadrant\.is-filled\{background:#111\}/, 'filled status quadrants must render black');
 assert.match(view, /className="form003-status-cell"><StatusQuadrants status=\{row\.status_progress\} cell \/>/, 'status table cell must render the quadrant grid directly inside the cell');
-assert.match(view, /date\(row\.cek_selesai_date\)/, 'Cek selesai must render the derived LTP verification date');
+assert.match(view, /row\.formal_finding_count === 0[\s\S]*form003-check-zero[\s\S]*<Slash \/>[\s\S]*date\(row\.cek_selesai_date\)/, 'Zero-Finding Cek selesai must slash the whole cell while Finding rows render the derived LTP verification date');
 assert.doesNotMatch(view, /row\.cek_selesai \? '✓' : ''/, 'Cek selesai must not render a checklist symbol');
 assert.match(completionDateMigration, /'cek_selesai_date',CASE/, 'additive FORM-003 migration must expose a per-QA Cek selesai date');
 assert.match(completionDateMigration, /r\.required_ltp_count=r\.formal_finding_count/, 'Cek selesai requires one canonical LTP for every formal Finding');
 assert.match(completionDateMigration, /r\.effective_closed_ltp_count=r\.required_ltp_count/, 'Cek selesai requires every required LTP to remain effectively CLOSE');
 assert.match(completionDateMigration, /THEN r\.latest_effective_close/, 'Cek selesai uses the latest effective Auditor CLOSE timestamp');
-assert.match(completionDateMigration, /ELSE NULL/, 'Zero-Finding or incomplete-LTP rows keep Cek selesai blank');
+assert.match(completionDateMigration, /ELSE NULL/, 'read model keeps the Cek selesai date null for Zero-Finding or incomplete-LTP rows so presentation can render the controlled slash');
+assert.match(css, /form003-check-zero\{padding:0!important;background:#fff\}/, 'Zero-Finding Cek selesai cell must be a clean white vector-slash cell');
 assert.match(css, /form003-status-cell\{padding:0!important;overflow:hidden!important\}/, 'status cell must remove inner padding');
 assert.match(css, /form003-status-grid-cell\{position:absolute;inset:0;width:100%;height:100%;border:0\}/, 'status quadrant grid must fill the entire table cell');
 assert.match(css, /nth-child\(1\).*nth-child\(3\)\{border-right:1px solid #111\}/, 'full-cell status grid must split vertically');
