@@ -3543,3 +3543,27 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Post-regression cleanup verified zero synthetic Dashboard auth/Finding/CAR fixtures.
 - Real-data FY2099 sanity check now returns, in order: `7.2`, `7.2.3`, `7.5.3.2.2`, `9.2.2`, `10.2.1`, each count 1.
 - Production remains untouched. PR #31 remains open and unmerged.
+
+
+## Dashboard Internal Audit final pre-merge review — 28 Sep 2026
+
+**Status:** `READY FOR MERGE — EXPLICIT MERGE APPROVAL REQUIRED`.
+
+- Final review performed on PR #31 after authenticated visual acceptance of the Dashboard, separate Status Pelaksanaan bars, Top 5 Klausul panel, and numeric/hierarchical clause tie ordering.
+- PR is open, non-draft, mergeable, and not behind `main`. No unresolved review thread remains.
+- Vercel preview is successful on the reviewed implementation head.
+- Final Staging migration chain for this PR is fully applied:
+  - repository `20260923120000_add_internal_audit_dashboard.sql` → ledger `20260923072638 add_internal_audit_dashboard`;
+  - repository `20260923140500_harden_internal_audit_dashboard_helper.sql` → ledger `20260923073719 harden_internal_audit_dashboard_helper`;
+  - repository `20260928080000_add_dashboard_top_clauses.sql` → ledger `20260928015351 add_dashboard_top_clauses`;
+  - repository `20260928093000_sort_dashboard_top_clauses_numeric.sql` → ledger `20260928022303 sort_dashboard_top_clauses_numeric`.
+- Latest rollback-only hosted Staging Dashboard regression passed after the final clause-order migration; post-run synthetic Dashboard fixtures were clean.
+- Final privilege verification:
+  - `get_internal_audit_dashboard(integer,text,uuid)` is `SECURITY DEFINER` with explicit `search_path=pg_catalog, public`;
+  - authenticated EXECUTE = yes;
+  - anon EXECUTE = no;
+  - private `dashboard_can_access_instruction_row(uuid)`: authenticated/anon EXECUTE = no.
+- Supabase Security Advisor retains the expected generic warning for the intentionally authenticated-executable public Dashboard `SECURITY DEFINER` RPC. Its authorization/scoping behavior is covered by the hosted regression. No Dashboard-specific performance advisory is reported.
+- Existing project-wide Advisor warnings unrelated to this Dashboard PR remain deferred and are not introduced by PR #31.
+- Final accepted Dashboard scope includes: role-aware landing/navigation, centralized read model, KPI cards, FORM-001 Plan vs Aktual, mutually-exclusive execution status, Finding/LTP health, Temuan per Proses, Top Weakness Point, Perlu Perhatian, Tugas Saya, Upcoming/Overdue, Recent Activity, and Top 5 normalized Finding clauses.
+- Production has not been modified during this PR workflow. PR #31 remains unmerged pending explicit approval.
