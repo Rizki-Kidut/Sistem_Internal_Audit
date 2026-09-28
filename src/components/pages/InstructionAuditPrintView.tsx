@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import type { InstructionAuditPrintData, InstructionAuditPrintRow } from '../../lib/types';
 import {
   FORM003_DOCUMENT_CODE,
-  FORM003_ROW_CAPACITY,
   FORM003_SECTION_MARKS,
   FORM003_STATUS_LEGEND,
   paginateInstructionAudit,
@@ -39,7 +38,15 @@ function Approval({ data, continuation }: { data: InstructionAuditPrintData; con
 }
 
 function StatusMark({ status }: { status: number }) {
-  return status ? <span className={`form003-status-pattern status-${status}`} aria-label={`Status ${status}`}>{status}</span> : null;
+  if (!status) return null;
+  const filledQuadrants = Math.max(0, Math.min(4, status - 1));
+  return <span className="form003-status-pattern" aria-label={`Status ${status}`}>
+    {[0, 1, 2, 3].map((quadrant) => <span
+      key={quadrant}
+      className={quadrant < filledQuadrants ? 'form003-status-quadrant is-filled' : 'form003-status-quadrant'}
+      aria-hidden="true"
+    />)}
+  </span>;
 }
 
 function MatrixBody({ row, data }: { row: InstructionAuditPrintRow; data: InstructionAuditPrintData }) {
@@ -80,7 +87,7 @@ function ColumnHeaders({ data }: { data: InstructionAuditPrintData }) {
   const plantName = (id: string) => data.plants.find((plant) => plant.id === id)?.nama ?? '-';
   return <thead>
     <tr>
-      <th rowSpan={3}>Team</th><th rowSpan={3}>Proses yang diaudit</th><th rowSpan={3}>Pemilik proses</th><th rowSpan={3}>No. audit</th><th rowSpan={3}>Auditor</th>
+      <th rowSpan={3}>Team</th><th rowSpan={3}>Proses yang diaudit</th><th rowSpan={3}>Pemilik proses</th><th rowSpan={3}>No. audit</th><th rowSpan={3}>Leader audit</th><th rowSpan={3}>Auditor</th>
       <th colSpan={Math.max(data.sections.length, 1)}>Seksi yang diaudit</th>
       <th colSpan={Math.max(data.target_models.length, 1)}>Audit Produk</th>
       <th colSpan={Math.max(data.shifts.length, 1)}>Audit Manufaktur &amp; Shift</th>
@@ -102,9 +109,12 @@ function ColumnHeaders({ data }: { data: InstructionAuditPrintData }) {
 
 function AuditRow({ row, data }: { row: InstructionAuditPrintRow; data: InstructionAuditPrintData }) {
   const product = row.tipe_baris === 'AuditProduk';
-  const roster = row.team_roster.map((member) => `${member.peran === 'Lead' ? 'L' : 'M'}: ${member.nama}`).join('\n');
+  const leader = row.team_roster.find((member) => member.peran === 'Lead');
+  const members = row.team_roster.filter((member) => member.peran !== 'Lead');
   return <tr className="form003-audit-row">
-    <td className="form003-team-code">{row.team_kode || '-'}</td><td>{row.proses_nama || '-'}</td><td>{row.pemilik_proses || '-'}</td><td>{row.kode_audit}</td><td className="form003-roster">{roster || '-'}</td>
+    <td className="form003-team-code">{row.team_kode || '-'}</td><td>{row.proses_nama || '-'}</td><td>{row.pemilik_proses || '-'}</td><td>{row.kode_audit}</td>
+    <td className="form003-leader">{leader ? `★ ${leader.nama}` : ''}</td>
+    <td className="form003-roster">{members.length ? members.map((member) => member.nama).join('\n') : ''}</td>
     <MatrixBody row={row} data={data} />
     {product ? <><td>{date(row.tanggal_audit_produk) || '-'}</td><td>{row.nama_auditor_produk || '-'}</td><td>{row.kualifikasi || '-'}</td></> : <><InactiveCell/><InactiveCell/><InactiveCell/></>}
     <td>{row.item_lain_diperiksa || ''}</td><td>{date(row.tanggal_plan_audit)}</td><td>{date(row.execution_date)}</td><td>{row.cek_selesai ? '✓' : ''}</td><td><StatusMark status={row.status_progress} /></td>
@@ -118,7 +128,7 @@ function Legend() {
 export function InstructionAuditPrintView({ data }: { data: InstructionAuditPrintData }) {
   const pages = useMemo(() => paginateInstructionAudit(data.rows), [data.rows]);
   const matrixCount = Math.max(data.sections.length, 1) + Math.max(data.target_models.length, 1) + Math.max(data.shifts.length, 1);
-  const columnCount = 5 + matrixCount + 8;
+  const columnCount = 6 + matrixCount + 8;
   return <div className="form003-print-root">
     <style>{`@media print {
       @page { size: A3 landscape; margin: 0; }
@@ -137,7 +147,7 @@ export function InstructionAuditPrintView({ data }: { data: InstructionAuditPrin
           {Array.from({ length: page.fillerRowCount }, (_, index) => <tr className="form003-filler-row" key={`filler-${index}`} aria-hidden="true">{Array.from({ length: columnCount }, (__, cell) => <td key={cell}/>)}</tr>)}
         </tbody>
       </table>
-      <footer><Legend/><strong>{FORM003_DOCUMENT_CODE}</strong><span>Kapasitas terkendali: {FORM003_ROW_CAPACITY} baris</span></footer>
+      <footer><Legend/><strong>{FORM003_DOCUMENT_CODE}</strong></footer>
     </article>)}
   </div>;
 }
