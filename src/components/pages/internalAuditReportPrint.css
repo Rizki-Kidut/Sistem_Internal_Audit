@@ -289,11 +289,6 @@
 }
 
 @media print {
-  @page form015-report {
-    size: A4 portrait;
-    margin: 0;
-  }
-
   html,
   body,
   #root,
@@ -323,7 +318,6 @@
   }
 
   .form015-document {
-    page: form015-report;
     width: 210mm;
     min-height: 297mm;
     margin: 0;
