@@ -406,6 +406,7 @@ export interface InstructionAuditPrintRow extends AuditInstructionRow {
   required_ltp_count: number;
   submitted_ltp_count: number;
   effective_closed_ltp_count: number;
+  cek_selesai_date: string | null;
   status_progress: InstructionAuditPrintStatus;
 }
 export interface InstructionAuditPrintData {
