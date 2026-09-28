@@ -3686,3 +3686,21 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The compact 2×2 symbol remains in the footer legend because the legend is explanatory rather than a table cell.
 - No backend, RPC, migration, Staging schema, workflow semantics, pagination, or Production state changed.
 - Presentation regression now requires the full-cell grid, zero inner padding, absolute 100% cell fill, internal vertical/horizontal dividers, and shared legend renderer.
+
+
+## FORM-003 Cek selesai uses effective LTP verification date — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — VISUAL UAT PENDING`.
+
+- Removed the printed checklist symbol from FORM-003 `Cek selesai`.
+- `Cek selesai` now renders a derived per-QA date `cek_selesai_date`.
+- The date is present only when the QA has formal Findings, every formal Finding has its canonical LTP, and every required LTP currently has an effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` decision. The printed date is the latest effective CLOSE timestamp across those LTPs.
+- ZERO FINDING / no-LTP rows keep `Cek selesai` blank.
+- A later `ADMIN_RETURNED_TO_AUDITOR` invalidates the effective date and returns `Cek selesai` to blank until a later Auditor CLOSE re-establishes it.
+- Existing LTP workflow permissions were not changed. The current workflow authorizes eligible Auditors through `auditor_user_can_receive_finding(...)`; this correction only changes the FORM-003 projection/print output and does not silently restrict LTP verification to Team Leaders.
+- Added additive migration `20260928163000_add_form003_check_completion_date.sql`; the original Staging-applied FORM-003 migration remains frozen.
+- Staging ledger entry: `20260928100047 add_form003_check_completion_date`.
+- Hosted rollback-only FORM-003 regression passed with new assertions for blank-before-CLOSE, latest effective CLOSE date, Admin Return invalidation, later CLOSE restoration, and ZERO FINDING blank behavior.
+- Post-regression cleanup verified zero synthetic FORM-003 auth/profile/Instruction/Finding/CAR/report fixtures.
+- RPC privilege contract remains unchanged: authenticated EXECUTE = yes, anon = no, private access helper authenticated = no, explicit `SECURITY DEFINER search_path=pg_catalog, public`.
+- Production remains untouched. PR #33 remains open/unmerged.
