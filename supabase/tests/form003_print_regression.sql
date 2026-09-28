@@ -1,5 +1,5 @@
 -- Rollback-only behavioral regression for FORM-003 print read model.
--- Run only after 20260928120000 on an approved non-Production database.
+-- Run only after 20260928163000 on an approved non-Production database.
 BEGIN;
 
 CREATE OR REPLACE FUNCTION pg_temp.ok(value boolean,message text)RETURNS void LANGUAGE plpgsql AS $$
@@ -161,6 +161,7 @@ INSERT INTO public.audit_internal_reports(id,instruction_row_id,seksi_id,status,
 SELECT pg_temp.actor('f3000000-0000-0000-0000-000000000001');
 SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000001'),'QA-F3001')->>'status_progress')::int=5,'ZERO FINDING regular row completes after all required reports Final');
 SELECT pg_temp.ok((public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000001')->>'completion_date')::timestamptz='2098-04-12T01:00:00Z'::timestamptz,'Unrelated later report must not move completion date');
+SELECT pg_temp.ok(pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000001'),'QA-F3001')->>'cek_selesai_date' IS NULL,'ZERO FINDING row has no LTP verification date in Cek selesai');
 
 -- 4/5/6 special rows: FORM-015 N/A and authoritative execution-date fallback.
 SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000002'),'QA-F3002')->>'execution_date')::date='2098-05-02','Product execution uses tanggal_audit_produk');
@@ -187,6 +188,7 @@ UPDATE public.cars SET status='AUDITOR_REVIEW' WHERE id IN('f3130000-0000-0000-0
 ALTER TABLE public.cars ENABLE TRIGGER USER;
 SELECT pg_temp.actor('f3000000-0000-0000-0000-000000000001');
 SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'status_progress')::int=4,'All canonical LTPs at Auditor-or-later stage advances to Corrective Action Report Sent');
+SELECT pg_temp.ok(pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'cek_selesai_date' IS NULL,'Cek selesai stays blank until every LTP has a current effective Auditor CLOSE');
 
 -- 12/13/14 Two effective Auditor CLOSE events make row Complete, but unfinished sibling still blocks Instruction completion.
 RESET ROLE;
@@ -198,6 +200,7 @@ INSERT INTO public.car_workflow_events(id,car_id,event_type,actor_user_id,actor_
 ('f31a0000-0000-0000-0000-000000000002','f3130000-0000-0000-0000-000000000002','AUDITOR_VERIFIED_CLOSE_TO_ADMIN','f3000000-0000-0000-0000-000000000001','ADMIN','AUDITOR_REVIEW','ADMIN_REVIEW','2098-08-12T01:00:00Z');
 SELECT pg_temp.actor('f3000000-0000-0000-0000-000000000001');
 SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'status_progress')::int=5,'All LTPs with current effective Auditor CLOSE make the row Complete');
+SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'cek_selesai_date')::timestamptz='2098-08-12T01:00:00Z'::timestamptz,'Cek selesai uses the latest effective LTP Auditor CLOSE date for the QA');
 SELECT pg_temp.ok(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003')->>'completion_date' IS NULL,'Instruction completion requires every QA row Established even when all LTPs are closed');
 
 -- Complete the Product sibling; Instruction completion becomes the last effective Auditor CLOSE.
@@ -218,6 +221,7 @@ INSERT INTO public.car_workflow_events(id,car_id,event_type,actor_user_id,actor_
 SELECT pg_temp.actor('f3000000-0000-0000-0000-000000000001');
 SELECT pg_temp.ok(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003')->>'completion_date' IS NULL,'Admin Return invalidates an earlier Auditor CLOSE');
 SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'status_progress')::int=4,'Returned LTP remains submitted but is not Complete');
+SELECT pg_temp.ok(pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'cek_selesai_date' IS NULL,'Admin Return clears the effective Cek selesai date until re-close');
 
 -- 16 later Auditor CLOSE restores completion.
 RESET ROLE;
@@ -228,6 +232,7 @@ INSERT INTO public.car_workflow_events(id,car_id,event_type,actor_user_id,actor_
 ('f31a0000-0000-0000-0000-000000000004','f3130000-0000-0000-0000-000000000002','AUDITOR_VERIFIED_CLOSE_TO_ADMIN','f3000000-0000-0000-0000-000000000001','ADMIN','AUDITOR_RETURNED','ADMIN_REVIEW','2098-08-14T01:00:00Z');
 SELECT pg_temp.actor('f3000000-0000-0000-0000-000000000001');
 SELECT pg_temp.ok((public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003')->>'completion_date')::timestamptz='2098-08-14T01:00:00Z'::timestamptz,'Later Auditor CLOSE restores completion with the new date');
+SELECT pg_temp.ok((pg_temp.row_payload(public.get_audit_instruction_print_data('f3080000-0000-0000-0000-000000000003'),'QA-F3004')->>'cek_selesai_date')::timestamptz='2098-08-14T01:00:00Z'::timestamptz,'Later Auditor CLOSE restores Cek selesai with the new latest verification date');
 
 -- 17 CLOSED remains completion-qualified even after a later Admin approval event.
 RESET ROLE;
