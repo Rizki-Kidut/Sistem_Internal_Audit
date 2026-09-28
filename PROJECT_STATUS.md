@@ -3704,3 +3704,17 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Post-regression cleanup verified zero synthetic FORM-003 auth/profile/Instruction/Finding/CAR/report fixtures.
 - RPC privilege contract remains unchanged: authenticated EXECUTE = yes, anon = no, private access helper authenticated = no, explicit `SECURITY DEFINER search_path=pg_catalog, public`.
 - Production remains untouched. PR #33 remains open/unmerged.
+
+
+## FORM-003 Cek selesai Zero Finding slash refinement — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — VISUAL UAT PENDING`.
+
+- Finalized the FORM-003 `Cek selesai` presentation rule:
+  - rows with one or more formal Findings render the derived `cek_selesai_date` only after every required LTP for that QA retains a current effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`;
+  - ZERO FINDING rows render a full-cell diagonal slash from bottom-left to top-right instead of a date, blank cell, or checklist symbol.
+- The Zero Finding slash reuses the existing deterministic SVG `Slash` component, so the line is vector-based and fills the actual table cell.
+- The read model continues to return `cek_selesai_date = null` for Zero Finding rows; the slash is intentionally a print/presentation rule rather than fabricated workflow data.
+- The existing additive FORM-003 completion-date migration remains the backend source for effective LTP verification dates; no new database change was required for this visual refinement.
+- Presentation regression now requires the Zero Finding conditional slash, Finding-row derived date, white full-cell slash styling, absence of the old checklist symbol, and the shared Status Progress quadrant renderer.
+- No change to 29-row capacity, A3 landscape isolation, Leader/Auditor split, Status Progress quadrants, workflow semantics, Staging schema, or Production.
