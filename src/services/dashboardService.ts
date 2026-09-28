@@ -14,6 +14,7 @@ export interface DashboardData {
   finding_health:{open:number;closed:number;pending_review:number;categories:Record<'A'|'B'|'C',number>};
   ltp_health:{open:number;temporary_overdue:number;permanent_overdue:number;verification_pending:number};
   process_findings:{process_id:string;process_name:string;total:number;open:number;overdue_ltp:number;weakness:number}[];
+  top_clauses:{clause:string;count:number}[];
   weaknesses:{label:string;count:number}[]; attention:DashboardListItem[]; my_actions:DashboardListItem[];
   upcoming:DashboardListItem[]; recent_activity:DashboardListItem[];
 }
@@ -23,6 +24,7 @@ export function normalizeDashboardData(data:DashboardData):DashboardData{
     metrics:data.metrics.map(value=>({...value,value:finite(value.value)})),
     plan_actual:data.plan_actual.map(value=>({...value,plan:finite(value.plan),actual:finite(value.actual)})),
     execution_status:data.execution_status.map(value=>({...value,value:finite(value.value)})),
+    top_clauses:(data.top_clauses??[]).map(value=>({...value,count:finite(value.count)})),
     weaknesses:data.weaknesses.map(value=>({...value,label:WEAKNESS_PROBLEM_LABEL[value.label]??value.label,count:finite(value.count)})),
   };
 }
