@@ -3489,3 +3489,21 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Existing status colors are retained: gray, blue, amber, orange, and green.
 - No backend SQL, RPC shape, service contract, execution-status precedence, KPI, filter, authorization, Staging schema, or Production state changed.
 - Dashboard presentation regression now rejects stacked execution bars and requires all five ordered categories plus the all-zero empty state.
+
+
+## Dashboard Top 5 klausul Finding — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #31 — STAGING MIGRATION/DB REGRESSION + AUTHENTICATED VISUAL UAT PENDING`.
+
+- Added a compact `Klausul Terbanyak` panel that shows only the Top 5 normalized clause numbers, proportional horizontal bars, and visible Finding counts.
+- Finding clause analytics remain read-only. The original Finding `reference` text is not mutated; dotted numeric clause tokens such as `6.1.2`, `7.2`, and `8.5.1.1` are extracted from the stored reference text for Dashboard aggregation only.
+- Repeated occurrences of the same clause within one Finding are deduplicated through `DISTINCT finding_id + clause`; multiple different clauses in one Finding contribute once to each distinct clause.
+- Only finalized formal Findings in `PUBLISHED` or `LEGACY_ESTABLISHED` contribute. Draft/review and `ANNULLED` Findings do not contribute.
+- Aggregation is performed over the existing authorization/filter-scoped `finding_scope`, so Fiscal Year, Audit Type, Process, Auditor assignment, Auditee, and Section Manager isolation remain unchanged.
+- Results are ordered by Finding count descending, then clause ascending, and limited to five rows. Empty result renders `Belum ada data klausul untuk filter ini.`.
+- The existing applied Dashboard migration `20260923120000_add_internal_audit_dashboard.sql` remains frozen. The new backend behavior is isolated in additive migration `20260928080000_add_dashboard_top_clauses.sql`, which replaces only the public Dashboard read-model RPC and preserves its existing authenticated-only privilege contract.
+- Dashboard service now exposes and finite-normalizes `top_clauses: { clause, count }[]`.
+- The analytics layout keeps `Temuan per Proses` as a dedicated panel and places `Klausul Terbanyak` beside `Top Weakness Point` for compact comparison of requirement concentration versus systemic weakness.
+- Rollback SQL regression now covers descriptive clause text, repeated clause deduplication, multi-clause Findings, finalized-only inclusion, Top-5 limiting/order, and Auditee authorization isolation.
+- Presentation regression covers panel title, empty state, compact bar renderer, service payload, finalized Finding scope, deduplication, normalization, deterministic Top-5 limit, and RPC payload exposure.
+- Production remains untouched. Additive migration has not yet been applied to Staging; DB regression and authenticated visual UAT for this new panel remain pending.
