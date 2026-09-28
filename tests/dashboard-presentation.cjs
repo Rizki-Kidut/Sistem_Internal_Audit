@@ -4,6 +4,7 @@ for(const extension of ['.ts','.tsx'])require.extensions[extension]=(module,file
 const sidebar=fs.readFileSync('src/components/layout/Sidebar.tsx','utf8');
 const page=fs.readFileSync('src/components/pages/DashboardPage.tsx','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260923120000_add_internal_audit_dashboard.sql','utf8');
+const topClauseMigration=fs.readFileSync('supabase/migrations/20260928080000_add_dashboard_top_clauses.sql','utf8');
 const {landingPage,canAccessPage}=require('../src/lib/auth.ts');
 assert(sidebar.includes("| 'dashboard'"),'dashboard must be a PageId');
 assert(sidebar.indexOf("id: 'dashboard'")<sidebar.indexOf("id: 'rencana-audit'"),'Dashboard must be the first Internal Audit destination');
@@ -38,5 +39,17 @@ assert(page.includes("yAxis:{type:'category',inverse:true"),'Status Pelaksanaan 
 assert(!page.includes("stack:'total'"),'Status Pelaksanaan must not use stacked bars');
 assert(page.includes("current?.value??0"),'missing execution status values must normalize to zero');
 assert(page.includes('Belum ada status pelaksanaan untuk filter ini.'),'all-zero execution status must render a clean empty state');
+assert(page.includes('Klausul Terbanyak'),'Dashboard must render the Top 5 clause panel');
+assert(page.includes('Belum ada data klausul untuk filter ini.'),'Top clause panel must have a clean empty state');
+assert(page.includes('function ClauseBars'),'Top clause panel must use the compact clause/bar/count renderer');
+assert(page.includes('items.slice(0,5)'),'Top clause renderer must never display more than five rows');
+assert(service.includes('top_clauses:{clause:string;count:number}[]'),'Dashboard service must type the Top 5 clause payload');
+assert(service.includes('top_clauses:(data.top_clauses??[]).map'),'Dashboard service must finite-normalize Top clause counts');
+assert(topClauseMigration.includes('clause_finding_tokens AS ('),'Top clause read model must normalize clause tokens in SQL');
+assert(topClauseMigration.includes("WHERE f.review_status IN('PUBLISHED','LEGACY_ESTABLISHED')"),'Top clauses must use finalized Findings only');
+assert(topClauseMigration.includes('SELECT DISTINCT f.id finding_id,m.parts[1] clause'),'Repeated clause text in one Finding must be deduplicated');
+assert(topClauseMigration.includes("regexp_matches(COALESCE(f.reference,''),'[0-9]+(?:[.][0-9]+)+'"),'Clause normalization must extract dotted numeric tokens from Finding reference text');
+assert(topClauseMigration.includes('ORDER BY count DESC,clause ASC')&&topClauseMigration.includes('LIMIT 5'),'Top clauses must be deterministically ranked and limited to five');
+assert(topClauseMigration.includes("'top_clauses',COALESCE"),'Dashboard RPC payload must expose top_clauses');
 
-console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, separate execution-status bars, and finite chart contracts.');
+console.log('PASS: Dashboard navigation, landing permissions, fiscal order, empty states, stable Process options, permission-aware drill-downs, separate execution-status bars, Top 5 normalized clauses, and finite chart contracts.');
