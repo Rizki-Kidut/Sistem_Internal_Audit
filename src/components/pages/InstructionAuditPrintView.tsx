@@ -87,7 +87,7 @@ function ColumnHeaders({ data }: { data: InstructionAuditPrintData }) {
   const plantName = (id: string) => data.plants.find((plant) => plant.id === id)?.nama ?? '-';
   return <thead>
     <tr>
-      <th rowSpan={3}>Team</th><th rowSpan={3}>Proses yang diaudit</th><th rowSpan={3}>Pemilik proses</th><th rowSpan={3}>No. audit</th><th rowSpan={3}>Leader audit</th><th rowSpan={3}>Auditor</th>
+      <th className="form003-col-team" rowSpan={3}>Team</th><th className="form003-col-process" rowSpan={3}>Proses yang diaudit</th><th className="form003-col-owner" rowSpan={3}>Pemilik proses</th><th className="form003-col-audit-no" rowSpan={3}>No. audit</th><th className="form003-col-leader" rowSpan={3}>Leader audit</th><th className="form003-col-members" rowSpan={3}>Auditor</th>
       <th colSpan={Math.max(data.sections.length, 1)}>Seksi yang diaudit</th>
       <th colSpan={Math.max(data.target_models.length, 1)}>Audit Produk</th>
       <th colSpan={Math.max(data.shifts.length, 1)}>Audit Manufaktur &amp; Shift</th>
