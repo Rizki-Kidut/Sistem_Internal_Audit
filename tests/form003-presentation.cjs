@@ -6,6 +6,7 @@ const css = fs.readFileSync('src/components/pages/instructionAuditPrint.css', 'u
 const helper = fs.readFileSync('src/lib/instructionAuditPrint.ts', 'utf8');
 const service = fs.readFileSync('src/services/auditInstructionService.ts', 'utf8');
 const migration = fs.readFileSync('supabase/migrations/20260928120000_add_form003_instruction_print_read_model.sql', 'utf8');
+const completionDateMigration = fs.readFileSync('supabase/migrations/20260928163000_add_form003_check_completion_date.sql', 'utf8');
 
 assert.match(view, /@page \{ size: A3 landscape; margin: 0; \}/, 'runtime A3 landscape target');
 assert.match(css, /width:420mm;min-height:297mm/, 'physical A3 geometry');
@@ -36,6 +37,13 @@ assert.match(view, /\[0, 1, 2, 3\]\.map/, 'status motif must always render four 
 assert.match(css, /grid-template-columns:repeat\(2,1fr\);grid-template-rows:repeat\(2,1fr\)/, 'status motif must be a 2x2 square');
 assert.match(css, /form003-status-quadrant\.is-filled\{background:#111\}/, 'filled status quadrants must render black');
 assert.match(view, /className="form003-status-cell"><StatusQuadrants status=\{row\.status_progress\} cell \/>/, 'status table cell must render the quadrant grid directly inside the cell');
+assert.match(view, /date\(row\.cek_selesai_date\)/, 'Cek selesai must render the derived LTP verification date');
+assert.doesNotMatch(view, /row\.cek_selesai \? '✓' : ''/, 'Cek selesai must not render a checklist symbol');
+assert.match(completionDateMigration, /'cek_selesai_date',CASE/, 'additive FORM-003 migration must expose a per-QA Cek selesai date');
+assert.match(completionDateMigration, /r\.required_ltp_count=r\.formal_finding_count/, 'Cek selesai requires one canonical LTP for every formal Finding');
+assert.match(completionDateMigration, /r\.effective_closed_ltp_count=r\.required_ltp_count/, 'Cek selesai requires every required LTP to remain effectively CLOSE');
+assert.match(completionDateMigration, /THEN r\.latest_effective_close/, 'Cek selesai uses the latest effective Auditor CLOSE timestamp');
+assert.match(completionDateMigration, /ELSE NULL/, 'Zero-Finding or incomplete-LTP rows keep Cek selesai blank');
 assert.match(css, /form003-status-cell\{padding:0!important;overflow:hidden!important\}/, 'status cell must remove inner padding');
 assert.match(css, /form003-status-grid-cell\{position:absolute;inset:0;width:100%;height:100%;border:0\}/, 'status quadrant grid must fill the entire table cell');
 assert.match(css, /nth-child\(1\).*nth-child\(3\)\{border-right:1px solid #111\}/, 'full-cell status grid must split vertically');
