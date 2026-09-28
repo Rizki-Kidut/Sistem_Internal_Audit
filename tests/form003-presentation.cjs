@@ -31,10 +31,15 @@ assert.match(view, />Leader audit<\/th>/, 'FORM-003 must render a dedicated Lead
 assert.match(view, /className="form003-col-members"[^>]*>Auditor<\/th>/, 'FORM-003 must render a separate member Auditor column');
 assert.match(view, /leader \? `★ \$\{leader\.nama\}` : ''/, 'Team leader must be prefixed with a star');
 assert.match(view, /members\.map\(\(member\) => member\.nama\)\.join\('\\n'\)/, 'member auditors must render separately from the leader');
-assert.match(view, /filledQuadrants = Math\.max\(0, Math\.min\(4, status - 1\)\)/, 'status states map to zero-through-four filled quadrants');
+assert.match(view, /filledQuadrants = Math\.max\(0, Math\.min\(4, status \? status - 1 : 0\)\)/, 'status states map to zero-through-four filled quadrants, including empty cells');
 assert.match(view, /\[0, 1, 2, 3\]\.map/, 'status motif must always render four quadrants');
 assert.match(css, /grid-template-columns:repeat\(2,1fr\);grid-template-rows:repeat\(2,1fr\)/, 'status motif must be a 2x2 square');
 assert.match(css, /form003-status-quadrant\.is-filled\{background:#111\}/, 'filled status quadrants must render black');
+assert.match(view, /className="form003-status-cell"><StatusQuadrants status=\{row\.status_progress\} cell \/>/, 'status table cell must render the quadrant grid directly inside the cell');
+assert.match(css, /form003-status-cell\{padding:0!important;overflow:hidden!important\}/, 'status cell must remove inner padding');
+assert.match(css, /form003-status-grid-cell\{position:absolute;inset:0;width:100%;height:100%;border:0\}/, 'status quadrant grid must fill the entire table cell');
+assert.match(css, /nth-child\(1\).*nth-child\(3\)\{border-right:1px solid #111\}/, 'full-cell status grid must split vertically');
+assert.match(css, /nth-child\(1\).*nth-child\(2\)\{border-bottom:1px solid #111\}/, 'full-cell status grid must split horizontally');
 assert.doesNotMatch(css, /repeating-linear-gradient/, 'old striped status motifs must not return');
 assert.match(view, /<StatusMark status=\{index \+ 1\}\/>/, 'footer legend must reuse the same quadrant StatusMark');
 assert.match(helper, /for \(let index = 0; index < rows\.length; index \+= capacity\)/, 'continuation-page pagination remains active above 29 rows');
