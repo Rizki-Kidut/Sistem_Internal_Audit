@@ -1,10 +1,10 @@
 -- FORM-003 is a live, read-only projection. It persists neither completion nor progress.
 CREATE FUNCTION public.form003_can_access_instruction(p_instruction_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
   SELECT auth.uid() IS NOT NULL
     AND public.is_admin_identity()
     AND EXISTS(SELECT 1 FROM public.audit_instructions i WHERE i.id=p_instruction_id)
-$;
+$$;
 
 CREATE FUNCTION public.get_audit_instruction_print_data(p_instruction_id uuid)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
