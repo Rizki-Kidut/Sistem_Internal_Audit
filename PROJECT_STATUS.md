@@ -3634,3 +3634,23 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Presentation regression was extended to guard the Admin-only capability, scoped report join, whole-Instruction completion gate, special-row report N/A rule, and special-row execution-date fallback.
 - The repository migration `20260928120000_add_form003_instruction_print_read_model.sql` is still **unapplied** to Staging/Production, so it remains safe to correct in place before first application.
 - Production remains untouched. Authenticated Chrome A3 Print Preview and FORM-003 → FORM-015 orientation switching remain pending.
+
+
+## FORM-003 Staging migration and behavioral regression — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED A3 BROWSER UAT PENDING`.
+
+- Applied repository migration `20260928120000_add_form003_instruction_print_read_model.sql` to `CertiTrack-Staging` only.
+- Staging ledger recorded it as `20260928072332 add_form003_instruction_print_read_model` (hosted ledger timestamp differs from repository filename, consistent with prior project migrations).
+- The applied migration is now **frozen**. Any later DB correction must use a new additive migration; do not rewrite the already-applied file.
+- First hosted behavioral regression run exposed an incomplete test fixture: the A/B checklist items were not linked back to their generated Findings, so the authoritative `annual_actual_checklist_complete(...)` correctly kept the QA non-Established.
+- Corrected only the rollback regression fixture by populating the checklist-item `finding_id` links; no change to the already-applied migration was required.
+- Full hosted rollback-only `supabase/tests/form003_print_regression.sql` then passed.
+- Post-regression cleanup verified zero synthetic FORM-003 auth users, profiles, Instruction rows, Findings, CARs, and Internal Audit Reports.
+- Final privilege verification:
+  - `get_audit_instruction_print_data(uuid)`: `SECURITY DEFINER` with explicit `search_path=pg_catalog, public`;
+  - authenticated EXECUTE = yes;
+  - anon EXECUTE = no;
+  - private `form003_can_access_instruction(uuid)`: authenticated/anon EXECUTE = no.
+- Real-data Admin sanity call against the most recent Staging Instruction returned a valid FORM-003 payload with 5 audit rows. Its derived `completion_date` is currently null, which is valid for an Instruction that has not yet satisfied all completion conditions.
+- Production remains untouched. PR #33 remains open/unmerged. Next gate is authenticated A3 landscape browser/Print Preview UAT, including FORM-003 → FORM-015 orientation switching.
