@@ -37,10 +37,10 @@ function Approval({ data, continuation }: { data: InstructionAuditPrintData; con
   </div>;
 }
 
-function StatusMark({ status }: { status: number }) {
+function StatusQuadrants({ status, cell = false }: { status: number; cell?: boolean }) {
   if (!status) return null;
   const filledQuadrants = Math.max(0, Math.min(4, status - 1));
-  return <span className="form003-status-pattern" aria-label={`Status ${status}`}>
+  return <span className={cell ? 'form003-status-grid form003-status-grid-cell' : 'form003-status-grid'} aria-label={`Status ${status}`}>
     {[0, 1, 2, 3].map((quadrant) => <span
       key={quadrant}
       className={quadrant < filledQuadrants ? 'form003-status-quadrant is-filled' : 'form003-status-quadrant'}
@@ -117,12 +117,12 @@ function AuditRow({ row, data }: { row: InstructionAuditPrintRow; data: Instruct
     <td className="form003-roster">{members.length ? members.map((member) => member.nama).join('\n') : ''}</td>
     <MatrixBody row={row} data={data} />
     {product ? <><td>{date(row.tanggal_audit_produk) || '-'}</td><td>{row.nama_auditor_produk || '-'}</td><td>{row.kualifikasi || '-'}</td></> : <><InactiveCell/><InactiveCell/><InactiveCell/></>}
-    <td>{row.item_lain_diperiksa || ''}</td><td>{date(row.tanggal_plan_audit)}</td><td>{date(row.execution_date)}</td><td>{row.cek_selesai ? '✓' : ''}</td><td><StatusMark status={row.status_progress} /></td>
+    <td>{row.item_lain_diperiksa || ''}</td><td>{date(row.tanggal_plan_audit)}</td><td>{date(row.execution_date)}</td><td>{row.cek_selesai ? '✓' : ''}</td><td className="form003-status-cell"><StatusQuadrants status={row.status_progress} cell /></td>
   </tr>;
 }
 
 function Legend() {
-  return <div className="form003-legend"><b>Status progress:</b>{FORM003_STATUS_LEGEND.map((label, index) => <div key={label}><StatusMark status={index + 1}/><span>{index + 1}. {label}</span></div>)}</div>;
+  return <div className="form003-legend"><b>Status progress:</b>{FORM003_STATUS_LEGEND.map((label, index) => <div key={label}><StatusQuadrants status={index + 1}/><span>{index + 1}. {label}</span></div>)}</div>;
 }
 
 export function InstructionAuditPrintView({ data }: { data: InstructionAuditPrintData }) {
