@@ -3617,3 +3617,20 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Print orientation is injected only while `.form003-print-root` is mounted and shell resets are guarded with `body:has(.form003-print-root)`. The static FORM-003 stylesheet contains no `@page`, avoiding orientation leakage into FORM-001, FORM-010, FORM-014, FORM-015, or Daftar Ketidaksesuaian.
 - Added dependency-free presentation regression and rollback-only SQL contract regression. Local TypeScript, targeted lint, build, and presentation results are recorded in the implementing PR; the SQL regression has not been run because no explicitly approved non-Production database was supplied.
 - Authenticated Chrome Print Preview UAT—including explicit FORM-003 A3 landscape → FORM-015 A4 portrait switching—remains pending and is not claimed. The additive migration was not applied anywhere; Production is untouched.
+
+
+## FORM-003 pre-Staging correction pass — 28 Sep 2026
+
+**Status:** `CORRECTED ON PR #33 — STAGING MIGRATION/DB REGRESSION + BROWSER UAT PENDING`.
+
+- Reviewed the initial FORM-003 implementation before any database application and corrected four pre-Staging blockers.
+- Authorization is now aligned with the existing `Instruksi Audit` module: FORM-003 print RPC is **Admin-only**. Company Lead / Dashboard row scope no longer grants whole-Instruction print access. The public RPC remains authenticated-executable but re-checks Admin identity; the helper remains private.
+- Required FORM-015 scope is now derived only from authoritative `target/terkait` Section marks on `Reguler` rows. Final reports are counted only when `audit_internal_reports.seksi_id` matches that required Section set, so an unrelated Final report cannot satisfy another required Section.
+- Product / Manufacturing / Shift rows treat FORM-015 as **N/A**. Their ZERO FINDING rows can reach Complete when Established; they do not fabricate an Audit Report Sent milestone.
+- Instruction `Tanggal Selesai` now requires **every QA row** to be Established and every applicable report obligation satisfied before any completion date can exist.
+- If the Instruction has formal Findings/LTPs, the completion date remains the latest current effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` across all required LTPs, and a later `ADMIN_RETURNED_TO_AUDITOR` invalidates the prior close until a later Auditor CLOSE occurs.
+- For ZERO-LTP Instructions, completion uses the latest required Final FORM-015 timestamp for regular rows and the authoritative execution date for special rows; mixed Instructions use the latest applicable milestone across those rows.
+- Replaced the original source-text-only SQL regression with a rollback-only behavioral fixture regression that actually calls `get_audit_instruction_print_data(uuid)` and covers Team Master source, Section-report isolation, ZERO FINDING, Product/Manufacturing execution dates and report N/A semantics, Finding status, report-sent status, LTP submitted status, effective Auditor CLOSE, whole-Instruction completion blocking, Admin Return invalidation, later re-close, CLOSED qualification, and Admin-only privilege behavior.
+- Presentation regression was extended to guard the Admin-only capability, scoped report join, whole-Instruction completion gate, special-row report N/A rule, and special-row execution-date fallback.
+- The repository migration `20260928120000_add_form003_instruction_print_read_model.sql` is still **unapplied** to Staging/Production, so it remains safe to correct in place before first application.
+- Production remains untouched. Authenticated Chrome A3 Print Preview and FORM-003 → FORM-015 orientation switching remain pending.
