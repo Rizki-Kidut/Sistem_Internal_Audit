@@ -1,6 +1,6 @@
 import type { InstructionAuditPrintRow } from './types';
 
-export const FORM003_ROW_CAPACITY = 22;
+export const FORM003_ROW_CAPACITY = 29;
 export const FORM003_DOCUMENT_CODE = 'Q-120-ISE-001-FORM-003';
 export const FORM003_SECTION_MARKS = { target: '★', terkait: '●' } as const;
 
