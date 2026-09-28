@@ -1,16 +1,10 @@
 -- FORM-003 is a live, read-only projection. It persists neither completion nor progress.
 CREATE FUNCTION public.form003_can_access_instruction(p_instruction_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-  SELECT auth.uid() IS NOT NULL AND public.current_identity_type() IS NOT NULL AND (
-    public.is_admin_identity()
-    OR public.current_auditor_is_lead_auditor()
-    OR EXISTS (
-      SELECT 1 FROM public.audit_instruction_rows r
-      WHERE r.instruction_id=p_instruction_id
-        AND public.dashboard_can_access_instruction_row(r.id)
-    )
-  )
-$$;
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $
+  SELECT auth.uid() IS NOT NULL
+    AND public.is_admin_identity()
+    AND EXISTS(SELECT 1 FROM public.audit_instructions i WHERE i.id=p_instruction_id)
+$;
 
 CREATE FUNCTION public.get_audit_instruction_print_data(p_instruction_id uuid)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
@@ -43,16 +37,25 @@ BEGIN
           AND f.source_type=r.audit_type
           AND f.review_status NOT IN('PUBLISHED','LEGACY_ESTABLISHED','ANNULLED')
       )
+  ), required_sections AS (
+    SELECT DISTINCT r.id AS row_id,public.safe_uuid(mark->>'seksi_id') AS seksi_id
+    FROM base_rows r
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(r.seksi_marks,'[]'::jsonb)) mark
+    WHERE r.tipe_baris='Reguler'
+      AND mark->>'tipe' IN('target','terkait')
+      AND public.safe_uuid(mark->>'seksi_id') IS NOT NULL
   ), scope_rollup AS (
-    SELECT r.id,count(DISTINCT public.safe_uuid(mark->>'seksi_id'))::integer AS required_report_count
-    FROM base_rows r LEFT JOIN LATERAL jsonb_array_elements(COALESCE(r.seksi_marks,'[]'::jsonb)) mark
-      ON mark->>'tipe' IN('target','terkait') AND public.safe_uuid(mark->>'seksi_id') IS NOT NULL
+    SELECT r.id,count(DISTINCT s.seksi_id)::integer AS required_report_count
+    FROM base_rows r LEFT JOIN required_sections s ON s.row_id=r.id
     GROUP BY r.id
   ), report_rollup AS (
     SELECT r.id,
-      count(DISTINCT report.seksi_id) FILTER(WHERE report.status='Final')::integer AS final_report_count,
-      max(report.finalized_at) FILTER(WHERE report.status='Final') AS latest_report_final
-    FROM base_rows r LEFT JOIN public.audit_internal_reports report ON report.instruction_row_id=r.id
+      count(DISTINCT report.seksi_id) FILTER(WHERE report.status='Final' AND s.seksi_id IS NOT NULL)::integer AS final_report_count,
+      max(report.finalized_at) FILTER(WHERE report.status='Final' AND s.seksi_id IS NOT NULL) AS latest_report_final
+    FROM base_rows r
+    LEFT JOIN required_sections s ON s.row_id=r.id
+    LEFT JOIN public.audit_internal_reports report
+      ON report.instruction_row_id=r.id AND report.seksi_id=s.seksi_id
     GROUP BY r.id
   ), formal_findings AS (
     SELECT f.* FROM public.findings f JOIN base_rows r ON r.id=f.instruction_row_id
@@ -92,9 +95,14 @@ BEGIN
       s.required_report_count,rr.final_report_count,rr.latest_report_final,
       f.formal_finding_count,f.required_ltp_count,f.submitted_ltp_count,
       f.effective_closed_ltp_count,f.latest_effective_close,t.kode_tim,t.roster,
-      (s.required_report_count>0 AND rr.final_report_count=s.required_report_count) AS reports_final,
+      (r.tipe_baris='Reguler' AND s.required_report_count>0) AS has_required_reports,
       CASE
-        WHEN e.id IS NOT NULL AND s.required_report_count>0 AND rr.final_report_count=s.required_report_count
+        WHEN r.tipe_baris='Reguler' THEN s.required_report_count>0 AND rr.final_report_count=s.required_report_count
+        ELSE true
+      END AS reports_final,
+      CASE
+        WHEN e.id IS NOT NULL
+          AND (CASE WHEN r.tipe_baris='Reguler' THEN s.required_report_count>0 AND rr.final_report_count=s.required_report_count ELSE true END)
           AND (f.formal_finding_count=0 OR (f.required_ltp_count=f.formal_finding_count AND f.effective_closed_ltp_count=f.required_ltp_count)) THEN 5
         WHEN f.formal_finding_count>0 AND f.required_ltp_count=f.formal_finding_count AND f.submitted_ltp_count=f.required_ltp_count THEN 4
         WHEN s.required_report_count>0 AND rr.final_report_count=s.required_report_count THEN 3
@@ -107,15 +115,16 @@ BEGIN
   ), instruction_completion AS (
     SELECT CASE
       WHEN count(*)=0 THEN NULL
+      WHEN NOT bool_and(established AND reports_final) THEN NULL
       WHEN sum(formal_finding_count)>0 THEN
         CASE WHEN sum(required_ltp_count)=sum(formal_finding_count)
           AND sum(effective_closed_ltp_count)=sum(required_ltp_count)
           THEN max(latest_effective_close) END
-      ELSE CASE WHEN bool_and(established AND reports_final) THEN max(latest_report_final) END
+      ELSE max(CASE WHEN has_required_reports THEN latest_report_final ELSE execution_date::timestamptz END)
     END AS completion_date FROM resolved_rows
   ), rows_json AS (
     SELECT COALESCE(jsonb_agg(
-      (to_jsonb(r)-ARRAY['audit_type','checklist_complete','latest_report_final','latest_effective_close','reports_final','kode_tim','roster'])
+      (to_jsonb(r)-ARRAY['audit_type','checklist_complete','latest_report_final','latest_effective_close','reports_final','has_required_reports','kode_tim','roster'])
       ||jsonb_build_object('team_kode',r.kode_tim,'team_roster',r.roster)
       ORDER BY r.urutan_tampil,r.kode_audit,r.id
     ),'[]'::jsonb) AS value FROM resolved_rows r
@@ -135,7 +144,7 @@ BEGIN
 END $$;
 
 COMMENT ON FUNCTION public.get_audit_instruction_print_data(uuid) IS
-'Authorization-scoped live FORM-003 projection. Team and roster come from Team Master; progress, completion, reports, Findings and effective Auditor CLOSE are derived without persisted duplicates.';
+'Admin-only live FORM-003 projection. Team/roster come from Team Master; regular-row reports are scoped only to authoritative Section marks; special Product/Manufacturing/Shift rows treat FORM-015 as N/A; completion requires all rows Established and all applicable reports satisfied, with effective Auditor CLOSE or execution/report fallback derived without persisted duplicates.';
 
 REVOKE ALL ON FUNCTION public.form003_can_access_instruction(uuid),public.get_audit_instruction_print_data(uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.get_audit_instruction_print_data(uuid) TO authenticated;
