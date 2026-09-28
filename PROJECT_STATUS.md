@@ -3654,3 +3654,22 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
   - private `form003_can_access_instruction(uuid)`: authenticated/anon EXECUTE = no.
 - Real-data Admin sanity call against the most recent Staging Instruction returned a valid FORM-003 payload with 5 audit rows. Its derived `completion_date` is currently null, which is valid for an Instruction that has not yet satisfied all completion conditions.
 - Production remains untouched. PR #33 remains open/unmerged. Next gate is authenticated A3 landscape browser/Print Preview UAT, including FORM-003 → FORM-015 orientation switching.
+
+
+## FORM-003 29-row density, quadrant progress, and auditor split — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — AUTHENTICATED A3 BROWSER UAT PENDING`.
+
+- Applied a presentation-only correction after the FORM-003 read-model migration had already passed Staging. The frozen migration `20260928120000_add_form003_instruction_print_read_model.sql` was not modified and no additive DB migration was required.
+- Increased the centralized deterministic A3 capacity from 22 to **29 audit rows per physical sheet**. The final sheet still receives filler rows below capacity, and row counts above 29 continue onto page 2+ through the existing pagination helper.
+- Removed the visible `Kapasitas terkendali: 22 baris` print text; document code and repeated status legend remain.
+- Compressed only print geometry (page padding, header/approval heights, matrix headers, row/filler heights, footer spacing and print typography) to target the current 29-row Instruction on one A3 landscape sheet without changing backend semantics.
+- Replaced the old striped Status Progress swatches with one reusable **2×2 four-quadrant square motif**. Status 1–5 render respectively zero, one, two, three, or four filled quadrants; rows and the legend reuse the same `StatusMark` component.
+- Split the former combined Auditor column into two controlled columns:
+  - `Leader audit`: Team Master Lead only, prefixed with `★`;
+  - `Auditor`: Team Master Members only, one name per line.
+- Team remains sourced only from `audit_team_masters.kode_tim`; legacy row Team/Auditor fields remain unused.
+- Added explicit width priorities for Team, Process, Owner, No. audit, Leader audit, and member Auditor columns so the extra auditor split does not consume matrix space unpredictably.
+- Updated `tests/form003-presentation.cjs` to lock the 29-row capacity, removal of the capacity helper text, separate Leader/Auditor rendering, Leader star, four-quadrant motif, absence of striped gradients, shared row/legend motif, and continuation pagination.
+- Backend/Staging state is unchanged by this correction. Production remains untouched.
+- Browser UAT must verify that the real 29-row dataset fits on one physical A3 landscape sheet, the 2×2 progress legend visually matches the controlled form, Leader/Member columns remain readable, and FORM-003 → FORM-015 orientation isolation still holds.
