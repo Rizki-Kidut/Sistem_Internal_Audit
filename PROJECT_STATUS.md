@@ -3673,3 +3673,16 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - Updated `tests/form003-presentation.cjs` to lock the 29-row capacity, removal of the capacity helper text, separate Leader/Auditor rendering, Leader star, four-quadrant motif, absence of striped gradients, shared row/legend motif, and continuation pagination.
 - Backend/Staging state is unchanged by this correction. Production remains untouched.
 - Browser UAT must verify that the real 29-row dataset fits on one physical A3 landscape sheet, the 2×2 progress legend visually matches the controlled form, Leader/Member columns remain readable, and FORM-003 → FORM-015 orientation isolation still holds.
+
+
+## FORM-003 full-cell Status Progress quadrants — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — VISUAL UAT PENDING`.
+
+- Refined only the FORM-003 Status Progress presentation after browser review.
+- The Status Progress table cell itself is now divided into a full-size 2×2 grid using the existing cell border as the outer boundary plus one internal vertical and one internal horizontal divider.
+- The previous small 2×2 box centered inside the table cell is removed for row rendering.
+- Even a status-0/unavailable row still shows the empty four-part cell structure; status 1–5 continue to map to zero, one, two, three, or four filled quadrants.
+- The compact 2×2 symbol remains in the footer legend because the legend is explanatory rather than a table cell.
+- No backend, RPC, migration, Staging schema, workflow semantics, pagination, or Production state changed.
+- Presentation regression now requires the full-cell grid, zero inner padding, absolute 100% cell fill, internal vertical/horizontal dividers, and shared legend renderer.
