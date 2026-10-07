@@ -3718,3 +3718,17 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - The existing additive FORM-003 completion-date migration remains the backend source for effective LTP verification dates; no new database change was required for this visual refinement.
 - Presentation regression now requires the Zero Finding conditional slash, Finding-row derived date, white full-cell slash styling, absence of the old checklist symbol, and the shared Status Progress quadrant renderer.
 - No change to 29-row capacity, A3 landscape isolation, Leader/Auditor split, Status Progress quadrants, workflow semantics, Staging schema, or Production.
+
+## FORM-003 Cek selesai correction-pass regression — 7 Oct 2026
+
+**Status:** `LOCAL REGRESSION PASS — VISUAL UAT PENDING`.
+
+- Continued existing PR #33 from `f352ad986c709452165e6ab782632bd24c7ea98b`. That head already implements the requested Cek selesai date and Zero Finding slash; no application, read-model, or backend adjustment was needed in this pass.
+- Fixed the stale presentation-regression reference to `StatusMark`; the existing row/legend renderer is `StatusQuadrants`. Neither the progress cell nor its legend changed.
+- Added actual React print-component render checks for Finding rows with an authoritative `cek_selesai_date`, incomplete Finding rows with a null date, and Zero Finding rows with null or stale dates. The legacy `cek_selesai` boolean cannot create a checklist mark or override the authoritative date.
+- Non-zero Finding rows retain the latest effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` timestamp across all required canonical LTPs, only when each formal Finding has an LTP and every required LTP has a current effective CLOSE. A later Admin Return invalidates that CLOSE until re-verification. The regression locks the existing SQL event selection, ordering, and maximum-date projection structurally; it does not claim a new database execution.
+- Zero Finding retains a slash-only actual penultimate table cell, immediately before Status progress. The shared SVG runs from `(0,100)` to `(100,0)`, is anchored to the cell with absolute positioning and full width/height, and uses a non-scaling vector stroke. No date, checklist symbol, or bitmap is rendered there.
+- Added render/pagination boundary cases for 0, 1, 29, 30, 58, and 59 rows: 29 controlled slots per page, preserved row order, repeated column headers/legend/document code, and unchanged slash-only approvals on continuation pages.
+- Exact files changed in this pass: `tests/form003-presentation.cjs` and `PROJECT_STATUS.md`. No SQL/read-model change was required, so the existing rollback-only SQL regression remains unchanged and was not rerun against a database.
+- Validation PASS: `node tests/form003-presentation.cjs`; `npm run typecheck`; `npx eslint src/components/pages/InstruksiAuditPage.tsx src/components/pages/InstructionAuditPrintView.tsx src/lib/instructionAuditPrint.ts src/lib/types.ts src/services/auditInstructionService.ts`; `npm run build`; `git diff --check`. Build retains non-failing Browserslist age and bundle-size warnings.
+- No merge or new PR. Production and all unrelated forms/dashboard remain untouched. Authenticated browser/physical A3 Print Preview UAT remains pending.
