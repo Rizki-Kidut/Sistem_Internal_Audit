@@ -11,6 +11,7 @@ import type {
   ApprovalPair,
   Seksi,
   Proses,
+  InstructionAuditPrintData,
 } from '../lib/types';
 import { INSTRUCTION_STATUS, TIPE_BARIS, KODE_DOKUMEN_INSTRUCTION } from '../lib/enums';
 import type { InstructionStatus, TipeBaris } from '../lib/enums';
@@ -38,6 +39,16 @@ function mapInstruction(row: Record<string, unknown>): AuditInstruction {
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
+}
+
+/** One authorization-scoped, read-only projection for controlled FORM-003 output. */
+export async function getInstructionPrintData(instructionId: string): Promise<InstructionAuditPrintData> {
+  const { data, error } = await supabase.rpc('get_audit_instruction_print_data', {
+    p_instruction_id: instructionId,
+  });
+  if (error) throw new Error(`Gagal menyusun FORM-003: ${error.message}`);
+  if (!data) throw new Error('Data FORM-003 tidak ditemukan atau tidak dapat diakses');
+  return data as unknown as InstructionAuditPrintData;
 }
 
 function mapRow(row: Record<string, unknown>): AuditInstructionRow {

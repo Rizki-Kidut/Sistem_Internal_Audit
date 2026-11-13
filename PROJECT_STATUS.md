@@ -3600,3 +3600,135 @@ Batch 8b2 is no longer `NOT_STARTED`; only the Staging/runtime and browser/print
 - FORM-015 document geometry remains `210mm × min-height 297mm`, with its existing content, pagination, signatures, watermark, footer, and data logic unchanged.
 - Regression `tests/form015-print-orientation.cjs` now requires the runtime A4 portrait rule, scoped `body:has(.form015-preview)` shell reset, absence of the named-page mechanism, and preserved A4 geometry.
 - No database, migration, RPC, authorization, or Production change.
+
+## FORM-003 Instruksi Internal Audit controlled A3 export — 28 Sep 2026
+
+**Status:** `IMPLEMENTED_UNVERIFIED — NON-PRODUCTION DB REGRESSION + AUTHENTICATED BROWSER PRINT UAT PENDING`.
+
+- Added a dedicated read-only `Instruksi internal audit` print preview based on the legacy controlled-form structure; the editable `RowsTable` remains unchanged and is not printed.
+- Physical print target is A3 landscape (`420 × 297 mm`) with zero browser page margin and a controlled `5 mm` internal content box. Deterministic pagination uses the single `FORM003_ROW_CAPACITY = 22` constant and pads the final sheet with filler rows.
+- Page 1 renders live creation/completion approvals. Page 2+ retains identical approval geometry, omits approval values, and uses a deterministic SVG diagonal slash. Header, matrix headings, progress legend, page number, and document code repeat on every physical page.
+- Team presentation uses only current `audit_team_masters.kode_tim`; Lead/Member names are resolved from the current normalized Team Master roster. Legacy `audit_instruction_rows.team` and `auditor` are not print sources.
+- The Section matrix follows master `seksi.urutan_tampil` and uses FORM-003-specific symbols: target `★`, terkait `●`, blank when unmarked. Product cells come from `matriks_produk_marks`; Manufacturing/Shift cells come from `matriks_manufaktur_shift_marks`. Non-applicable regions use gray cells with vector slashes.
+- Product execution date is `tanggal_audit_produk`, falling back to `tanggal_pelaksanaan_audit`; System/Manufacturing/Shift execution date is `tanggal_pelaksanaan_audit`. Product-only fields are visibly non-applicable on all other row types.
+- Added additive, authorization-scoped, read-only RPC `get_audit_instruction_print_data(uuid)`. It returns Instruction metadata, ordered master dimensions and rows, authoritative Team/process data, type-owned execution date, and workflow-derived progress/completion in one projection rather than React N+1 reads. Its private authorization helper requires an active identity and delegates row scope to the existing Dashboard/Instruction access semantics; only the public RPC is executable by `authenticated`.
+- Instruction completion is not persisted. When formal Findings exist, every formal Finding must have its canonical LTP and each current LTP must be `ADMIN_REVIEW` or `CLOSED` with its latest Auditor/Admin decision being `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`; completion is the maximum effective Auditor CLOSE timestamp. A later `ADMIN_RETURNED_TO_AUDITOR` invalidates an earlier close until a newer Auditor CLOSE. With zero formal Findings/LTPs, every row must be Established and every required Section report Final; completion is the maximum required report `finalized_at`.
+- Row progress is derived with highest-state precedence: (1) Established + zero formal Findings; (2) Established + formal `PUBLISHED`/`LEGACY_ESTABLISHED` Findings; (3) every required Section report Final; (4) every canonical LTP is in `AUDITOR_REVIEW`, `AUDITOR_RETURNED`, `ADMIN_REVIEW`, or `CLOSED`; (5) Established + reports Final and either zero Findings or every LTP has a current effective Auditor CLOSE. `ANNULLED` Findings do not count.
+- Print orientation is injected only while `.form003-print-root` is mounted and shell resets are guarded with `body:has(.form003-print-root)`. The static FORM-003 stylesheet contains no `@page`, avoiding orientation leakage into FORM-001, FORM-010, FORM-014, FORM-015, or Daftar Ketidaksesuaian.
+- Added dependency-free presentation regression and rollback-only SQL contract regression. Local TypeScript, targeted lint, build, and presentation results are recorded in the implementing PR; the SQL regression has not been run because no explicitly approved non-Production database was supplied.
+- Authenticated Chrome Print Preview UAT—including explicit FORM-003 A3 landscape → FORM-015 A4 portrait switching—remains pending and is not claimed. The additive migration was not applied anywhere; Production is untouched.
+
+
+## FORM-003 pre-Staging correction pass — 28 Sep 2026
+
+**Status:** `CORRECTED ON PR #33 — STAGING MIGRATION/DB REGRESSION + BROWSER UAT PENDING`.
+
+- Reviewed the initial FORM-003 implementation before any database application and corrected four pre-Staging blockers.
+- Authorization is now aligned with the existing `Instruksi Audit` module: FORM-003 print RPC is **Admin-only**. Company Lead / Dashboard row scope no longer grants whole-Instruction print access. The public RPC remains authenticated-executable but re-checks Admin identity; the helper remains private.
+- Required FORM-015 scope is now derived only from authoritative `target/terkait` Section marks on `Reguler` rows. Final reports are counted only when `audit_internal_reports.seksi_id` matches that required Section set, so an unrelated Final report cannot satisfy another required Section.
+- Product / Manufacturing / Shift rows treat FORM-015 as **N/A**. Their ZERO FINDING rows can reach Complete when Established; they do not fabricate an Audit Report Sent milestone.
+- Instruction `Tanggal Selesai` now requires **every QA row** to be Established and every applicable report obligation satisfied before any completion date can exist.
+- If the Instruction has formal Findings/LTPs, the completion date remains the latest current effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` across all required LTPs, and a later `ADMIN_RETURNED_TO_AUDITOR` invalidates the prior close until a later Auditor CLOSE occurs.
+- For ZERO-LTP Instructions, completion uses the latest required Final FORM-015 timestamp for regular rows and the authoritative execution date for special rows; mixed Instructions use the latest applicable milestone across those rows.
+- Replaced the original source-text-only SQL regression with a rollback-only behavioral fixture regression that actually calls `get_audit_instruction_print_data(uuid)` and covers Team Master source, Section-report isolation, ZERO FINDING, Product/Manufacturing execution dates and report N/A semantics, Finding status, report-sent status, LTP submitted status, effective Auditor CLOSE, whole-Instruction completion blocking, Admin Return invalidation, later re-close, CLOSED qualification, and Admin-only privilege behavior.
+- Presentation regression was extended to guard the Admin-only capability, scoped report join, whole-Instruction completion gate, special-row report N/A rule, and special-row execution-date fallback.
+- The repository migration `20260928120000_add_form003_instruction_print_read_model.sql` is still **unapplied** to Staging/Production, so it remains safe to correct in place before first application.
+- Production remains untouched. Authenticated Chrome A3 Print Preview and FORM-003 → FORM-015 orientation switching remain pending.
+
+
+## FORM-003 Staging migration and behavioral regression — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — AUTHENTICATED A3 BROWSER UAT PENDING`.
+
+- Applied repository migration `20260928120000_add_form003_instruction_print_read_model.sql` to `CertiTrack-Staging` only.
+- Staging ledger recorded it as `20260928072332 add_form003_instruction_print_read_model` (hosted ledger timestamp differs from repository filename, consistent with prior project migrations).
+- The applied migration is now **frozen**. Any later DB correction must use a new additive migration; do not rewrite the already-applied file.
+- First hosted behavioral regression run exposed an incomplete test fixture: the A/B checklist items were not linked back to their generated Findings, so the authoritative `annual_actual_checklist_complete(...)` correctly kept the QA non-Established.
+- Corrected only the rollback regression fixture by populating the checklist-item `finding_id` links; no change to the already-applied migration was required.
+- Full hosted rollback-only `supabase/tests/form003_print_regression.sql` then passed.
+- Post-regression cleanup verified zero synthetic FORM-003 auth users, profiles, Instruction rows, Findings, CARs, and Internal Audit Reports.
+- Final privilege verification:
+  - `get_audit_instruction_print_data(uuid)`: `SECURITY DEFINER` with explicit `search_path=pg_catalog, public`;
+  - authenticated EXECUTE = yes;
+  - anon EXECUTE = no;
+  - private `form003_can_access_instruction(uuid)`: authenticated/anon EXECUTE = no.
+- Real-data Admin sanity call against the most recent Staging Instruction returned a valid FORM-003 payload with 5 audit rows. Its derived `completion_date` is currently null, which is valid for an Instruction that has not yet satisfied all completion conditions.
+- Production remains untouched. PR #33 remains open/unmerged. Next gate is authenticated A3 landscape browser/Print Preview UAT, including FORM-003 → FORM-015 orientation switching.
+
+
+## FORM-003 29-row density, quadrant progress, and auditor split — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — AUTHENTICATED A3 BROWSER UAT PENDING`.
+
+- Applied a presentation-only correction after the FORM-003 read-model migration had already passed Staging. The frozen migration `20260928120000_add_form003_instruction_print_read_model.sql` was not modified and no additive DB migration was required.
+- Increased the centralized deterministic A3 capacity from 22 to **29 audit rows per physical sheet**. The final sheet still receives filler rows below capacity, and row counts above 29 continue onto page 2+ through the existing pagination helper.
+- Removed the visible `Kapasitas terkendali: 22 baris` print text; document code and repeated status legend remain.
+- Compressed only print geometry (page padding, header/approval heights, matrix headers, row/filler heights, footer spacing and print typography) to target the current 29-row Instruction on one A3 landscape sheet without changing backend semantics.
+- Replaced the old striped Status Progress swatches with one reusable **2×2 four-quadrant square motif**. Status 1–5 render respectively zero, one, two, three, or four filled quadrants; rows and the legend reuse the same `StatusMark` component.
+- Split the former combined Auditor column into two controlled columns:
+  - `Leader audit`: Team Master Lead only, prefixed with `★`;
+  - `Auditor`: Team Master Members only, one name per line.
+- Team remains sourced only from `audit_team_masters.kode_tim`; legacy row Team/Auditor fields remain unused.
+- Added explicit width priorities for Team, Process, Owner, No. audit, Leader audit, and member Auditor columns so the extra auditor split does not consume matrix space unpredictably.
+- Updated `tests/form003-presentation.cjs` to lock the 29-row capacity, removal of the capacity helper text, separate Leader/Auditor rendering, Leader star, four-quadrant motif, absence of striped gradients, shared row/legend motif, and continuation pagination.
+- Backend/Staging state is unchanged by this correction. Production remains untouched.
+- Browser UAT must verify that the real 29-row dataset fits on one physical A3 landscape sheet, the 2×2 progress legend visually matches the controlled form, Leader/Member columns remain readable, and FORM-003 → FORM-015 orientation isolation still holds.
+
+
+## FORM-003 full-cell Status Progress quadrants — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — VISUAL UAT PENDING`.
+
+- Refined only the FORM-003 Status Progress presentation after browser review.
+- The Status Progress table cell itself is now divided into a full-size 2×2 grid using the existing cell border as the outer boundary plus one internal vertical and one internal horizontal divider.
+- The previous small 2×2 box centered inside the table cell is removed for row rendering.
+- Even a status-0/unavailable row still shows the empty four-part cell structure; status 1–5 continue to map to zero, one, two, three, or four filled quadrants.
+- The compact 2×2 symbol remains in the footer legend because the legend is explanatory rather than a table cell.
+- No backend, RPC, migration, Staging schema, workflow semantics, pagination, or Production state changed.
+- Presentation regression now requires the full-cell grid, zero inner padding, absolute 100% cell fill, internal vertical/horizontal dividers, and shared legend renderer.
+
+
+## FORM-003 Cek selesai uses effective LTP verification date — 28 Sep 2026
+
+**Status:** `STAGING DB PASS — VISUAL UAT PENDING`.
+
+- Removed the printed checklist symbol from FORM-003 `Cek selesai`.
+- `Cek selesai` now renders a derived per-QA date `cek_selesai_date`.
+- The date is present only when the QA has formal Findings, every formal Finding has its canonical LTP, and every required LTP currently has an effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` decision. The printed date is the latest effective CLOSE timestamp across those LTPs.
+- ZERO FINDING / no-LTP rows keep `Cek selesai` blank.
+- A later `ADMIN_RETURNED_TO_AUDITOR` invalidates the effective date and returns `Cek selesai` to blank until a later Auditor CLOSE re-establishes it.
+- Existing LTP workflow permissions were not changed. The current workflow authorizes eligible Auditors through `auditor_user_can_receive_finding(...)`; this correction only changes the FORM-003 projection/print output and does not silently restrict LTP verification to Team Leaders.
+- Added additive migration `20260928163000_add_form003_check_completion_date.sql`; the original Staging-applied FORM-003 migration remains frozen.
+- Staging ledger entry: `20260928100047 add_form003_check_completion_date`.
+- Hosted rollback-only FORM-003 regression passed with new assertions for blank-before-CLOSE, latest effective CLOSE date, Admin Return invalidation, later CLOSE restoration, and ZERO FINDING blank behavior.
+- Post-regression cleanup verified zero synthetic FORM-003 auth/profile/Instruction/Finding/CAR/report fixtures.
+- RPC privilege contract remains unchanged: authenticated EXECUTE = yes, anon = no, private access helper authenticated = no, explicit `SECURITY DEFINER search_path=pg_catalog, public`.
+- Production remains untouched. PR #33 remains open/unmerged.
+
+
+## FORM-003 Cek selesai Zero Finding slash refinement — 28 Sep 2026
+
+**Status:** `IMPLEMENTED ON PR #33 — VISUAL UAT PENDING`.
+
+- Finalized the FORM-003 `Cek selesai` presentation rule:
+  - rows with one or more formal Findings render the derived `cek_selesai_date` only after every required LTP for that QA retains a current effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN`;
+  - ZERO FINDING rows render a full-cell diagonal slash from bottom-left to top-right instead of a date, blank cell, or checklist symbol.
+- The Zero Finding slash reuses the existing deterministic SVG `Slash` component, so the line is vector-based and fills the actual table cell.
+- The read model continues to return `cek_selesai_date = null` for Zero Finding rows; the slash is intentionally a print/presentation rule rather than fabricated workflow data.
+- The existing additive FORM-003 completion-date migration remains the backend source for effective LTP verification dates; no new database change was required for this visual refinement.
+- Presentation regression now requires the Zero Finding conditional slash, Finding-row derived date, white full-cell slash styling, absence of the old checklist symbol, and the shared Status Progress quadrant renderer.
+- No change to 29-row capacity, A3 landscape isolation, Leader/Auditor split, Status Progress quadrants, workflow semantics, Staging schema, or Production.
+
+## FORM-003 Cek selesai correction-pass regression — 7 Oct 2026
+
+**Status:** `LOCAL REGRESSION PASS — VISUAL UAT PENDING`.
+
+- Continued existing PR #33 from `f352ad986c709452165e6ab782632bd24c7ea98b`. That head already implements the requested Cek selesai date and Zero Finding slash; no application, read-model, or backend adjustment was needed in this pass.
+- Fixed the stale presentation-regression reference to `StatusMark`; the existing row/legend renderer is `StatusQuadrants`. Neither the progress cell nor its legend changed.
+- Added actual React print-component render checks for Finding rows with an authoritative `cek_selesai_date`, incomplete Finding rows with a null date, and Zero Finding rows with null or stale dates. The legacy `cek_selesai` boolean cannot create a checklist mark or override the authoritative date.
+- Non-zero Finding rows retain the latest effective `AUDITOR_VERIFIED_CLOSE_TO_ADMIN` timestamp across all required canonical LTPs, only when each formal Finding has an LTP and every required LTP has a current effective CLOSE. A later Admin Return invalidates that CLOSE until re-verification. The regression locks the existing SQL event selection, ordering, and maximum-date projection structurally; it does not claim a new database execution.
+- Zero Finding retains a slash-only actual penultimate table cell, immediately before Status progress. The shared SVG runs from `(0,100)` to `(100,0)`, is anchored to the cell with absolute positioning and full width/height, and uses a non-scaling vector stroke. No date, checklist symbol, or bitmap is rendered there.
+- Added render/pagination boundary cases for 0, 1, 29, 30, 58, and 59 rows: 29 controlled slots per page, preserved row order, repeated column headers/legend/document code, and unchanged slash-only approvals on continuation pages.
+- Exact files changed in this pass: `tests/form003-presentation.cjs` and `PROJECT_STATUS.md`. No SQL/read-model change was required, so the existing rollback-only SQL regression remains unchanged and was not rerun against a database.
+- Validation PASS: `node tests/form003-presentation.cjs`; `npm run typecheck`; `npx eslint src/components/pages/InstruksiAuditPage.tsx src/components/pages/InstructionAuditPrintView.tsx src/lib/instructionAuditPrint.ts src/lib/types.ts src/services/auditInstructionService.ts`; `npm run build`; `git diff --check`. Build retains non-failing Browserslist age and bundle-size warnings.
+- No merge or new PR. Production and all unrelated forms/dashboard remain untouched. Authenticated browser/physical A3 Print Preview UAT remains pending.
